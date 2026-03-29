@@ -135,6 +135,13 @@ Fluxo atual:
 - `tags v*`: gera release com artefatos
 - `workflow_dispatch`: execucao manual
 
+## Codemagic
+
+O projeto tambem inclui configuracao pronta para Codemagic:
+
+- `codemagic.yaml`
+- `docs/CODEMAGIC_SETUP.md`
+
 ## Testes
 
 Comandos principais:
