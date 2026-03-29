@@ -1,0 +1,46 @@
+name: Feature request
+description: Propor uma melhoria ou nova capacidade do app.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema ou oportunidade
+      description: O que esta faltando ou poderia ser melhor?
+      placeholder: Hoje o usuario nao consegue...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Solucao proposta
+      description: Descreva a funcionalidade desejada.
+      placeholder: Adicionar um fluxo para...
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impacto esperado
+      description: Como isso melhora o produto?
+      placeholder: Reduz abandono no onboarding, melhora retencao...
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area principal
+      options:
+        - Auth
+        - Quiz
+        - Open Quiz
+        - Simulado
+        - Flashcards
+        - Biblioteca
+        - Study Plan
+        - Premium
+        - Infra / CI
+        - UX / Design
+        - Outro
+    validations:
+      required: true

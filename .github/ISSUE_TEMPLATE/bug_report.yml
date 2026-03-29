@@ -1,0 +1,67 @@
+name: Bug report
+description: Reportar um erro reproduzivel no app ou no fluxo de build.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar. Preencha os campos abaixo com o maximo de contexto reproduzivel.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Resumo
+      description: O que quebrou?
+      placeholder: O app fecha ao abrir a tela de quiz...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+      description: Liste os passos exatos.
+      placeholder: |
+        1. Abrir o app
+        2. Fazer login
+        3. Ir para Quiz
+        4. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+      placeholder: O app deveria carregar a lista de perguntas.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamento atual
+      placeholder: O app trava e volta para a tela inicial.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Plataforma
+      options:
+        - Android
+        - iOS
+        - Windows
+        - CI / GitHub Actions
+        - Outra
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versao
+      description: Informe a versao do app, commit ou tag se souber.
+      placeholder: 2.0.8+2 / main / v2.0.8
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, stack trace ou prints
+      render: shell

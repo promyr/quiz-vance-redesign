@@ -4,6 +4,8 @@ Flutter app para estudo com IA, quizzes objetivos e dissertativos, flashcards co
 
 [![Build and Release](https://github.com/promyr/quiz-vance-redesign/actions/workflows/build.yml/badge.svg)](https://github.com/promyr/quiz-vance-redesign/actions/workflows/build.yml)
 
+![Quiz Vance Redesign preview](docs/images/repo-hero.png)
+
 ## Visao geral
 
 O Quiz Vance Redesign e o cliente Flutter da nova experiencia do Quiz Vance. O projeto foi estruturado por features e roda hoje em:
