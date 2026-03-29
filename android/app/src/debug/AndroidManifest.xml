@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.quizvance.quiz_vance_flutter">
+
+    <!-- Debug configuration for Quiz Vance Flutter -->
+    <!-- This file is empty as all required permissions are defined in the main AndroidManifest.xml -->
+
+</manifest>
