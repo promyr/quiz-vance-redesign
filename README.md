@@ -4,7 +4,9 @@ Flutter app para estudo com IA, quizzes objetivos e dissertativos, flashcards co
 
 [![Build and Release](https://github.com/promyr/quiz-vance-redesign/actions/workflows/build.yml/badge.svg)](https://github.com/promyr/quiz-vance-redesign/actions/workflows/build.yml)
 
-![Quiz Vance Redesign preview](docs/images/repo-hero.png)
+<p align="center">
+  <img src="assets/quiz_vance_logo_1024.png" alt="Quiz Vance official logo" width="260" />
+</p>
 
 ## Visao geral
 

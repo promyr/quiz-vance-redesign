@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D0E14"/>
+      <stop offset="100%" stop-color="#1E2030"/>
+    </linearGradient>
+
+    <linearGradient id="shieldFill" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#6C63FF"/>
+      <stop offset="50%" stop-color="#6C63FF"/>
+      <stop offset="100%" stop-color="#4B44CC"/>
+    </linearGradient>
+
+    <linearGradient id="shieldRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9D97FF"/>
+      <stop offset="100%" stop-color="#6C63FF"/>
+    </linearGradient>
+
+    <!-- Bolt: white-to-light-cyan instead of gold -->
+    <linearGradient id="boltFill" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#F0F0FF"/>
+      <stop offset="100%" stop-color="#BFC3D6"/>
+    </linearGradient>
+
+    <filter id="boltGlow" x="-25%" y="-10%" width="150%" height="120%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="shieldGlow" x="-12%" y="-12%" width="124%" height="124%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10"/>
+    </filter>
+
+    <filter id="dotGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.5"/>
+    </filter>
+  </defs>
+
+  <!-- ═══ BACKGROUND ═══ -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- ═══ SHIELD (rounded organic hexagon — badge shape) ═══ -->
+  <path d="
+    M 256,78
+    C 278,78 350,108 380,145
+    C 410,182 428,222 428,262
+    C 428,302 410,342 380,379
+    C 350,416 294,442 256,442
+    C 218,442 162,416 132,379
+    C 102,342 84,302 84,262
+    C 84,222 102,182 132,145
+    C 162,108 234,78 256,78 Z
+  " fill="#6C63FF" opacity="0.12" filter="url(#shieldGlow)"/>
+
+  <path id="shield" d="
+    M 256,78
+    C 278,78 350,108 380,145
+    C 410,182 428,222 428,262
+    C 428,302 410,342 380,379
+    C 350,416 294,442 256,442
+    C 218,442 162,416 132,379
+    C 102,342 84,302 84,262
+    C 84,222 102,182 132,145
+    C 162,108 234,78 256,78 Z
+  " fill="url(#shieldFill)"/>
+
+  <!-- Shield rim -->
+  <use href="#shield" fill="none" stroke="url(#shieldRim)" stroke-width="3" opacity="0.55"/>
+
+  <!-- Shield glass highlight (top half) -->
+  <path d="
+    M 256,86
+    C 274,86 340,114 368,148
+    C 396,182 412,216 414,252
+    L 98,252
+    C 100,216 116,182 144,148
+    C 172,114 238,86 256,86 Z
+  " fill="rgba(255,255,255,0.07)"/>
+
+  <!-- ═══ CIRCUIT / NEURON LINES ═══
+       Radial lines from center outward — abstract neural network.
+       Thicker than v2, clearly visible.
+  -->
+  <g stroke="#9D97FF" fill="none" stroke-linecap="round" opacity="0.55">
+    <!-- Upper-left -->
+    <polyline points="248,210 195,168 152,145" stroke-width="2.5"/>
+    <!-- Upper-right -->
+    <polyline points="268,210 318,165 362,142" stroke-width="2.5"/>
+    <!-- Mid-left -->
+    <polyline points="240,262 178,268 132,280" stroke-width="2.5"/>
+    <!-- Mid-right -->
+    <polyline points="278,255 336,250 382,258" stroke-width="2.5"/>
+    <!-- Lower-left -->
+    <polyline points="244,320 190,355 150,378" stroke-width="2.5"/>
+    <!-- Lower-right -->
+    <polyline points="268,318 322,352 365,375" stroke-width="2.5"/>
+    <!-- Straight up -->
+    <polyline points="256,195 256,138 256,108" stroke-width="2"/>
+    <!-- Straight down -->
+    <polyline points="256,330 256,386 256,416" stroke-width="2"/>
+  </g>
+
+  <!-- Junction nodes (bright dots at line intersections and endpoints) -->
+  <g>
+    <!-- Ring nodes (medium size, at branch midpoints) -->
+    <circle cx="195" cy="168" r="5.5" fill="#9D97FF" opacity="0.85"/>
+    <circle cx="195" cy="168" r="5.5" fill="#9D97FF" opacity="0.4" filter="url(#dotGlow)"/>
+    <circle cx="318" cy="165" r="5.5" fill="#9D97FF" opacity="0.85"/>
+    <circle cx="318" cy="165" r="5.5" fill="#9D97FF" opacity="0.4" filter="url(#dotGlow)"/>
+    <circle cx="178" cy="268" r="5" fill="#9D97FF" opacity="0.8"/>
+    <circle cx="178" cy="268" r="5" fill="#9D97FF" opacity="0.35" filter="url(#dotGlow)"/>
+    <circle cx="336" cy="250" r="5" fill="#9D97FF" opacity="0.8"/>
+    <circle cx="336" cy="250" r="5" fill="#9D97FF" opacity="0.35" filter="url(#dotGlow)"/>
+    <circle cx="190" cy="355" r="4.5" fill="#9D97FF" opacity="0.7"/>
+    <circle cx="190" cy="355" r="4.5" fill="#9D97FF" opacity="0.3" filter="url(#dotGlow)"/>
+    <circle cx="322" cy="352" r="4.5" fill="#9D97FF" opacity="0.7"/>
+    <circle cx="322" cy="352" r="4.5" fill="#9D97FF" opacity="0.3" filter="url(#dotGlow)"/>
+
+    <!-- Terminal nodes (small, at endpoints) -->
+    <circle cx="152" cy="145" r="3.5" fill="#F0F0FF"/>
+    <circle cx="362" cy="142" r="3.5" fill="#F0F0FF"/>
+    <circle cx="132" cy="280" r="3" fill="#F0F0FF" opacity="0.8"/>
+    <circle cx="382" cy="258" r="3" fill="#F0F0FF" opacity="0.8"/>
+    <circle cx="150" cy="378" r="3" fill="#F0F0FF" opacity="0.7"/>
+    <circle cx="365" cy="375" r="3" fill="#F0F0FF" opacity="0.7"/>
+    <circle cx="256" cy="108" r="3" fill="#F0F0FF" opacity="0.7"/>
+    <circle cx="256" cy="416" r="3" fill="#F0F0FF" opacity="0.6"/>
+  </g>
+
+  <!-- ═══ LIGHTNING BOLT (white, sharp, thin — the hero element) ═══
+       Narrower polygon with sharper angles. NO heavy glow blur.
+       The white color on purple reads clearly as "energy/power".
+  -->
+  <g filter="url(#boltGlow)">
+    <polygon
+      points="274,128 244,250 268,250 236,388 282,242 258,242"
+      fill="url(#boltFill)"/>
+  </g>
+
+  <!-- Bolt edge highlight (subtle stroke for definition) -->
+  <polygon
+    points="274,128 244,250 268,250 236,388 282,242 258,242"
+    fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linejoin="bevel"/>
+
+  <!-- ═══ ACCENT SPARKLES (small, gold/yellow — XP feel) ═══ -->
+
+  <!-- Top-right 4-point star -->
+  <g transform="translate(418,82)" fill="#FFE66D" opacity="0.85">
+    <rect x="-1.2" y="-9" width="2.4" height="18" rx="1.2"/>
+    <rect x="-9" y="-1.2" width="18" height="2.4" rx="1.2"/>
+  </g>
+
+  <!-- Top-left small star -->
+  <g transform="translate(98,108)" fill="#FFE66D" opacity="0.6">
+    <rect x="-1" y="-6" width="2" height="12" rx="1"/>
+    <rect x="-6" y="-1" width="12" height="2" rx="1"/>
+  </g>
+
+  <!-- Bottom-right accent dot -->
+  <circle cx="410" cy="415" r="3.5" fill="#FFE66D" opacity="0.5"/>
+  <!-- Bottom-left accent dot -->
+  <circle cx="100" cy="395" r="3" fill="#FFE66D" opacity="0.45"/>
+
+</svg>
