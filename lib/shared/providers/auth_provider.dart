@@ -66,8 +66,7 @@ class _AuthNotifier extends AsyncNotifier<AuthState> {
     required String loginId,
     required String password,
   }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    final nextState = await AsyncValue.guard(() async {
       final data = await ref.read(authRepositoryProvider).login(
             loginId: loginId,
             password: password,
@@ -75,6 +74,7 @@ class _AuthNotifier extends AsyncNotifier<AuthState> {
       return _stateFromUser(
           (data['user'] as Map<String, dynamic>?) ?? const {});
     });
+    state = nextState;
   }
 
   Future<void> register({
@@ -83,8 +83,7 @@ class _AuthNotifier extends AsyncNotifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    final nextState = await AsyncValue.guard(() async {
       final data = await ref.read(authRepositoryProvider).register(
             name: name,
             loginId: loginId,
@@ -94,6 +93,7 @@ class _AuthNotifier extends AsyncNotifier<AuthState> {
       return _stateFromUser(
           (data['user'] as Map<String, dynamic>?) ?? const {});
     });
+    state = nextState;
   }
 
   Future<void> updateProfile({String? name, String? avatarUrl}) async {

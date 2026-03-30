@@ -1,19 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@android:color/transparent" />
-    <item android:width="96dp" android:height="96dp" android:gravity="center">
+    <item android:width="72dp" android:height="72dp" android:gravity="center">
         <shape android:shape="rectangle">
-            <corners android:radius="24dp" />
-            <solid android:color="#171B28" />
-        </shape>
-    </item>
-    <item android:width="62dp" android:height="62dp" android:gravity="center">
-        <shape android:shape="rectangle">
-            <corners android:radius="18dp" />
+            <corners android:radius="20dp" />
             <solid android:color="#FFFFFFFF" />
         </shape>
     </item>
-    <item android:width="42dp" android:height="42dp" android:gravity="center">
+    <item android:width="48dp" android:height="48dp" android:gravity="center">
         <bitmap
             android:src="@drawable/quiz_vance_launcher_mark"
             android:gravity="center" />

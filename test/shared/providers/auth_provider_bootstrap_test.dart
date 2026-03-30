@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/features/auth/data/auth_repository.dart';
+import 'package:quiz_vance_flutter/features/auth/domain/auth_state.dart';
 import 'package:quiz_vance_flutter/shared/providers/auth_provider.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
@@ -141,6 +142,51 @@ void main() {
     expect(state.userId, isNull);
     verifyNever(() => authRepository.getMe());
     verifyNever(() => authRepository.clearSession());
+  });
+
+  test('login atualiza o estado sem reativar loading global', () async {
+    when(() => authRepository.restorePersistedSession()).thenAnswer(
+      (_) async => const PersistedAuthSession.none(),
+    );
+    when(
+      () => authRepository.login(
+        loginId: any(named: 'loginId'),
+        password: any(named: 'password'),
+      ),
+    ).thenAnswer(
+      (_) async => {
+        'user': {
+          'id': 'user-99',
+          'login_id': 'belchior',
+          'email': 'belchior@test.com',
+          'name': 'Belchior',
+        },
+      },
+    );
+
+    final container = makeContainer();
+    addTearDown(container.dispose);
+
+    final initialState = await container.read(authStateProvider.future);
+    expect(initialState.isAuthenticated, isFalse);
+
+    final observed = <AsyncValue<AuthState>>[];
+    final subscription = container.listen<AsyncValue<AuthState>>(
+      authStateProvider,
+      (_, next) => observed.add(next),
+      fireImmediately: true,
+    );
+    addTearDown(subscription.close);
+
+    await container.read(authStateProvider.notifier).login(
+          loginId: 'belchior',
+          password: '123456',
+        );
+
+    final finalState = container.read(authStateProvider).valueOrNull;
+    expect(finalState?.isAuthenticated, isTrue);
+    expect(finalState?.loginId, equals('belchior'));
+    expect(observed.where((state) => state.isLoading), isEmpty);
   });
 
   test('desiste do bootstrap preso apos timeout e segue desautenticado',

@@ -42,6 +42,17 @@ final onboardingGateProvider = FutureProvider<bool>((ref) async {
   }
 });
 
+bool isAppBootstrapLoading({
+  required bool authLoading,
+  required bool authHasValue,
+  required bool onboardingLoading,
+  required bool onboardingHasValue,
+}) {
+  final authBootstrapping = authLoading && !authHasValue;
+  final onboardingBootstrapping = onboardingLoading && !onboardingHasValue;
+  return authBootstrapping || onboardingBootstrapping;
+}
+
 String? resolveAppRedirect({
   required bool authLoading,
   required bool isAuthenticated,
@@ -98,9 +109,15 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: _bootRoute,
     redirect: (context, state) {
       final isAuthenticated = authState.valueOrNull?.isAuthenticated ?? false;
+      final bootstrapLoading = isAppBootstrapLoading(
+        authLoading: authState.isLoading,
+        authHasValue: authState.hasValue,
+        onboardingLoading: onboardingState.isLoading,
+        onboardingHasValue: onboardingState.hasValue,
+      );
 
       return resolveAppRedirect(
-        authLoading: authState.isLoading || onboardingState.isLoading,
+        authLoading: bootstrapLoading,
         isAuthenticated: isAuthenticated,
         shouldShowOnboardingFlag: onboardingState.valueOrNull ?? false,
         location: state.matchedLocation,

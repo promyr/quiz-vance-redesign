@@ -2,6 +2,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_vance_flutter/app/router.dart';
 
 void main() {
+  group('isAppBootstrapLoading', () {
+    test('trata bootstrap inicial como carregamento global', () {
+      final result = isAppBootstrapLoading(
+        authLoading: true,
+        authHasValue: false,
+        onboardingLoading: false,
+        onboardingHasValue: false,
+      );
+
+      expect(result, isTrue);
+    });
+
+    test('ignora loading transitorio quando auth ja tem valor', () {
+      final result = isAppBootstrapLoading(
+        authLoading: true,
+        authHasValue: true,
+        onboardingLoading: false,
+        onboardingHasValue: false,
+      );
+
+      expect(result, isFalse);
+    });
+
+    test('ignora loading transitorio quando onboarding ja tem valor', () {
+      final result = isAppBootstrapLoading(
+        authLoading: false,
+        authHasValue: true,
+        onboardingLoading: true,
+        onboardingHasValue: true,
+      );
+
+      expect(result, isFalse);
+    });
+  });
+
   group('resolveAppRedirect', () {
     test('envia para boot enquanto auth esta carregando', () {
       final redirect = resolveAppRedirect(

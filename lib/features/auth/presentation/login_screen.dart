@@ -22,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _nameCtrl = TextEditingController();
 
   bool _isRegister = false;
+  bool _isSubmitting = false;
   bool _obscurePassword = true;
 
   @override
@@ -34,42 +35,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
+    if (_isSubmitting || !_formKey.currentState!.validate()) {
       return;
     }
 
     final auth = ref.read(authStateNotifierProvider.notifier);
+    setState(() => _isSubmitting = true);
 
-    if (_isRegister) {
-      await auth.register(
-        name: _nameCtrl.text.trim(),
-        loginId: _loginIdCtrl.text.trim(),
-        email: _emailCtrl.text.trim(),
-        password: _passwordCtrl.text,
-      );
-    } else {
-      await auth.login(
-        loginId: _loginIdCtrl.text.trim(),
-        password: _passwordCtrl.text,
-      );
-    }
-
-    final state = ref.read(authStateNotifierProvider);
-    if (!mounted) {
-      return;
-    }
-
-    state.whenOrNull(
-      error: (error, _) {
-        final message = _friendlyAuthError(error);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: AppColors.error,
-          ),
+    try {
+      if (_isRegister) {
+        await auth.register(
+          name: _nameCtrl.text.trim(),
+          loginId: _loginIdCtrl.text.trim(),
+          email: _emailCtrl.text.trim(),
+          password: _passwordCtrl.text,
         );
-      },
-    );
+      } else {
+        await auth.login(
+          loginId: _loginIdCtrl.text.trim(),
+          password: _passwordCtrl.text,
+        );
+      }
+
+      final state = ref.read(authStateNotifierProvider);
+      if (!mounted) {
+        return;
+      }
+
+      state.whenOrNull(
+        error: (error, _) {
+          final message = _friendlyAuthError(error);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   Future<void> _openForgotPassword() async {
@@ -122,8 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateNotifierProvider);
-    final isLoading = authState.isLoading;
+    final isLoading = _isSubmitting;
 
     return Scaffold(
       body: SafeArea(
@@ -240,7 +247,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: _passwordCtrl,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    hintText: '••••••••',
+                    hintText: '********',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -282,11 +289,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 16),
                 Center(
                   child: TextButton(
-                    onPressed: () => setState(() => _isRegister = !_isRegister),
+                    onPressed: isLoading
+                        ? null
+                        : () => setState(() => _isRegister = !_isRegister),
                     child: Text(
                       _isRegister
-                          ? 'Ja tenho conta → Entrar'
-                          : 'Nao tenho conta → Criar conta',
+                          ? 'Ja tenho conta -> Entrar'
+                          : 'Nao tenho conta -> Criar conta',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
