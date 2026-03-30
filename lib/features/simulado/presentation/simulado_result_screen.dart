@@ -14,6 +14,7 @@ import '../../../shared/providers/user_provider.dart';
 import '../../../shared/widgets/achievement_toast.dart';
 import '../../../shared/widgets/sync_status_card.dart';
 import '../data/simulado_repository.dart';
+import '../domain/simulado_review.dart';
 
 class SimuladoResultScreen extends ConsumerStatefulWidget {
   const SimuladoResultScreen({super.key, required this.result});
@@ -131,6 +132,7 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
 
     final pct = (result.accuracy * 100).round();
     final topics = _topicStats(result.answers);
+    final wrongAnswers = reviewableSimuladoAnswers(result);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -319,6 +321,16 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
                 ).animate(delay: 220.ms).fadeIn(),
               ],
               const SizedBox(height: 22),
+              if (wrongAnswers.isNotEmpty) ...[
+                _SecondaryAction(
+                  label: 'Revisar erros (${wrongAnswers.length})',
+                  onTap: () => context.pushNamed(
+                    'simuladoReview',
+                    extra: {'result': result},
+                  ),
+                ).animate(delay: 280.ms).fadeIn(),
+                const SizedBox(height: 10),
+              ],
               _PrimaryAction(
                 label: 'Novo simulado',
                 onTap: () => context.go('/simulado'),

@@ -15,6 +15,7 @@ import '../domain/flashcard_model.dart';
 class FlashcardHubReviewModel {
   const FlashcardHubReviewModel({
     required this.isEmpty,
+    required this.hasDueCards,
     required this.bannerEmoji,
     required this.bannerTitle,
     required this.bannerSubtitle,
@@ -22,6 +23,7 @@ class FlashcardHubReviewModel {
   });
 
   final bool isEmpty;
+  final bool hasDueCards;
   final String bannerEmoji;
   final String bannerTitle;
   final String bannerSubtitle;
@@ -33,24 +35,40 @@ String _flashcardLabel(int count) => 'card${count > 1 ? 's' : ''}';
 FlashcardHubReviewModel buildFlashcardHubReviewModel(
   List<Flashcard> cards,
 ) {
-  final count = cards.length;
+  final totalCount = cards.length;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final dueCount = cards.where((card) => !card.dueDate.isAfter(today)).length;
 
-  if (count == 0) {
+  if (totalCount == 0) {
     return const FlashcardHubReviewModel(
       isEmpty: true,
+      hasDueCards: false,
       bannerEmoji: '✅',
-      bannerTitle: 'Tudo em dia!',
-      bannerSubtitle: 'Volte amanha ou gere novos cards abaixo',
-      ctaLabel: 'Sem cards pendentes hoje',
+      bannerTitle: 'Nenhum flashcard salvo',
+      bannerSubtitle: 'Gere novos cards abaixo para iniciar sua revisão.',
+      ctaLabel: 'Gerar flashcards para estudar',
+    );
+  }
+
+  if (dueCount == 0) {
+    return const FlashcardHubReviewModel(
+      isEmpty: false,
+      hasDueCards: false,
+      bannerEmoji: '🔁',
+      bannerTitle: 'Revisão contínua pronta',
+      bannerSubtitle: 'Sem pendentes agora, mas seu deck continua disponível.',
+      ctaLabel: 'Continuar revisão',
     );
   }
 
   return FlashcardHubReviewModel(
     isEmpty: false,
+    hasDueCards: true,
     bannerEmoji: '🧠',
-    bannerTitle: '$count ${_flashcardLabel(count)} para hoje',
-    bannerSubtitle: 'Revisao espacada com algoritmo FSRS',
-    ctaLabel: 'Revisar $count ${_flashcardLabel(count)} agora',
+    bannerTitle: '$dueCount ${_flashcardLabel(dueCount)} para hoje',
+    bannerSubtitle: 'Pendentes primeiro, depois o restante do deck continua.',
+    ctaLabel: 'Revisar $dueCount ${_flashcardLabel(dueCount)} agora',
   );
 }
 
@@ -89,6 +107,7 @@ class _FlashcardHubScreenState extends ConsumerState<FlashcardHubScreen> {
           );
 
       ref.invalidate(dueFlashcardsProvider);
+      ref.invalidate(reviewFlashcardsProvider);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -121,7 +140,7 @@ class _FlashcardHubScreenState extends ConsumerState<FlashcardHubScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dueAsync = ref.watch(dueFlashcardsProvider);
+    final reviewAsync = ref.watch(reviewFlashcardsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -156,7 +175,7 @@ class _FlashcardHubScreenState extends ConsumerState<FlashcardHubScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    dueAsync.when(
+                    reviewAsync.when(
                       loading: () => const _StatsBannerSkeleton(),
                       error: (_, __) => const SizedBox.shrink(),
                       data: (cards) => _StatsBanner(
@@ -164,7 +183,7 @@ class _FlashcardHubScreenState extends ConsumerState<FlashcardHubScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    dueAsync.when(
+                    reviewAsync.when(
                       loading: () => const SizedBox.shrink(),
                       error: (_, __) => const SizedBox.shrink(),
                       data: (cards) {

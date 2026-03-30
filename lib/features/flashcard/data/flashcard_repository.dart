@@ -44,6 +44,12 @@ class FlashcardRepository {
     return rows.map(Flashcard.fromDb).toList();
   }
 
+  Future<List<Flashcard>> getReviewDeck() async {
+    await getDue();
+    final rows = await LocalStorage.instance.getReviewFlashcards();
+    return rows.map(Flashcard.fromDb).toList();
+  }
+
   Future<void> review({
     required int localId,
     required String? remoteId,
@@ -119,4 +125,9 @@ final flashcardRepositoryProvider = Provider<FlashcardRepository>(
 final dueFlashcardsProvider =
     FutureProvider.autoDispose<List<Flashcard>>((ref) {
   return ref.watch(flashcardRepositoryProvider).getDue();
+});
+
+final reviewFlashcardsProvider =
+    FutureProvider.autoDispose<List<Flashcard>>((ref) {
+  return ref.watch(flashcardRepositoryProvider).getReviewDeck();
 });

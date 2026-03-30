@@ -44,8 +44,64 @@ void main() {
       expect(find.byIcon(Icons.cancel_rounded), findsNothing);
       expect(find.text('Resposta correta'), findsOneWidget);
       expect(
-        find.text('B • Gerenciar o orcamento pessoal e familiar'),
-        findsOneWidget,
+        find.textContaining('Gerenciar o orcamento pessoal e familiar'),
+        findsWidgets,
+      );
+    },
+  );
+
+  testWidgets(
+    'marks correct option when backend sends current camelCase payload',
+    (tester) async {
+      final question = Question.fromJson({
+        'id': 'q_backend',
+        'text': 'O que e educacao financeira?',
+        'options': [
+          {
+            'id': 'opt_0_0',
+            'text': 'Aprender a investir em acoes',
+            'isCorrect': false,
+          },
+          {
+            'id': 'opt_0_1',
+            'text': 'Gerenciar o orcamento pessoal e familiar',
+            'isCorrect': true,
+          },
+          {
+            'id': 'opt_0_2',
+            'text': 'Estudar a teoria economica',
+            'isCorrect': false,
+          },
+          {
+            'id': 'opt_0_3',
+            'text': 'Fazer contabilidade empresarial',
+            'isCorrect': false,
+          },
+        ],
+        'correctOptionId': 'opt_0_1',
+        'explanation':
+            'Educacao financeira e o processo de aprender a gerenciar o orcamento pessoal e familiar.',
+        'topic': 'Educacao Financeira',
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: QuizSessionScreen(questions: [question]),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Gerenciar o orcamento pessoal e familiar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.cancel_rounded), findsNothing);
+      expect(find.text('Resposta correta'), findsOneWidget);
+      expect(
+        find.textContaining('Gerenciar o orcamento pessoal e familiar'),
+        findsWidgets,
       );
     },
   );

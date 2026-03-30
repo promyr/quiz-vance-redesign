@@ -96,6 +96,35 @@ void main() {
       expect(question.correctOptionId, equals('opt_1'));
     });
 
+    test('fromJson handles current backend camelCase contract', () {
+      final json = {
+        'id': 'q_backend',
+        'text': 'O que e educacao financeira?',
+        'topic': 'Educacao Financeira',
+        'options': [
+          {'id': 'opt_0_0', 'text': 'Aprender a investir', 'isCorrect': false},
+          {
+            'id': 'opt_0_1',
+            'text': 'Gerenciar o orcamento pessoal e familiar',
+            'isCorrect': true,
+          },
+          {'id': 'opt_0_2', 'text': 'Estudar teoria economica', 'isCorrect': false},
+        ],
+        'correctOptionId': 'opt_0_1',
+        'explanation':
+            'Educacao financeira e o processo de aprender a gerenciar o orcamento pessoal e familiar.',
+      };
+
+      final question = Question.fromJson(json);
+
+      expect(question.correctOptionId, equals('opt_0_1'));
+      expect(
+        question.correctOption?.text,
+        equals('Gerenciar o orcamento pessoal e familiar'),
+      );
+      expect(question.correctOptionLetter, equals('B'));
+    });
+
     test('fromJson resolves correct answer when backend sends option letter',
         () {
       final json = {
@@ -153,6 +182,60 @@ void main() {
 
       expect(question.correctOptionId, equals('b'));
       expect(question.correctOption?.text, equals('Certa'));
+    });
+
+    test('fromJson falls back to option flagged with isCorrect', () {
+      final json = {
+        'id': 'q_flagged_camel',
+        'text': 'Pergunta',
+        'options': [
+          {'id': 'a', 'text': 'Errada', 'isCorrect': false},
+          {'id': 'b', 'text': 'Certa', 'isCorrect': true},
+        ],
+      };
+
+      final question = Question.fromJson(json);
+
+      expect(question.correctOptionId, equals('b'));
+      expect(question.correctOption?.text, equals('Certa'));
+    });
+
+    test('fromJson resolves numeric answer index', () {
+      final json = {
+        'id': 'q_numeric',
+        'text': 'Pergunta',
+        'options': [
+          {'id': 'a', 'text': 'Opcao A'},
+          {'id': 'b', 'text': 'Opcao B'},
+          {'id': 'c', 'text': 'Opcao C'},
+        ],
+        'correct_answer': '2',
+      };
+
+      final question = Question.fromJson(json);
+
+      expect(question.correctOptionId, equals('b'));
+      expect(question.correctOption?.text, equals('Opcao B'));
+    });
+
+    test('fromJson matches answer text ignoring accents', () {
+      final json = {
+        'id': 'q_accent',
+        'text': 'Pergunta',
+        'options': [
+          {'id': 'a', 'text': 'Opcao A'},
+          {'id': 'b', 'text': 'Gerenciar o orçamento pessoal e familiar'},
+        ],
+        'correct_answer': 'Gerenciar o orcamento pessoal e familiar',
+      };
+
+      final question = Question.fromJson(json);
+
+      expect(question.correctOptionId, equals('b'));
+      expect(
+        question.correctOption?.text,
+        equals('Gerenciar o orçamento pessoal e familiar'),
+      );
     });
 
     test('fromJson handles missing optional fields', () {

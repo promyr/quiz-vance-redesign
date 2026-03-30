@@ -7,22 +7,15 @@ import '../../../shared/providers/gamification_provider.dart';
 import '../../../shared/providers/user_provider.dart';
 import '../data/flashcard_repository.dart';
 import '../domain/flashcard_model.dart';
+import '../domain/flashcard_review_session.dart';
 
 Future<void> applyFlashcardReviewRewards({
-  required bool isSessionComplete,
-  required int reviewedCardsCount,
   required Future<void> Function() incrementFlashcardsToday,
-  required Future<void> Function(int amount) addXp,
-  required Future<void> Function() incrementStreak,
+  required Future<void> Function() recordFlashcardReview,
 }) async {
   await incrementFlashcardsToday();
-  if (!isSessionComplete) {
-    return;
-  }
-
   try {
-    await addXp(reviewedCardsCount * 5);
-    await incrementStreak();
+    await recordFlashcardReview();
   } catch (error) {
     debugPrint('Gamification error: $error');
   }
@@ -42,6 +35,11 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
 
   bool _showAnswer = false;
   int _currentIndex = 0;
+  int _reviewedCount = 0;
+  int _cycleTotalCount = 0;
+  bool _waitingForNextCycle = false;
+  List<Flashcard> _activeCycleCards = const <Flashcard>[];
+  List<Flashcard> _nextCycleCards = const <Flashcard>[];
 
   @override
   void initState() {
@@ -72,7 +70,6 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
 
   Future<void> _grade(List<Flashcard> cards, FsrsGrade grade) async {
     final card = cards[_currentIndex];
-    final isSessionComplete = _currentIndex + 1 >= cards.length;
 
     await ref.read(flashcardRepositoryProvider).review(
           localId: card.id,
@@ -80,37 +77,53 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
           grade: grade,
         );
     await applyFlashcardReviewRewards(
-      isSessionComplete: isSessionComplete,
-      reviewedCardsCount: cards.length,
       incrementFlashcardsToday: () => ref
           .read(userStatsNotifierProvider.notifier)
           .incrementFlashcardsToday(),
-      addXp: (amount) => ref.read(gamificationProvider.notifier).addXp(amount),
-      incrementStreak: () =>
-          ref.read(gamificationProvider.notifier).incrementStreak(),
+      recordFlashcardReview: () =>
+          ref.read(gamificationProvider.notifier).recordFlashcardReview(),
     );
-
-    if (!isSessionComplete) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _currentIndex++;
-        _showAnswer = false;
-      });
-      _flipController.reset();
-      return;
-    }
 
     if (!mounted) {
       return;
     }
-    context.go('/');
+    final progressed = advanceFlashcardReviewSession(
+      activeCards: cards,
+      nextCycleCards: _nextCycleCards,
+      currentIndex: _currentIndex,
+      reviewedCount: _reviewedCount,
+      cycleTotalCount: _cycleTotalCount,
+      reviewedCard: card,
+    );
+    setState(() {
+      _activeCycleCards = progressed.activeCards;
+      _nextCycleCards = progressed.nextCycleCards;
+      _currentIndex = progressed.currentIndex;
+      _reviewedCount = progressed.reviewedCount;
+      _cycleTotalCount = progressed.cycleTotalCount;
+      _waitingForNextCycle = progressed.waitingForNextCycle;
+      _showAnswer = false;
+    });
+    _flipController.reset();
+  }
+
+  void _continueReviewCycle() {
+    final nextState = continueFlashcardReviewSession(_nextCycleCards);
+    setState(() {
+      _activeCycleCards = nextState.activeCards;
+      _nextCycleCards = nextState.nextCycleCards;
+      _currentIndex = nextState.currentIndex;
+      _reviewedCount = nextState.reviewedCount;
+      _cycleTotalCount = nextState.cycleTotalCount;
+      _waitingForNextCycle = nextState.waitingForNextCycle;
+      _showAnswer = false;
+    });
+    _flipController.reset();
   }
 
   @override
   Widget build(BuildContext context) {
-    final cardsAsync = ref.watch(dueFlashcardsProvider);
+    final cardsAsync = ref.watch(reviewFlashcardsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -126,13 +139,39 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
             ),
           ),
           data: (cards) {
-            if (cards.isEmpty) {
+            if (_activeCycleCards.isEmpty &&
+                _nextCycleCards.isEmpty &&
+                !_waitingForNextCycle &&
+                cards.isNotEmpty) {
+              final initialState = startFlashcardReviewSession(cards);
+              _activeCycleCards = initialState.activeCards;
+              _nextCycleCards = initialState.nextCycleCards;
+              _currentIndex = initialState.currentIndex;
+              _reviewedCount = initialState.reviewedCount;
+              _cycleTotalCount = initialState.cycleTotalCount;
+            }
+
+            final sessionCards = _activeCycleCards;
+            if (sessionCards.isEmpty && !_waitingForNextCycle) {
               return _EmptyReviewState(
                 onBack: () => context.go('/'),
               );
             }
 
-            final card = cards[_currentIndex];
+            if (_waitingForNextCycle) {
+              return _CycleCheckpointState(
+                reviewedCount: _cycleTotalCount,
+                onBack: () => context.go('/'),
+                onContinue: _continueReviewCycle,
+              );
+            }
+
+            if (_currentIndex >= sessionCards.length) {
+              _currentIndex = 0;
+            }
+
+            final card = sessionCards[_currentIndex];
+            final visiblePosition = (_reviewedCount + 1).clamp(1, _cycleTotalCount);
 
             return Column(
               children: [
@@ -167,7 +206,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                         ),
                       ),
                       Text(
-                        '${_currentIndex + 1} / ${cards.length}',
+                        '$visiblePosition / $_cycleTotalCount',
                         style: const TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 12,
@@ -364,28 +403,28 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                           icon: Icons.refresh_rounded,
                           label: 'De novo',
                           color: AppColors.accent,
-                          onTap: () => _grade(cards, FsrsGrade.again),
+                          onTap: () => _grade(sessionCards, FsrsGrade.again),
                         ),
                         const SizedBox(width: 8),
                         _GradeButton(
                           icon: Icons.trending_down_rounded,
                           label: 'Dificil',
                           color: AppColors.warning,
-                          onTap: () => _grade(cards, FsrsGrade.hard),
+                          onTap: () => _grade(sessionCards, FsrsGrade.hard),
                         ),
                         const SizedBox(width: 8),
                         _GradeButton(
                           icon: Icons.check_rounded,
                           label: 'Bom',
                           color: AppColors.success,
-                          onTap: () => _grade(cards, FsrsGrade.good),
+                          onTap: () => _grade(sessionCards, FsrsGrade.good),
                         ),
                         const SizedBox(width: 8),
                         _GradeButton(
                           icon: Icons.bolt_rounded,
                           label: 'Facil',
                           color: AppColors.primary,
-                          onTap: () => _grade(cards, FsrsGrade.easy),
+                          onTap: () => _grade(sessionCards, FsrsGrade.easy),
                         ),
                       ],
                     ),
@@ -418,7 +457,7 @@ class _EmptyReviewState extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         const Text(
-          'Nenhum card para revisar',
+          'Nenhum flashcard salvo',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -427,7 +466,7 @@ class _EmptyReviewState extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Volte depois para continuar.',
+          'Gere ou salve cards na biblioteca para iniciar a revisao continua.',
           style: TextStyle(color: AppColors.textMuted),
         ),
         const SizedBox(height: 24),
@@ -449,6 +488,99 @@ class _EmptyReviewState extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CycleCheckpointState extends StatelessWidget {
+  const _CycleCheckpointState({
+    required this.reviewedCount,
+    required this.onBack,
+    required this.onContinue,
+  });
+
+  final int reviewedCount;
+  final VoidCallback onBack;
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.auto_awesome_rounded,
+            size: 64,
+            color: AppColors.primary,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Ciclo concluído',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Você revisou $reviewedCount cards neste ciclo. Continue quando quiser, sem sair da sessão.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 28),
+          GestureDetector(
+            onTap: onContinue,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Text(
+                  'Continuar revisão',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: onBack,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surface2,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Center(
+                child: Text(
+                  'Voltar',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -6,9 +6,11 @@ class QuizOption {
   });
 
   factory QuizOption.fromJson(Map<String, dynamic> json) => QuizOption(
-        id: json['id'] as String,
-        text: json['text'] as String,
-        isCorrect: (json['is_correct'] as bool?) ?? false,
+        id: json['id']?.toString() ?? '',
+        text: json['text']?.toString() ?? '',
+        isCorrect: (json['is_correct'] as bool?) ??
+            (json['isCorrect'] as bool?) ??
+            false,
       );
 
   final String id;
@@ -39,19 +41,26 @@ class Question {
         .map((e) => QuizOption.fromJson(e as Map<String, dynamic>))
         .toList();
     final rawCorrect = _stringValue(
-      json['correct_option_id'] ?? json['correct_answer'],
+      json['correct_option_id'] ??
+          json['correctOptionId'] ??
+          json['correct_answer'] ??
+          json['correctAnswer'],
     );
     return Question(
       id: json['id']?.toString() ?? '',
-      text: json['text'] as String? ?? json['question'] as String? ?? '',
+      text: json['text']?.toString() ??
+          json['question']?.toString() ??
+          json['pergunta']?.toString() ??
+          '',
       options: options,
       correctOptionId: _resolveCorrectOptionId(
         rawCorrect: rawCorrect,
         options: options,
       ),
-      explanation: json['explanation'] as String?,
-      topic: json['topic'] as String?,
-      difficulty: json['difficulty'] as String? ?? 'medium',
+      explanation:
+          json['explanation']?.toString() ?? json['explicacao']?.toString(),
+      topic: json['topic']?.toString() ?? json['subtema']?.toString(),
+      difficulty: json['difficulty']?.toString() ?? 'medium',
     );
   }
 
@@ -138,6 +147,11 @@ String _resolveCorrectOptionId({
     }
   }
 
+  final numericIndex = _extractAnswerIndex(rawCorrect, options.length);
+  if (numericIndex != null) {
+    return options[numericIndex].id;
+  }
+
   for (final option in options) {
     if (option.isCorrect) {
       return option.id;
@@ -148,7 +162,9 @@ String _resolveCorrectOptionId({
 }
 
 String? _findOptionIdByCandidate(
-    String rawCandidate, List<QuizOption> options) {
+  String rawCandidate,
+  List<QuizOption> options,
+) {
   final candidate = _normalizeAnswer(rawCandidate);
   if (candidate.isEmpty) {
     return null;
@@ -189,6 +205,37 @@ String? _extractAnswerLetter(String rawValue) {
   return null;
 }
 
+int? _extractAnswerIndex(String rawValue, int optionCount) {
+  final normalized = _normalizeAnswer(_stripLeadingAnswerLabel(rawValue));
+  if (normalized.isEmpty) {
+    return null;
+  }
+
+  final directNumber = RegExp(r'^(\d+)$').firstMatch(normalized);
+  final prefixedNumber =
+      RegExp(r'^(\d+)[\)\].:\-\s]+').firstMatch(normalized);
+  final captured = directNumber?.group(1) ?? prefixedNumber?.group(1);
+  if (captured == null) {
+    return null;
+  }
+
+  final parsed = int.tryParse(captured);
+  if (parsed == null) {
+    return null;
+  }
+
+  final oneBased = parsed - 1;
+  if (oneBased >= 0 && oneBased < optionCount) {
+    return oneBased;
+  }
+
+  if (parsed >= 0 && parsed < optionCount) {
+    return parsed;
+  }
+
+  return null;
+}
+
 String _stripAnswerPrefix(String rawValue) {
   final withoutLabel = _stripLeadingAnswerLabel(rawValue);
   return withoutLabel
@@ -196,20 +243,83 @@ String _stripAnswerPrefix(String rawValue) {
         RegExp(r'^[a-z][\)\].:\-\s]+', caseSensitive: false),
         '',
       )
+      .replaceFirst(
+        RegExp(r'^\d+[\)\].:\-\s]+', caseSensitive: false),
+        '',
+      )
       .trim();
 }
 
 String _stripLeadingAnswerLabel(String rawValue) {
   return _normalizeAnswer(rawValue).replaceFirst(
-    RegExp(r'^(alternativa|opção|opcao|letra)\s+', caseSensitive: false),
+    RegExp(
+      r'^(resposta correta|resposta|alternativa|opcao|opção|letra)\s*[:\-]?\s+',
+      caseSensitive: false,
+    ),
     '',
   );
 }
 
 String _normalizeAnswer(String value) {
-  return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  final lowered = value.trim().toLowerCase();
+  final withoutAccents = _stripDiacritics(lowered);
+  return withoutAccents
+      .replaceAll('"', '')
+      .replaceAll("'", '')
+      .replaceAll('`', '')
+      .replaceAll('´', '')
+      .replaceAll('“', '')
+      .replaceAll('”', '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
+String _stripDiacritics(String value) {
+  const replacements = {
+    'á': 'a',
+    'à': 'a',
+    'â': 'a',
+    'ã': 'a',
+    'ä': 'a',
+    'é': 'e',
+    'è': 'e',
+    'ê': 'e',
+    'ë': 'e',
+    'í': 'i',
+    'ì': 'i',
+    'î': 'i',
+    'ï': 'i',
+    'ó': 'o',
+    'ò': 'o',
+    'ô': 'o',
+    'õ': 'o',
+    'ö': 'o',
+    'ú': 'u',
+    'ù': 'u',
+    'û': 'u',
+    'ü': 'u',
+    'ç': 'c',
+    'ñ': 'n',
+  };
+
+  final buffer = StringBuffer();
+  for (final rune in value.runes) {
+    final char = String.fromCharCode(rune);
+    buffer.write(replacements[char] ?? char);
+  }
+  return buffer.toString();
 }
 
 String _stringValue(Object? value) {
+  if (value is Map<String, dynamic>) {
+    final nestedId = value['id'] ?? value['option_id'] ?? value['correctOptionId'];
+    if (nestedId != null) {
+      return nestedId.toString().trim();
+    }
+    final nestedText = value['text'] ?? value['answer'] ?? value['correct_answer'];
+    if (nestedText != null) {
+      return nestedText.toString().trim();
+    }
+  }
   return value?.toString().trim() ?? '';
 }

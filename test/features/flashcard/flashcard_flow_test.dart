@@ -31,54 +31,38 @@ void main() {
   });
 
   test(
-      'applyFlashcardReviewRewards conta atividade parcial para sessoes incompletas',
+      'applyFlashcardReviewRewards registra progresso a cada review',
       () async {
     var todayCountCalls = 0;
-    var xpAwarded = 0;
-    var streakCalls = 0;
+    var reviewCalls = 0;
 
     await applyFlashcardReviewRewards(
-      isSessionComplete: false,
-      reviewedCardsCount: 4,
       incrementFlashcardsToday: () async {
         todayCountCalls++;
       },
-      addXp: (amount) async {
-        xpAwarded += amount;
-      },
-      incrementStreak: () async {
-        streakCalls++;
+      recordFlashcardReview: () async {
+        reviewCalls++;
       },
     );
 
     expect(todayCountCalls, equals(1));
-    expect(xpAwarded, equals(0));
-    expect(streakCalls, equals(0));
+    expect(reviewCalls, equals(1));
   });
 
-  test('applyFlashcardReviewRewards concede XP e streak ao concluir sessao',
+  test('applyFlashcardReviewRewards tolera falha de gamificacao sem travar',
       () async {
     var todayCountCalls = 0;
-    var xpAwarded = 0;
-    var streakCalls = 0;
 
     await applyFlashcardReviewRewards(
-      isSessionComplete: true,
-      reviewedCardsCount: 4,
       incrementFlashcardsToday: () async {
         todayCountCalls++;
       },
-      addXp: (amount) async {
-        xpAwarded += amount;
-      },
-      incrementStreak: () async {
-        streakCalls++;
+      recordFlashcardReview: () async {
+        throw Exception('gamification down');
       },
     );
 
     expect(todayCountCalls, equals(1));
-    expect(xpAwarded, equals(20));
-    expect(streakCalls, equals(1));
   });
 
   test('buildFlashcardHubReviewModel descreve cards pendentes', () {
@@ -90,10 +74,11 @@ void main() {
     );
 
     expect(model.isEmpty, isFalse);
+    expect(model.hasDueCards, isTrue);
     expect(model.bannerTitle, equals('2 cards para hoje'));
     expect(
       model.bannerSubtitle,
-      equals('Revisao espacada com algoritmo FSRS'),
+      equals('Pendentes primeiro, depois o restante do deck continua.'),
     );
     expect(model.ctaLabel, equals('Revisar 2 cards agora'));
     expectNoMojibake(model.bannerTitle);
@@ -107,6 +92,7 @@ void main() {
     );
 
     expect(model.isEmpty, isFalse);
+    expect(model.hasDueCards, isTrue);
     expect(model.bannerTitle, equals('1 card para hoje'));
     expect(model.ctaLabel, equals('Revisar 1 card agora'));
     expectNoMojibake(model.bannerTitle);
@@ -114,12 +100,37 @@ void main() {
     expectNoMojibake(model.ctaLabel);
   });
 
-  test('buildFlashcardHubReviewModel descreve estado vazio', () {
+  test('buildFlashcardHubReviewModel habilita revisao continua sem pendencias',
+      () {
+    final model = buildFlashcardHubReviewModel(
+      [
+        Flashcard(
+          id: 1,
+          remoteId: 'card-1',
+          front: 'Front 1',
+          back: 'Back 1',
+          dueDate: DateTime(2999, 1, 1),
+          createdAt: DateTime(2026, 3, 24),
+        ),
+      ],
+    );
+
+    expect(model.isEmpty, isFalse);
+    expect(model.hasDueCards, isFalse);
+    expect(model.bannerTitle, equals('Revisão contínua pronta'));
+    expect(model.ctaLabel, equals('Continuar revisão'));
+    expectNoMojibake(model.bannerTitle);
+    expectNoMojibake(model.bannerSubtitle);
+    expectNoMojibake(model.ctaLabel);
+  });
+
+  test('buildFlashcardHubReviewModel descreve estado sem deck salvo', () {
     final model = buildFlashcardHubReviewModel(const []);
 
     expect(model.isEmpty, isTrue);
-    expect(model.bannerTitle, equals('Tudo em dia!'));
-    expect(model.ctaLabel, equals('Sem cards pendentes hoje'));
+    expect(model.hasDueCards, isFalse);
+    expect(model.bannerTitle, equals('Nenhum flashcard salvo'));
+    expect(model.ctaLabel, equals('Gerar flashcards para estudar'));
     expectNoMojibake(model.bannerTitle);
     expectNoMojibake(model.bannerSubtitle);
     expectNoMojibake(model.ctaLabel);

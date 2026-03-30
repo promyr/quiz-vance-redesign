@@ -169,6 +169,28 @@ class LocalStorage {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getReviewFlashcards() {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    return _select(
+      '''
+      SELECT * FROM flashcards
+      ORDER BY
+        CASE
+          WHEN due_date IS NULL OR due_date <= ? THEN 0
+          ELSE 1
+        END ASC,
+        CASE
+          WHEN last_reviewed IS NULL THEN 0
+          ELSE 1
+        END ASC,
+        last_reviewed ASC,
+        due_date ASC,
+        id ASC
+      ''',
+      [today],
+    );
+  }
+
   Future<int> upsertFlashcard(Map<String, dynamic> card) async {
     final payload = <String, dynamic>{
       'remote_id': _trimmedString(card['remote_id']),

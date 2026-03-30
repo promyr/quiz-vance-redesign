@@ -26,6 +26,7 @@ import '../features/settings/presentation/api_keys_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/simulado/presentation/simulado_config_screen.dart';
 import '../features/simulado/presentation/simulado_result_screen.dart';
+import '../features/simulado/presentation/simulado_review_screen.dart';
 import '../features/simulado/presentation/simulado_screen.dart';
 import '../features/stats/presentation/stats_screen.dart';
 import '../features/study_plan/presentation/study_plan_screen.dart';
@@ -215,6 +216,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final extra = state.extra as Map<String, dynamic>?;
               return SimuladoResultScreen(result: extra?['result']);
+            },
+          ),
+          GoRoute(
+            path: 'review',
+            name: 'simuladoReview',
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              return SimuladoReviewScreen(result: extra?['result']);
             },
           ),
         ],

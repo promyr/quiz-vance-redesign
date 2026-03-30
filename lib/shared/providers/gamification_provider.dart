@@ -294,6 +294,18 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
     await prefs.setStringList(_processedQuizEventsKey, updated);
   }
 
+  Future<void> recordFlashcardReview({int xpEarned = 5}) async {
+    await addXp(xpEarned);
+
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final lastStreakDate = prefs.getString(_lastStreakDateKey);
+    if (lastStreakDate != today) {
+      await incrementStreak();
+      await prefs.setString(_lastStreakDateKey, today);
+    }
+  }
+
   Future<void> resetStreak() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_streakKey, 0);
