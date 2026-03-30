@@ -96,6 +96,65 @@ void main() {
       expect(question.correctOptionId, equals('opt_1'));
     });
 
+    test('fromJson resolves correct answer when backend sends option letter',
+        () {
+      final json = {
+        'id': 'q_letter',
+        'text': 'Pergunta',
+        'options': [
+          {'id': 'opt_1', 'text': 'Opcao A', 'is_correct': false},
+          {'id': 'opt_2', 'text': 'Opcao B', 'is_correct': false},
+        ],
+        'correct_answer': 'B',
+      };
+
+      final question = Question.fromJson(json);
+
+      expect(question.correctOptionId, equals('opt_2'));
+      expect(question.correctOption?.text, equals('Opcao B'));
+      expect(question.correctOptionLetter, equals('B'));
+    });
+
+    test('fromJson resolves correct answer when backend sends option text', () {
+      final json = {
+        'id': 'q_text',
+        'text': 'Pergunta',
+        'options': [
+          {'id': 'a', 'text': 'Aprender a investir em acoes'},
+          {
+            'id': 'b',
+            'text': 'Gerenciar o orcamento pessoal e familiar',
+          },
+        ],
+        'correct_answer': 'Gerenciar o orcamento pessoal e familiar',
+      };
+
+      final question = Question.fromJson(json);
+
+      expect(question.correctOptionId, equals('b'));
+      expect(
+        question.correctOption?.text,
+        equals('Gerenciar o orcamento pessoal e familiar'),
+      );
+    });
+
+    test('fromJson falls back to option flagged with is_correct', () {
+      final json = {
+        'id': 'q_flagged',
+        'text': 'Pergunta',
+        'options': [
+          {'id': 'a', 'text': 'Errada', 'is_correct': false},
+          {'id': 'b', 'text': 'Certa', 'is_correct': true},
+        ],
+        'correct_answer': 'payload-inconsistente',
+      };
+
+      final question = Question.fromJson(json);
+
+      expect(question.correctOptionId, equals('b'));
+      expect(question.correctOption?.text, equals('Certa'));
+    });
+
     test('fromJson handles missing optional fields', () {
       final json = {
         'id': 'q_4',

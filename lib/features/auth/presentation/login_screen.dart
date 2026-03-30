@@ -2,24 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/providers/auth_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import 'forgot_password_sheet.dart';
-
-const _sharedBackendUrl = 'https://quiz-vance-redesign-backend.fly.dev';
-
-String backendHostLabel(String backendUrl) {
-  final uri = Uri.tryParse(backendUrl);
-  final host = uri?.host;
-  if (host != null && host.isNotEmpty) {
-    return host;
-  }
-  return backendUrl;
-}
-
-bool usesSharedBackend(String backendUrl) => backendUrl == _sharedBackendUrl;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -48,7 +34,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     final auth = ref.read(authStateNotifierProvider.notifier);
 
@@ -67,16 +55,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     final state = ref.read(authStateNotifierProvider);
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     state.whenOrNull(
-      error: (err, _) {
-        // Exibe a mensagem do erro sem expor detalhes técnicos internos.
-        // Erros do backend (DioException com detail) já chegam com mensagem
-        // legível; para outros casos, usamos mensagem genérica.
-        final msg = _friendlyAuthError(err);
+      error: (error, _) {
+        final message = _friendlyAuthError(error);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(msg),
+            content: Text(message),
             backgroundColor: AppColors.error,
           ),
         );
@@ -94,7 +82,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // Mesma regex usada no backend (services.py) — consistência cliente/servidor.
   static final _emailRe = RegExp(
     r"^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~.\-]{1,64}"
     r'@'
@@ -105,16 +92,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String? _validateEmail(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Informe o e-mail';
-    if (!_emailRe.hasMatch(text)) return 'E-mail inválido';
+    if (text.isEmpty) {
+      return 'Informe o e-mail';
+    }
+    if (!_emailRe.hasMatch(text)) {
+      return 'E-mail invalido';
+    }
     return null;
   }
 
   String? _validateLoginId(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Informe o ID';
-    final isEmail = text.contains('@');
-    if (isEmail) return null;
+    if (text.isEmpty) {
+      return 'Informe o ID';
+    }
+
+    if (text.contains('@')) {
+      return null;
+    }
 
     final loginIdPattern = RegExp(
       r'^[a-zA-Z0-9](?:[a-zA-Z0-9._-]{1,38}[a-zA-Z0-9])?$',
@@ -129,9 +124,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateNotifierProvider);
     final isLoading = authState.isLoading;
-    const backendUrl = AppConfig.backendUrl;
-    final sharedBackend = usesSharedBackend(backendUrl);
-    final backendLabel = backendHostLabel(backendUrl);
 
     return Scaffold(
       body: SafeArea(
@@ -146,16 +138,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Column(
                     children: [
                       Container(
-                        width: 80,
-                        height: 80,
+                        width: 88,
+                        height: 88,
                         decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.18),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
                         ),
-                        child: const Icon(
-                          Icons.bolt_rounded,
-                          color: Colors.white,
-                          size: 44,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: Image.asset(
+                            'assets/quiz_vance_logo_1024.png',
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       )
                           .animate()
@@ -164,10 +164,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 16),
                       Text(
                         'Quiz Vance',
-                        style: Theme.of(context)
-                            .textTheme
-                            .displaySmall
-                            ?.copyWith(color: AppColors.textPrimary),
+                        style:
+                            Theme.of(context).textTheme.displaySmall?.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
                       ).animate().fadeIn(delay: 200.ms),
                       const SizedBox(height: 8),
                       Text(
@@ -189,13 +189,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       hintText: 'Seu nome completo',
                       prefixIcon: Icon(Icons.person_outline),
                     ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Informe seu nome'
-                        : null,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Informe seu nome';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                 ],
-                _buildLabel(_isRegister ? 'ID de acesso' : 'ID ou e-mail'),
+                _buildLabel(
+                  _isRegister ? 'ID de acesso' : 'ID de acesso ou e-mail',
+                ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _loginIdCtrl,
@@ -205,10 +210,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   decoration: InputDecoration(
                     hintText: _isRegister
                         ? 'ex.: belchior.vance'
-                        : 'Seu ID ou e-mail',
+                        : 'Digite seu ID ou e-mail',
                     helperText: _isRegister
-                        ? 'Será o dado principal para fazer login'
-                        : 'Use o mesmo backend entre dispositivos para compartilhar a conta',
+                        ? 'Voce usara esse ID para entrar na sua conta'
+                        : null,
                     prefixIcon: const Icon(Icons.badge_outlined),
                   ),
                   validator: _validateLoginId,
@@ -243,13 +248,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                       ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
                     ),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Informe a senha';
-                    if (v.length < 6) return 'Mínimo 6 caracteres';
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Informe a senha';
+                    }
+                    if (value.length < 6) {
+                      return 'Minimo 6 caracteres';
+                    }
                     return null;
                   },
                 ),
@@ -275,51 +285,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: () => setState(() => _isRegister = !_isRegister),
                     child: Text(
                       _isRegister
-                          ? 'Já tenho conta → Entrar'
-                          : 'Não tenho conta → Criar conta',
-                      style: TextStyle(
+                          ? 'Ja tenho conta → Entrar'
+                          : 'Nao tenho conta → Criar conta',
+                      style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: sharedBackend
-                        ? AppColors.primary.withOpacity(0.06)
-                        : AppColors.warning.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: sharedBackend
-                          ? AppColors.primary.withOpacity(0.18)
-                          : AppColors.warning.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Servidor: $backendLabel',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      if (!sharedBackend) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Este app não está no backend compartilhado. Contas criadas em outro dispositivo podem não aparecer aqui.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                        ),
-                      ],
-                    ],
                   ),
                 ),
               ].animate(interval: 80.ms).fadeIn().slideX(begin: 0.05, end: 0),
@@ -333,24 +305,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: Theme.of(context)
-          .textTheme
-          .labelLarge
-          ?.copyWith(color: AppColors.textSecondary),
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: AppColors.textSecondary,
+          ),
     );
   }
 
-  /// Converte um erro de auth em mensagem amigável para o usuário.
-  /// Extrai o campo `detail` de respostas HTTP quando disponível,
-  /// sem expor stack traces ou detalhes técnicos internos.
-  String _friendlyAuthError(Object err) {
-    final raw = err.toString();
-    // Mensagens curtas e legíveis do backend chegam diretamente
+  String _friendlyAuthError(Object error) {
+    final raw = error.toString();
     if (raw.length <= 120 &&
         !raw.contains('Exception') &&
         !raw.contains('Error')) {
       return raw;
     }
-    return 'Não foi possível entrar. Verifique seus dados e tente novamente.';
+    return 'Nao foi possivel entrar. Verifique seus dados e tente novamente.';
   }
 }

@@ -214,6 +214,11 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
 
     final total = _questions.length;
     final answeredCount = _currentIndex + 1;
+    final correctOption = _current.correctOption;
+    final correctOptionLetter = _current.correctOptionLetter;
+    final explanation = _current.explanation?.trim();
+    final hasExplanation = explanation != null && explanation.isNotEmpty;
+    final answeredCorrectly = _selectedOptionId == _current.correctOptionId;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -404,28 +409,76 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
                     }),
 
                     // Explanation
-                    if (_answered && _current.explanation != null)
+                    if (_answered && (correctOption != null || hasExplanation))
                       Container(
                         margin: const EdgeInsets.only(top: 8),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppColors.surface2,
+                          color: answeredCorrectly
+                              ? AppColors.success.withOpacity(0.10)
+                              : AppColors.surface2,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(
+                            color: answeredCorrectly
+                                ? AppColors.success.withOpacity(0.35)
+                                : AppColors.border,
+                          ),
                         ),
                         child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.info_outlined,
-                                  color: AppColors.primary, size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                  child: Text(_current.explanation!,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              answeredCorrectly
+                                  ? Icons.check_circle_outline_rounded
+                                  : Icons.info_outlined,
+                              color: answeredCorrectly
+                                  ? AppColors.success
+                                  : AppColors.primary,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (correctOption != null) ...[
+                                    const Text(
+                                      'Resposta correta',
+                                      style: TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      correctOptionLetter == null
+                                          ? correctOption.text
+                                          : '$correctOptionLetter • ${correctOption.text}',
                                       style: const TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 12,
-                                          height: 1.5))),
-                            ]),
+                                        color: AppColors.textPrimary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        height: 1.45,
+                                      ),
+                                    ),
+                                  ],
+                                  if (correctOption != null && hasExplanation)
+                                    const SizedBox(height: 10),
+                                  if (hasExplanation)
+                                    Text(
+                                      explanation,
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 13,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ).animate().fadeIn(),
 
                     // Indicador de carregamento de novas questões

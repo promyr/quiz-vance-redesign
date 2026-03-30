@@ -1,24 +1,53 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:quiz_vance_flutter/features/auth/data/auth_repository.dart';
 import 'package:quiz_vance_flutter/features/auth/presentation/login_screen.dart';
 
+class _MockAuthRepository extends Mock implements AuthRepository {}
+
 void main() {
-  test('usesSharedBackend identifies the shared production backend', () {
-    expect(usesSharedBackend('https://quiz-vance-redesign-backend.fly.dev'), isTrue);
-    expect(usesSharedBackend('http://localhost:8000'), isFalse);
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late _MockAuthRepository authRepository;
+
+  Future<void> pumpLoginScreen(WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWith((ref) => authRepository),
+        ],
+        child: const MaterialApp(
+          home: LoginScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  setUp(() {
+    authRepository = _MockAuthRepository();
+    when(() => authRepository.restorePersistedSession()).thenAnswer(
+      (_) async => const PersistedAuthSession.none(),
+    );
   });
 
-  test('backendHostLabel extracts host when URL is valid', () {
-    expect(
-      backendHostLabel('https://quiz-vance-redesign-backend.fly.dev'),
-      'quiz-vance-redesign-backend.fly.dev',
-    );
-    expect(
-      backendHostLabel('http://localhost:8000'),
-      'localhost',
-    );
+  testWidgets('login screen does not expose backend internals', (tester) async {
+    await pumpLoginScreen(tester);
+
+    expect(find.textContaining('Servidor:'), findsNothing);
+    expect(find.textContaining('backend'), findsNothing);
+    expect(find.textContaining('Use o mesmo backend'), findsNothing);
   });
 
-  test('backendHostLabel preserves original value for invalid URLs', () {
-    expect(backendHostLabel('backend-invalido'), 'backend-invalido');
+  testWidgets('login screen shows official logo and polished copy',
+      (tester) async {
+    await pumpLoginScreen(tester);
+
+    expect(find.text('Quiz Vance'), findsOneWidget);
+    expect(find.text('ID de acesso ou e-mail'), findsOneWidget);
+    expect(find.text('Digite seu ID ou e-mail'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
   });
 }
