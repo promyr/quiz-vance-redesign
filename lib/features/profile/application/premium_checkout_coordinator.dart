@@ -5,6 +5,9 @@ import '../../../shared/providers/auth_provider.dart';
 import '../../auth/domain/auth_state.dart';
 import '../data/billing_repository.dart';
 
+const _checkoutHost = 'checkout.quizvance.app';
+const _mercadoPagoHost = 'mercadopago.com.br';
+
 class PremiumCheckoutException implements Exception {
   const PremiumCheckoutException(this.message);
 
@@ -27,8 +30,9 @@ class PremiumCheckoutCoordinator {
     required AuthState? authState,
     required BillingPlan plan,
   }) async {
-    final userId = authState?.userId?.trim() ?? '';
-    if (userId.isEmpty) {
+    final rawUserId = authState?.userId?.trim() ?? '';
+    final userId = int.tryParse(rawUserId);
+    if (authState?.isAuthenticated != true || userId == null) {
       _observability.trackEvent(
         'premium.checkout_blocked_missing_session',
         level: AppEventLevel.warning,
@@ -58,9 +62,9 @@ class PremiumCheckoutCoordinator {
       );
 
       final checkoutUrl = checkout.checkoutUrl.trim();
-      if (checkoutUrl.isEmpty) {
+      if (!_isAllowedCheckoutUrl(checkoutUrl)) {
         throw const PremiumCheckoutException(
-          'O checkout nao retornou uma URL valida.',
+          'O checkout nao retornou uma URL segura e permitida.',
         );
       }
 
@@ -83,6 +87,22 @@ class PremiumCheckoutCoordinator {
       rethrow;
     }
   }
+}
+
+bool _isAllowedCheckoutUrl(String value) {
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      uri.scheme.toLowerCase() != 'https' ||
+      !uri.hasAuthority ||
+      uri.userInfo.isNotEmpty ||
+      uri.port != 443) {
+    return false;
+  }
+
+  final host = uri.host.toLowerCase();
+  return host == _checkoutHost ||
+      host == _mercadoPagoHost ||
+      host.endsWith('.$_mercadoPagoHost');
 }
 
 final premiumCheckoutCoordinatorProvider = Provider<PremiumCheckoutCoordinator>(

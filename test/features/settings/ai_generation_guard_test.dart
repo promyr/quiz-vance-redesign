@@ -68,7 +68,8 @@ void main() {
     );
   });
 
-  test('ensureReadyForGeneration syncs pending config with all providers',
+  test(
+      'ensureReadyForGeneration syncs pending config with active provider only',
       () async {
     SharedPreferences.setMockInitialValues({
       'ai_provider': 'openai',
@@ -100,9 +101,9 @@ void main() {
 
     expect(captured['provider'], 'openai');
     expect(captured['model'], 'gpt-4o-mini');
-    expect(captured['api_key_gemini'], 'gem-key');
     expect(captured['api_key_openai'], 'openai-key');
-    expect(captured['api_key_groq'], 'groq-key');
+    expect(captured.containsKey('api_key_gemini'), isFalse);
+    expect(captured.containsKey('api_key_groq'), isFalse);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('ai_config_sync_pending'), isFalse);

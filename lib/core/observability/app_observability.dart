@@ -4,6 +4,16 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+const _redactedValue = '[REDACTED]';
+final _sensitiveAttributeName = RegExp(
+  r'(authorization|cookie|credential|password|passwd|secret|token|api[_-]?key)',
+  caseSensitive: false,
+);
+final _credentialInText = RegExp(
+  r'(?:(?:bearer|basic)\s+[^\s,;]+)|(?:(?:password|passwd|secret|token|api[_-]?key|authorization)\s*[:=]\s*[^\s,;]+)',
+  caseSensitive: false,
+);
+
 enum AppEventLevel {
   info,
   warning,
@@ -46,18 +56,19 @@ class AppObservability {
     AppEventLevel level = AppEventLevel.info,
     Map<String, Object?> attributes = const <String, Object?>{},
   }) {
+    final safeAttributes = _sanitizeAttributes(attributes);
     final event = AppObservedEvent(
       name: name,
       level: level,
       timestamp: DateTime.now(),
-      attributes: Map<String, Object?>.unmodifiable(attributes),
+      attributes: safeAttributes,
     );
     _record(event);
     developer.log(
       name,
       name: 'QuizVance',
       level: _developerLevel(level),
-      error: attributes.isEmpty ? null : attributes,
+      error: safeAttributes.isEmpty ? null : safeAttributes,
     );
   }
 
@@ -67,12 +78,14 @@ class AppObservability {
     StackTrace stackTrace, {
     Map<String, Object?> attributes = const <String, Object?>{},
   }) {
+    final safeAttributes = _sanitizeAttributes(attributes);
+    final safeError = error.runtimeType.toString();
     final event = AppObservedEvent(
       name: name,
       level: AppEventLevel.error,
       timestamp: DateTime.now(),
-      attributes: Map<String, Object?>.unmodifiable(attributes),
-      error: error,
+      attributes: safeAttributes,
+      error: safeError,
       stackTrace: stackTrace,
     );
     _record(event);
@@ -80,8 +93,7 @@ class AppObservability {
       name,
       name: 'QuizVance',
       level: 1000,
-      error: error,
-      stackTrace: stackTrace,
+      error: safeError,
     );
   }
 
@@ -101,6 +113,44 @@ class AppObservability {
       case AppEventLevel.error:
         return 1000;
     }
+  }
+
+  Map<String, Object?> _sanitizeAttributes(Map<String, Object?> attributes) {
+    return Map<String, Object?>.unmodifiable(
+      attributes.map(
+        (key, value) => MapEntry(
+          key,
+          _sensitiveAttributeName.hasMatch(key)
+              ? _redactedValue
+              : _sanitizeValue(value),
+        ),
+      ),
+    );
+  }
+
+  Object? _sanitizeValue(Object? value) {
+    if (value is Map) {
+      return Map<String, Object?>.unmodifiable(
+        value.map(
+          (key, nestedValue) {
+            final normalizedKey = key.toString();
+            return MapEntry(
+              normalizedKey,
+              _sensitiveAttributeName.hasMatch(normalizedKey)
+                  ? _redactedValue
+                  : _sanitizeValue(nestedValue),
+            );
+          },
+        ),
+      );
+    }
+    if (value is Iterable) {
+      return List<Object?>.unmodifiable(value.map(_sanitizeValue));
+    }
+    if (value is String) {
+      return value.replaceAll(_credentialInText, _redactedValue);
+    }
+    return value;
   }
 }
 

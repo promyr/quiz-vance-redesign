@@ -115,7 +115,7 @@ class BillingRepository {
   }
 
   Future<CheckoutStartResult> startCheckout({
-    required String userId,
+    required int userId,
     required String name,
     required String email,
     String planCode = 'premium_30',
@@ -126,12 +126,9 @@ class BillingRepository {
         ApiEndpoints.billingCheckoutStart,
         data: {
           'user_id': userId,
-          if (int.tryParse(userId) != null)
-            'user_numeric_id': int.parse(userId),
           'plan_code': planCode,
           'provider': provider,
           'name': name,
-          'email': email,
           'email_id': email,
         },
       );

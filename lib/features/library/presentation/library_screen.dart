@@ -1,17 +1,17 @@
-import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../../../core/network/api_error_message.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/app_bottom_nav.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
 import '../application/library_actions_coordinator.dart';
+import '../application/study_document_import.dart';
 import '../data/library_repository.dart';
 import '../domain/library_model.dart';
 
@@ -310,6 +310,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           extra: {'package': package, 'file': file},
         );
       }
+    } on StudyDocumentTooLargeException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('O arquivo deve ter no maximo 10 MB.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
@@ -505,14 +514,17 @@ class _AddFileFormState extends State<_AddFileForm> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'txt', 'md'],
-        withData: true,
+        withData: false,
       );
 
       if (result == null || result.files.isEmpty) return;
 
       final picked = result.files.first;
-      final bytes = picked.bytes;
-      if (bytes == null) {
+      if (picked.size > maxStudyDocumentBytes) {
+        throw const StudyDocumentTooLargeException();
+      }
+      final path = picked.path;
+      if (path == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Não foi possível ler o arquivo')),
@@ -521,23 +533,30 @@ class _AddFileFormState extends State<_AddFileForm> {
         return;
       }
 
-      String text;
+      final bytes = await File(path).readAsBytes();
+      final text = await extractStudyDocumentText(
+        bytes: bytes,
+        extension: picked.extension ?? '',
+      );
+      /* Legacy inline extraction replaced by the isolated importer.
+      String legacyText;
       final ext = picked.extension?.toLowerCase() ?? '';
 
       if (ext == 'pdf') {
         final doc = PdfDocument(inputBytes: bytes);
-        text = PdfTextExtractor(doc).extractText();
+        legacyText = PdfTextExtractor(doc).extractText();
         doc.dispose();
       } else {
         // TXT ou MD — leitura direta como UTF-8
-        text = utf8.decode(bytes, allowMalformed: true);
+        legacyText = utf8.decode(bytes, allowMalformed: true);
       }
 
       // Normaliza espaçamento excessivo
-      text = text
+      legacyText = legacyText
           .replaceAll(RegExp(r'[ \t]{3,}'), ' ')
           .replaceAll(RegExp(r'\n{4,}'), '\n\n')
           .trim();
+      */
 
       if (mounted) {
         setState(() {

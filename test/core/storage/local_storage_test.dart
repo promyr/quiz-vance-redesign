@@ -33,6 +33,22 @@ void main() {
     expect(LocalStorage.instance, same(LocalStorage.instance));
   });
 
+  test('persiste e remove resultado pendente na fila cifrada', () async {
+    await LocalStorage.instance.init();
+    await LocalStorage.instance.upsertPendingResult(
+      id: 'quiz:session-1',
+      endpoint: '/quiz/submit',
+      payload: {'correct': 3},
+    );
+
+    final pending = await LocalStorage.instance.listPendingResults();
+    expect(pending, hasLength(1));
+    expect(pending.single['remote_id'], 'quiz:session-1');
+
+    await LocalStorage.instance.deletePendingResult('quiz:session-1');
+    expect(await LocalStorage.instance.listPendingResults(), isEmpty);
+  });
+
   test('init cria schema cifrado e indice em due_date', () async {
     await LocalStorage.instance.init();
 
@@ -107,7 +123,7 @@ void main() {
     expect(due.first['remote_id'], equals('legacy-1'));
 
     if (cipherAvailable) {
-      expect(await backupFile.exists(), isTrue);
+      expect(await backupFile.exists(), isFalse);
 
       final reopenedWithoutKey = sqlite3.open(databasePath);
       try {
@@ -121,5 +137,20 @@ void main() {
     } else {
       expect(await backupFile.exists(), isFalse);
     }
+  });
+
+  test('remove backup plaintext residual ao abrir banco cifrado', () async {
+    final cipherAvailable = await LocalStorage.instance.debugCipherAvailable();
+    if (!cipherAvailable) return;
+
+    await LocalStorage.instance.init();
+    await LocalStorage.instance.close();
+
+    final backupFile = File('$databasePath.plaintext.bak');
+    await backupFile.writeAsString('access_token=segredo-legado', flush: true);
+
+    await LocalStorage.instance.init();
+
+    expect(await backupFile.exists(), isFalse);
   });
 }

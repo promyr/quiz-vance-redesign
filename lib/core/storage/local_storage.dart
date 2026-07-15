@@ -295,7 +295,8 @@ class LocalStorage {
 
           final file = Map<String, dynamic>.from(decoded);
           file['id'] = _asInt(file['id'] ?? row['id']);
-          final remoteId = _trimmedString(file['remote_id'] ?? row['remote_id']);
+          final remoteId =
+              _trimmedString(file['remote_id'] ?? row['remote_id']);
           if (remoteId != null) {
             file['remote_id'] = remoteId;
           }
@@ -343,6 +344,37 @@ class LocalStorage {
 
   Future<void> deleteCacheValue(String key) async {
     await _delete('user_cache', where: 'key = ?', whereArgs: [key]);
+  }
+
+  Future<void> upsertPendingResult({
+    required String id,
+    required String endpoint,
+    required Map<String, dynamic> payload,
+  }) async {
+    await _insert(
+      'quiz_sessions',
+      {
+        'remote_id': id,
+        'data_json': jsonEncode({
+          'endpoint': endpoint,
+          'payload': payload,
+        }),
+      },
+      replace: true,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> listPendingResults() {
+    return _select(
+        'SELECT remote_id, data_json FROM quiz_sessions ORDER BY id');
+  }
+
+  Future<void> deletePendingResult(String id) async {
+    await _delete(
+      'quiz_sessions',
+      where: 'remote_id = ?',
+      whereArgs: [id],
+    );
   }
 
   @visibleForTesting
@@ -541,9 +573,8 @@ class LocalStorage {
       32,
       (_) => Random.secure().nextInt(256),
     );
-    final keyHex = keyBytes
-        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-        .join();
+    final keyHex =
+        keyBytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
     await _keyStore.write(_databaseKeyStorageKey, keyHex);
     return keyHex;
   }
@@ -577,7 +608,15 @@ class LocalStorage {
     }
 
     try {
-      return _openDatabase(databasePath, encryptionKey: encryptionKey);
+      final db = _openDatabase(databasePath, encryptionKey: encryptionKey);
+      try {
+        await _secureDeleteDatabaseFiles(
+          '$databasePath$_legacyBackupSuffix',
+        );
+      } catch (error) {
+        debugPrint('Deferred legacy database cleanup: ${error.runtimeType}');
+      }
+      return db;
     } catch (_) {
       if (await _looksLikePlaintextSQLiteFile(databaseFile)) {
         return _migratePlaintextDatabase(
@@ -612,23 +651,29 @@ class LocalStorage {
     final backupFile = File(sourcePath);
 
     if (await backupFile.exists()) {
-      await backupFile.delete();
+      await _secureDeleteDatabaseFiles(sourcePath);
     }
     await sourceFile.rename(sourcePath);
 
     final sourceDb = sqlite3.open(sourcePath);
     final targetDb = _openDatabase(databasePath, encryptionKey: encryptionKey);
+    var sourceDisposed = false;
 
     try {
       _applyConnectionPragmas(targetDb);
       _ensureSchema(targetDb);
       _copyTrackedTables(sourceDb: sourceDb, targetDb: targetDb);
+      sourceDb.dispose();
+      sourceDisposed = true;
+      await _secureDeleteDatabaseFiles(sourcePath);
       return targetDb;
     } catch (_) {
       targetDb.dispose();
       rethrow;
     } finally {
-      sourceDb.dispose();
+      if (!sourceDisposed) {
+        sourceDb.dispose();
+      }
     }
   }
 
@@ -686,10 +731,7 @@ class LocalStorage {
 
   Set<String> _tableColumns(Database db, String table) {
     final rows = db.select("PRAGMA table_info('$table')");
-    return rows
-        .map((row) => row['name'])
-        .whereType<String>()
-        .toSet();
+    return rows.map((row) => row['name']).whereType<String>().toSet();
   }
 
   bool _isCipherAvailable() {
@@ -735,6 +777,41 @@ class LocalStorage {
       if (await file.exists()) {
         await file.delete();
       }
+    }
+  }
+
+  Future<void> _secureDeleteDatabaseFiles(String basePath) async {
+    for (final candidate in <String>[
+      basePath,
+      '$basePath-wal',
+      '$basePath-shm',
+    ]) {
+      await _secureDeleteFile(File(candidate));
+    }
+  }
+
+  Future<void> _secureDeleteFile(File file) async {
+    if (!await file.exists()) return;
+
+    RandomAccessFile? handle;
+    try {
+      final length = await file.length();
+      handle = await file.open(mode: FileMode.writeOnly);
+      const chunkSize = 64 * 1024;
+      final zeroes = List<int>.filled(chunkSize, 0);
+      var remaining = length;
+      while (remaining > 0) {
+        final bytesToWrite = min(remaining, chunkSize);
+        await handle.writeFrom(zeroes, 0, bytesToWrite);
+        remaining -= bytesToWrite;
+      }
+      await handle.truncate(0);
+      await handle.flush();
+      await handle.close();
+      handle = null;
+      await file.delete();
+    } finally {
+      await handle?.close();
     }
   }
 

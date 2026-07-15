@@ -11,11 +11,13 @@ abstract class AppConfig {
   );
 
   static const Duration connectTimeout = Duration(seconds: 10);
+  static const Duration sendTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
+  static const Duration generationTimeout = Duration(minutes: 2);
 
   static const String appName = 'Quiz Vance';
   static const String appVersion = String.fromEnvironment(
     'APP_VERSION',
-    defaultValue: '2.0.8',
+    defaultValue: '2.0.9',
   );
 }

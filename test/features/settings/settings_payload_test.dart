@@ -34,6 +34,24 @@ void main() {
       );
     });
 
+    test('envia somente a chave do provedor ativo', () {
+      final payload = buildAiConfigPayload(
+        provider: 'openai',
+        geminiKey: 'gem-key',
+        openaiKey: 'sk-openai',
+        groqKey: 'gsk-groq',
+      );
+
+      expect(
+        payload,
+        equals({
+          'provider': 'openai',
+          'model': 'gpt-4o-mini',
+          'api_key_openai': 'sk-openai',
+        }),
+      );
+    });
+
     test('resolve modelo padrão compatível para groq', () {
       final payload = buildAiConfigPayload(
         provider: 'groq',

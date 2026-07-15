@@ -3,12 +3,18 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/network/api_client.dart';
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/domain/auth_state.dart';
 
 class _AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
+    final apiClient = ref.watch(apiClientProvider);
+    final sessionSubscription = apiClient.sessionExpired.listen((_) {
+      state = AsyncData(AuthState.unauthenticated());
+    });
+    ref.onDispose(sessionSubscription.cancel);
     final timeout = ref.watch(authBootstrapTimeoutProvider);
     try {
       return await _restoreAuthState().timeout(timeout);

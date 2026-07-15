@@ -12,8 +12,17 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter pub get
+      - name: Read app version
+        script: |
+          APP_VERSION="$(sed -nE 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/p' pubspec.yaml)"
+          test -n "$APP_VERSION"
+          echo "APP_VERSION=$APP_VERSION" >> "$CM_ENV"
       - name: Configure Android signing
         script: |
+          : "${CM_KEYSTORE_PASSWORD:?CM_KEYSTORE_PASSWORD is required}"
+          : "${CM_KEY_PASSWORD:?CM_KEY_PASSWORD is required}"
+          : "${CM_KEY_ALIAS:?CM_KEY_ALIAS is required}"
+          : "${CM_KEYSTORE_PATH:?CM_KEYSTORE_PATH is required}"
           cat > "$CM_BUILD_DIR/android/key.properties" <<EOF
           storePassword=$CM_KEYSTORE_PASSWORD
           keyPassword=$CM_KEY_PASSWORD
@@ -28,8 +37,10 @@ workflows:
           flutter test --no-pub
       - name: Build Android APK and AAB
         script: |
-          flutter build apk --release --split-per-abi
-          flutter build appbundle --release
+          flutter build apk --release --split-per-abi \
+            --dart-define=APP_VERSION="$APP_VERSION"
+          flutter build appbundle --release \
+            --dart-define=APP_VERSION="$APP_VERSION"
     artifacts:
       - build/**/outputs/**/*.apk
       - build/**/outputs/**/*.aab
@@ -55,6 +66,11 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter pub get
+      - name: Read app version
+        script: |
+          APP_VERSION="$(sed -nE 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/p' pubspec.yaml)"
+          test -n "$APP_VERSION"
+          echo "APP_VERSION=$APP_VERSION" >> "$CM_ENV"
       - name: Install pods
         script: |
           find . -name "Podfile" -execdir pod install \;
@@ -68,6 +84,7 @@ workflows:
         script: |
           flutter build ipa --release \
             --build-number=$PROJECT_BUILD_NUMBER \
+            --dart-define=APP_VERSION="$APP_VERSION" \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa

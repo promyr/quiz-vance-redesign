@@ -27,15 +27,18 @@ Map<String, dynamic> buildAiConfigPayload({
   String? openaiKey,
   String? groqKey,
 }) {
+  final normalizedProvider = provider.trim().toLowerCase();
+  final activeCredential = switch (normalizedProvider) {
+    'openai' => ('api_key_openai', openaiKey),
+    'groq' => ('api_key_groq', groqKey),
+    _ => ('api_key_gemini', geminiKey),
+  };
+  final activeKey = activeCredential.$2?.trim() ?? '';
+
   return {
-    'provider': provider,
-    'model': defaultModelForAiProvider(provider),
-    if (geminiKey != null && geminiKey.trim().isNotEmpty)
-      'api_key_gemini': geminiKey.trim(),
-    if (openaiKey != null && openaiKey.trim().isNotEmpty)
-      'api_key_openai': openaiKey.trim(),
-    if (groqKey != null && groqKey.trim().isNotEmpty)
-      'api_key_groq': groqKey.trim(),
+    'provider': normalizedProvider,
+    'model': defaultModelForAiProvider(normalizedProvider),
+    if (activeKey.isNotEmpty) activeCredential.$1: activeKey,
   };
 }
 

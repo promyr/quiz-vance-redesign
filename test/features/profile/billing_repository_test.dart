@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/core/exceptions/remote_service_exception.dart';
@@ -20,8 +20,7 @@ void main() {
     when(() => apiClient.dio).thenReturn(dio);
   });
 
-  test('envia user_id string e user_numeric_id apenas quando parseavel',
-      () async {
+  test('envia o body exato de CheckoutStartIn', () async {
     when(
       () => dio.post(
         ApiEndpoints.billingCheckoutStart,
@@ -39,9 +38,10 @@ void main() {
 
     final repository = BillingRepository(apiClient);
     await repository.startCheckout(
-      userId: 'user-uuid-123',
+      userId: 42,
       name: 'Bel Test',
       email: 'bel@test.com',
+      planCode: 'premium_365',
     );
 
     final captured = verify(
@@ -51,42 +51,13 @@ void main() {
       ),
     ).captured.single as Map<String, dynamic>;
 
-    expect(captured['user_id'], equals('user-uuid-123'));
-    expect(captured.containsKey('user_numeric_id'), isFalse);
-  });
-
-  test('mantem compatibilidade com IDs numericos', () async {
-    when(
-      () => dio.post(
-        ApiEndpoints.billingCheckoutStart,
-        data: any(named: 'data'),
-      ),
-    ).thenAnswer(
-      (_) async => Response(
-        requestOptions: RequestOptions(path: ApiEndpoints.billingCheckoutStart),
-        data: {
-          'checkout_url': 'https://checkout.test',
-          'checkout_id': 'chk_2',
-        },
-      ),
-    );
-
-    final repository = BillingRepository(apiClient);
-    await repository.startCheckout(
-      userId: '42',
-      name: 'Bel Test',
-      email: 'bel@test.com',
-    );
-
-    final captured = verify(
-      () => dio.post(
-        ApiEndpoints.billingCheckoutStart,
-        data: captureAny(named: 'data'),
-      ),
-    ).captured.single as Map<String, dynamic>;
-
-    expect(captured['user_id'], equals('42'));
-    expect(captured['user_numeric_id'], equals(42));
+    expect(captured, {
+      'user_id': 42,
+      'plan_code': 'premium_365',
+      'provider': 'mercadopago',
+      'name': 'Bel Test',
+      'email_id': 'bel@test.com',
+    });
   });
 
   test('propaga detail do backend ao carregar planos', () async {
@@ -123,14 +94,14 @@ void main() {
 
     await expectLater(
       repository.getStatus(),
-        throwsA(
-          isA<RemoteServiceException>().having(
-            (error) => error.message,
-            'message',
-            'Não foi possível verificar o status do plano.',
-          ),
+      throwsA(
+        isA<RemoteServiceException>().having(
+          (error) => error.message,
+          'message',
+          'Não foi possível verificar o status do plano.',
         ),
-      );
+      ),
+    );
   });
 
   test('propaga erros de validacao do checkout', () async {
@@ -157,7 +128,7 @@ void main() {
 
     await expectLater(
       repository.startCheckout(
-        userId: '42',
+        userId: 42,
         name: 'Bel Test',
         email: 'bel@test.com',
       ),
@@ -186,4 +157,3 @@ DioException _dioException({
     ),
   );
 }
-

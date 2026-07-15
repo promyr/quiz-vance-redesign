@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/core/network/api_client.dart';
+import 'package:quiz_vance_flutter/core/observability/app_observability.dart';
 import 'package:quiz_vance_flutter/core/storage/local_storage.dart';
 import 'package:quiz_vance_flutter/features/auth/data/auth_repository.dart';
 
@@ -114,5 +115,49 @@ void main() {
         refreshToken: any(named: 'refreshToken'),
       ),
     );
+  });
+
+  test('login nao mantem credenciais na observabilidade ao falhar', () async {
+    final observability = AppObservability();
+    repository = AuthRepository(
+      apiClient,
+      storage: storage,
+      observability: observability,
+    );
+    final requestOptions = RequestOptions(
+      path: '/auth/login',
+      data: const <String, Object?>{
+        'login_id': 'belchior@example.com',
+        'password': 'senha-supersecreta',
+      },
+      headers: const <String, Object?>{
+        'Authorization': 'Bearer jwt-supersecreto',
+      },
+    );
+    when(
+      () => dio.post(
+        any(),
+        data: any(named: 'data'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: requestOptions,
+        message: 'password=senha-supersecreta token=jwt-supersecreto',
+      ),
+    );
+
+    await expectLater(
+      repository.login(
+        loginId: 'belchior@example.com',
+        password: 'senha-supersecreta',
+      ),
+      throwsA(isA<DioException>()),
+    );
+
+    final event = observability.recentEvents.last;
+    final serialized = '${event.error} ${event.attributes}';
+    expect(serialized, isNot(contains('senha-supersecreta')));
+    expect(serialized, isNot(contains('jwt-supersecreto')));
+    expect(event.error, equals('DioException'));
   });
 }

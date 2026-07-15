@@ -44,6 +44,27 @@ void main() {
   });
 
   group('Question', () {
+    test('fromJson preserves source evidence metadata', () {
+      final question = Question.fromJson({
+        'id': 'q-grounded',
+        'question': 'Pergunta',
+        'options': [
+          {'id': 'a', 'text': 'A', 'is_correct': true},
+        ],
+        'correct_option_id': 'a',
+        'source_document_id': 'doc-1',
+        'source_version': '2',
+        'source_span': '120-180',
+        'evidence': 'Trecho verificavel',
+        'quality_flags': ['grounded'],
+      });
+
+      expect(question.sourceDocumentId, 'doc-1');
+      expect(question.sourceVersion, '2');
+      expect(question.sourceSpan, '120-180');
+      expect(question.evidence, 'Trecho verificavel');
+      expect(question.qualityFlags, ['grounded']);
+    });
     test('fromJson creates Question with all properties', () {
       final json = {
         'id': 'q_1',
@@ -108,7 +129,11 @@ void main() {
             'text': 'Gerenciar o orcamento pessoal e familiar',
             'isCorrect': true,
           },
-          {'id': 'opt_0_2', 'text': 'Estudar teoria economica', 'isCorrect': false},
+          {
+            'id': 'opt_0_2',
+            'text': 'Estudar teoria economica',
+            'isCorrect': false
+          },
         ],
         'correctOptionId': 'opt_0_1',
         'explanation':

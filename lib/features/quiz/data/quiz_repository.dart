@@ -6,6 +6,7 @@ import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
+import '../../../core/network/result_outbox.dart';
 import '../domain/question_model.dart';
 
 class QuizRepository {
@@ -80,18 +81,29 @@ class QuizRepository {
     required int xpEarned,
     String? topic,
   }) async {
+    final payload = <String, dynamic>{
+      'session_id': sessionId,
+      'answers': answers,
+      'time_taken_seconds': timeTaken.inSeconds,
+      'total': total,
+      'correct': correct,
+      'xp_earned': xpEarned,
+      if (topic != null && topic.isNotEmpty) 'topic': topic,
+    };
+    await ResultOutbox.instance.flush(_client.dio);
+    await ResultOutbox.instance.enqueue(
+      PendingResultSubmission(
+        id: 'quiz:$sessionId',
+        endpoint: ApiEndpoints.quizSubmit,
+        payload: payload,
+      ),
+    );
     final response = await _client.dio.post(
       ApiEndpoints.quizSubmit,
-      data: {
-        'session_id': sessionId,
-        'answers': answers,
-        'time_taken_seconds': timeTaken.inSeconds,
-        'total': total,
-        'correct': correct,
-        'xp_earned': xpEarned,
-        if (topic != null && topic.isNotEmpty) 'topic': topic,
-      },
+      data: payload,
+      options: Options(headers: {'Idempotency-Key': 'quiz:$sessionId'}),
     );
+    await ResultOutbox.instance.remove('quiz:$sessionId');
     return response.data as Map<String, dynamic>;
   }
 

@@ -5,7 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/providers/auth_provider.dart';
 import '../../../shared/providers/user_provider.dart';
@@ -14,6 +16,8 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_progress_bar.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../auth/domain/auth_state.dart';
+import '../../account/data/account_deletion_repository.dart';
+import '../../app_update/data/app_update_repository.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../data/billing_repository.dart';
 import '../domain/premium_entry_mode.dart';
@@ -39,6 +43,117 @@ class ProfileScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _checkForUpdates(BuildContext context, WidgetRef ref) async {
+    try {
+      final info = await ref.read(appUpdateRepositoryProvider).getUpdateInfo();
+      if (!context.mounted) return;
+      final latest = info.latestVersion;
+      final hasUpdate =
+          latest != null && _isNewerVersion(latest, AppConfig.appVersion);
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(hasUpdate ? 'Atualizacao disponivel' : 'App atualizado'),
+          content: Text(
+            hasUpdate
+                ? 'Versao $latest disponivel. ${info.releaseNotes ?? ''}'
+                : 'Voce ja esta usando a versao mais recente.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Fechar'),
+            ),
+            if (hasUpdate && info.downloadUrl != null)
+              FilledButton(
+                onPressed: () async {
+                  final uri = Uri.tryParse(info.downloadUrl!);
+                  if (uri != null && uri.scheme == 'https') {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: const Text('Baixar'),
+              ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Nao foi possivel verificar atualizacoes.')),
+      );
+    }
+  }
+
+  Future<void> _confirmAccountDeletion(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final passwordController = TextEditingController();
+    final confirmationController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir conta permanentemente?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Esta acao apaga a conta e nao pode ser desfeita. Digite sua senha e EXCLUIR MINHA CONTA.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Senha atual'),
+            ),
+            TextField(
+              controller: confirmationController,
+              decoration: const InputDecoration(labelText: 'Confirmacao'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Excluir definitivamente'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true ||
+        confirmationController.text.trim() != 'EXCLUIR MINHA CONTA' ||
+        passwordController.text.isEmpty) {
+      passwordController.dispose();
+      confirmationController.dispose();
+      return;
+    }
+    try {
+      await ref.read(accountDeletionRepositoryProvider).deleteAccount(
+            DeleteAccountRequest(
+              currentPassword: passwordController.text,
+              confirmationText: confirmationController.text.trim(),
+            ),
+          );
+      await ref.read(authStateNotifierProvider.notifier).logout();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nao foi possivel excluir a conta.')),
+        );
+      }
+    } finally {
+      passwordController.dispose();
+      confirmationController.dispose();
+    }
   }
 
   @override
@@ -189,6 +304,25 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            _SettingsSection(
+              title: 'Aplicativo e privacidade',
+              children: [
+                _SettingsTile(
+                  icon: Icons.system_update_rounded,
+                  label: 'Verificar atualizacoes',
+                  trailing: AppConfig.appVersion,
+                  onTap: () => _checkForUpdates(context, ref),
+                ),
+                _SettingsTile(
+                  icon: Icons.delete_forever_outlined,
+                  label: 'Excluir minha conta',
+                  trailing: '',
+                  trailingColor: AppColors.error,
+                  onTap: () => _confirmAccountDeletion(context, ref),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             AppButton(
               label: 'Sair da conta',
@@ -229,6 +363,25 @@ class ProfileScreen extends ConsumerWidget {
       return AppColors.primary;
     }
     return AppColors.textMuted;
+  }
+
+  static bool _isNewerVersion(String candidate, String current) {
+    List<int> parts(String value) => value
+        .split('+')
+        .first
+        .split('.')
+        .map((part) => int.tryParse(part) ?? 0)
+        .toList();
+    final next = parts(candidate);
+    final installed = parts(current);
+    final length =
+        next.length > installed.length ? next.length : installed.length;
+    for (var index = 0; index < length; index++) {
+      final a = index < next.length ? next[index] : 0;
+      final b = index < installed.length ? installed[index] : 0;
+      if (a != b) return a > b;
+    }
+    return false;
   }
 }
 

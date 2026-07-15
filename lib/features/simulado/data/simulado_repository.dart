@@ -6,6 +6,7 @@ import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
+import '../../../core/network/result_outbox.dart';
 import '../../quiz/domain/question_model.dart';
 
 class SimuladoRepository {
@@ -70,8 +71,24 @@ class SimuladoRepository {
   }
 
   Future<void> submitResult(Map<String, dynamic> payload) async {
+    final sessionId = payload['session_id']?.toString() ??
+        DateTime.now().microsecondsSinceEpoch.toString();
+    final outboxId = 'simulado:$sessionId';
+    await ResultOutbox.instance.flush(_client.dio);
+    await ResultOutbox.instance.enqueue(
+      PendingResultSubmission(
+        id: outboxId,
+        endpoint: ApiEndpoints.simuladoSubmit,
+        payload: payload,
+      ),
+    );
     try {
-      await _client.dio.post(ApiEndpoints.simuladoSubmit, data: payload);
+      await _client.dio.post(
+        ApiEndpoints.simuladoSubmit,
+        data: payload,
+        options: Options(headers: {'Idempotency-Key': outboxId}),
+      );
+      await ResultOutbox.instance.remove(outboxId);
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode ?? 0;
       final detail = extractApiErrorMessage(e.response?.data);
@@ -84,7 +101,8 @@ class SimuladoRepository {
       }
 
       if (statusCode >= 400 && statusCode < 500) {
-        throw RemoteServiceException('Erro $statusCode ao salvar resultado do simulado');
+        throw RemoteServiceException(
+            'Erro $statusCode ao salvar resultado do simulado');
       }
 
       rethrow;

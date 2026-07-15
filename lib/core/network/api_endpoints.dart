@@ -48,6 +48,10 @@ abstract class ApiEndpoints {
   static const String userAiConfig = '/user/ai-config';
   static const String userAchievements = '/user/achievements';
   static const String userAchievementsUnlock = '/user/achievements/unlock';
+  static const String userAccount = '/user/account';
+
+  // App
+  static const String appUpdate = '/app/update';
 
   // Billing
   static const String billingPlans = '/billing/plans';

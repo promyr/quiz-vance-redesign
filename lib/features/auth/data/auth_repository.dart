@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -125,9 +124,13 @@ class AuthRepository {
       _observability.trackEvent('auth.me_succeeded');
       return user;
     } on DioException catch (e) {
-      _debugLog(
-        '[AuthRepository.getMe] falhou com DioException '
-        '(${e.type.name}, status=${e.response?.statusCode ?? 0})',
+      _observability.trackEvent(
+        'auth.me_failed',
+        level: AppEventLevel.warning,
+        attributes: <String, Object?>{
+          'error_type': e.type.name,
+          'status_code': e.response?.statusCode ?? 0,
+        },
       );
       final isOffline = e.response == null &&
           (e.type == DioExceptionType.connectionError ||
@@ -149,8 +152,8 @@ class AuthRepository {
         return cached;
       }
       rethrow;
-    } catch (e) {
-      _debugLog('[AuthRepository.getMe] falhou: $e');
+    } catch (error, stackTrace) {
+      _observability.reportError('auth.me_failed', error, stackTrace);
       rethrow;
     }
   }
@@ -305,11 +308,6 @@ class AuthRepository {
     } catch (_) {
       return null;
     }
-  }
-
-  void _debugLog(String message) {
-    if (!kDebugMode) return;
-    debugPrint(message);
   }
 
   Map<String, dynamic> _normalizeAuthResponse(Map<String, dynamic> raw) {
