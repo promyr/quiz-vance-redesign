@@ -2,8 +2,8 @@ fastapi==0.140.0
 uvicorn[standard]==0.35.0
 gunicorn==23.0.0
 sqlalchemy==2.0.43
-psycopg[binary]==3.2.9
-pydantic==2.11.7
+psycopg[binary]==3.3.4
+pydantic==2.13.4
 python-dotenv==1.1.1
 # passlib==1.7.4 é incompatível com bcrypt>=4.0 (Python 3.12).
 # Pinamos bcrypt==4.0.1 que é a última versão com API compatível com passlib.
