@@ -86,8 +86,8 @@ sandbox Mercado Pago e teste em aparelho físico.
 | higiene de segredos | aprovado, 0 achados |
 | matriz de auditoria estrutural | aprovada, 254/254 requisitos presentes |
 | política de release/entrypoint | aprovada |
-| APK production universal | gerado, 43.307.891 bytes |
-| APK SHA-256 | `9708E3DDE3FF1095C0FBE1A419E115ECB0A394EAAB29F154957C1DC65999D64A` |
+| APK production universal | gerado, 43.307.910 bytes |
+| APK SHA-256 | `70A71E7A43171A334B210D05735232BD9ADA1962199F8DCA126BBD28329882D8` |
 | assinatura APK | v1/v2 válidas |
 | certificado SHA-256 | `b039a11e96aafa7107be445bd6404516ada37962c0b735c059939ea15ca67215` |
 | package/version | `com.quizvance.quiz_vance_flutter`, `2.0.36+35` |
