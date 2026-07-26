@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/core/network/api_client.dart';
 import 'package:quiz_vance_flutter/core/network/api_endpoints.dart';
+import 'package:quiz_vance_flutter/core/exceptions/provider_rate_limit_exception.dart';
 import 'package:quiz_vance_flutter/features/simulado/data/simulado_repository.dart';
 
 class _MockApiClient extends Mock implements ApiClient {}
@@ -61,5 +62,29 @@ void main() {
     ).captured.single as Map<String, dynamic>;
 
     expect(captured['provider'], 'openai');
+  });
+
+  test('generateExam categorizes provider rate limit as retryable', () async {
+    when(
+      () => dio.post(
+        ApiEndpoints.simuladoGenerate,
+        data: any(named: 'data'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: ApiEndpoints.simuladoGenerate),
+        response: Response(
+          requestOptions: RequestOptions(path: ApiEndpoints.simuladoGenerate),
+          statusCode: 429,
+          data: {'detail': 'Provider quota exceeded. Try another provider.'},
+        ),
+        type: DioExceptionType.badResponse,
+      ),
+    );
+
+    await expectLater(
+      repository.generateExam(aiProvider: 'gemini'),
+      throwsA(isA<ProviderRateLimitException>()),
+    );
   });
 }

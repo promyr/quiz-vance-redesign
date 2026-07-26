@@ -1,15 +1,21 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/network/api_error_message.dart';
 import '../../../core/observability/app_observability.dart';
 import '../../../core/storage/local_storage.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
+
+import '../../../shared/application/account_local_state_resetter.dart';
 
 const _userCacheKey = 'auth_user_cache';
 const _sessionModeCacheKey = 'auth_session_mode';
+const _sessionRememberCacheKey = 'auth_session_remember';
 
 enum AuthSessionMode {
   none,
@@ -28,29 +34,50 @@ class PersistedAuthSession {
   final Map<String, dynamic>? user;
 }
 
+class LoginIdAvailabilityResult {
+  const LoginIdAvailabilityResult({
+    required this.loginId,
+    required this.available,
+    required this.isCurrent,
+  });
+
+  final String loginId;
+  final bool available;
+  final bool isCurrent;
+}
+
 class AuthRepository {
   AuthRepository(
     this._client, {
     LocalStorage? storage,
     AppObservability? observability,
+    AccountLocalStateResetter? accountStateResetter,
+    Duration authTimeout = const Duration(seconds: 15),
   })  : _storage = storage ?? LocalStorage.instance,
-        _observability = observability ?? AppObservability.instance;
+        _observability = observability ?? AppObservability.instance,
+        _accountStateResetter =
+            accountStateResetter ?? AccountLocalStateResetter(),
+        _authTimeout = authTimeout;
 
   final ApiClient _client;
   final LocalStorage _storage;
   final AppObservability _observability;
+  final AccountLocalStateResetter _accountStateResetter;
+  final Duration _authTimeout;
 
   Future<Map<String, dynamic>> login({
     required String loginId,
     required String password,
+    bool rememberSession = true,
   }) async {
-    final normalizedLoginId = loginId.trim();
-    _observability.trackEvent(
-      'auth.login_requested',
-      attributes: <String, Object?>{
-        'login_kind': normalizedLoginId.contains('@') ? 'email' : 'login_id',
-      },
+    final normalizedLoginId = loginId.trim().toLowerCase();
+
+    await _storage.setCacheValue(
+      _sessionRememberCacheKey,
+      rememberSession ? 'true' : 'false',
+      scoped: false,
     );
+
     try {
       final response = await _client.dio.post(
         ApiEndpoints.login,
@@ -61,12 +88,39 @@ class AuthRepository {
           if (normalizedLoginId.contains('@')) 'email_id': normalizedLoginId,
           'password': password,
         },
+      ).timeout(
+        _authTimeout,
+        onTimeout: () => throw buildRemoteServiceException(
+          DioException(
+            requestOptions: RequestOptions(path: ApiEndpoints.login),
+            type: DioExceptionType.connectionTimeout,
+          ),
+          fallback:
+              'Nao foi possivel concluir o login agora. Tente novamente em instantes.',
+          connectivityFallback:
+              'Nao foi possivel conectar ao servidor a tempo.',
+        ),
       );
-      final normalized =
-          _normalizeAuthResponse(response.data as Map<String, dynamic>);
+      final raw = response.data;
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException('resposta inesperada de /auth/login');
+      }
+      final normalized = _normalizeAuthResponse(raw);
       await _persistJwtSession(normalized);
       _observability.trackEvent('auth.login_succeeded');
       return normalized;
+    } on DioException catch (error, stackTrace) {
+      _observability.reportError(
+        'auth.login_failed',
+        error,
+        stackTrace,
+      );
+      throw buildRemoteServiceException(
+        error,
+        fallback:
+            'Nao foi possivel concluir o login agora. Tente novamente em instantes.',
+        connectivityFallback: 'Nao foi possivel conectar ao servidor a tempo.',
+      );
     } catch (error, stackTrace) {
       _observability.reportError(
         'auth.login_failed',
@@ -124,13 +178,9 @@ class AuthRepository {
       _observability.trackEvent('auth.me_succeeded');
       return user;
     } on DioException catch (e) {
-      _observability.trackEvent(
-        'auth.me_failed',
-        level: AppEventLevel.warning,
-        attributes: <String, Object?>{
-          'error_type': e.type.name,
-          'status_code': e.response?.statusCode ?? 0,
-        },
+      _debugLog(
+        '[AuthRepository.getMe] falhou com DioException '
+        '(${e.type.name}, status=${e.response?.statusCode ?? 0})',
       );
       final isOffline = e.response == null &&
           (e.type == DioExceptionType.connectionError ||
@@ -139,30 +189,45 @@ class AuthRepository {
               e.type == DioExceptionType.sendTimeout ||
               e.type == DioExceptionType.unknown);
 
-      if (!isOffline) {
-        rethrow;
-      }
-
-      final cached = await getCachedUser();
-      if (cached != null) {
+      // Cache só mantém uso offline; 401/403 sempre encerram a confiança.
+      final cachedFallback = isOffline ? await getCachedUser() : null;
+      if (cachedFallback != null) {
         _observability.trackEvent(
           'auth.me_cache_fallback',
           level: AppEventLevel.warning,
         );
-        return cached;
+        return cachedFallback;
       }
+
       rethrow;
-    } catch (error, stackTrace) {
-      _observability.reportError('auth.me_failed', error, stackTrace);
+    } catch (e) {
+      _debugLog('[AuthRepository.getMe] falhou: $e');
       rethrow;
     }
   }
 
   Future<PersistedAuthSession> restorePersistedSession() async {
-    final rawMode = await _storage.getCacheValue(_sessionModeCacheKey);
+    final rawMode =
+        await _storage.getCacheValue(_sessionModeCacheKey, scoped: false);
     final mode = _parseSessionMode(rawMode);
+    final rememberSession =
+        await _storage.getCacheValue(_sessionRememberCacheKey, scoped: false);
+    if (rememberSession == 'false') {
+      await clearSession();
+      return const PersistedAuthSession.none();
+    }
     final cachedUser = await getCachedUser();
     final token = await _client.getAccessToken();
+
+    if (cachedUser != null) {
+      final userId = cachedUser['id']?.toString() ??
+          cachedUser['user_id']?.toString() ??
+          cachedUser['login_id']?.toString();
+      if (userId != null && userId.isNotEmpty) {
+        AccountScopedPreferences.instance.setActiveAccountId(userId);
+        _storage.setActiveAccountId(userId);
+      }
+    }
 
     if (mode == AuthSessionMode.jwt) {
       if (token == null || token.isEmpty) {
@@ -181,7 +246,8 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>?> getCachedUser() async {
-    return _decodeCachedUser(await _storage.getCacheValue(_userCacheKey));
+    return _decodeCachedUser(
+        await _storage.getCacheValue(_userCacheKey, scoped: false));
   }
 
   Future<Map<String, dynamic>> updateProfile({
@@ -201,6 +267,96 @@ class AuthRepository {
           'resposta inesperada de /user/profile/update');
     }
     return raw;
+  }
+
+  Future<LoginIdAvailabilityResult> checkLoginIdAvailability({
+    required String loginId,
+  }) async {
+    try {
+      final response = await _client.dio.get(
+        ApiEndpoints.userLoginIdAvailability,
+        queryParameters: {
+          'login_id': loginId.trim(),
+        },
+      );
+      final raw = response.data;
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException(
+          'resposta inesperada de /user/login-id/availability',
+        );
+      }
+      return LoginIdAvailabilityResult(
+        loginId: raw['login_id']?.toString() ?? loginId.trim(),
+        available: raw['available'] as bool? ?? false,
+        isCurrent: raw['is_current'] as bool? ?? false,
+      );
+    } on DioException catch (error) {
+      throw buildRemoteServiceException(
+        error,
+        fallback: 'Nao foi possivel verificar esse ID agora.',
+        connectivityFallback:
+            'Nao foi possivel conectar ao servidor para verificar esse ID.',
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> updateLoginId({
+    required String loginId,
+    required String currentPassword,
+  }) async {
+    try {
+      final response = await _client.dio.post(
+        ApiEndpoints.userUpdateLoginId,
+        data: {
+          'login_id': loginId.trim(),
+          'current_password': currentPassword,
+        },
+      );
+      final raw = response.data;
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException(
+          'resposta inesperada de /user/profile/login-id',
+        );
+      }
+      final cached = await getCachedUser();
+      if (cached != null) {
+        final updated = Map<String, dynamic>.from(cached);
+        updated['login_id'] = raw['login_id'] ?? loginId.trim();
+        await _cacheUser(updated);
+      }
+      return raw;
+    } on DioException catch (error) {
+      throw buildRemoteServiceException(
+        error,
+        fallback: 'Nao foi possivel atualizar o ID da conta agora.',
+        connectivityFallback:
+            'Nao foi possivel conectar ao servidor para atualizar o ID.',
+      );
+    }
+  }
+
+  Future<void> deleteAccount({
+    required String currentPassword,
+    required String confirmationText,
+  }) async {
+    try {
+      await _client.dio.delete(
+        ApiEndpoints.userDeleteAccount,
+        data: {
+          'current_password': currentPassword,
+          'confirmation_text': confirmationText.trim(),
+        },
+      );
+      await _accountStateResetter.clearAccountState();
+      await clearSession();
+    } on DioException catch (error) {
+      throw buildRemoteServiceException(
+        error,
+        fallback: 'Nao foi possivel excluir sua conta agora.',
+        connectivityFallback:
+            'Nao foi possivel conectar ao servidor para excluir sua conta.',
+      );
+    }
   }
 
   Future<void> logout() async {
@@ -252,10 +408,18 @@ class AuthRepository {
   }
 
   Future<void> clearSession() async {
+    try {
+      await AccountLocalStateResetter(
+        storage: _storage,
+        preferences: AccountScopedPreferences.instance,
+      ).clearAccountState();
+    } catch (_) {}
+
     await Future.wait([
       _client.clearTokens(),
-      _storage.deleteCacheValue(_userCacheKey),
-      _storage.deleteCacheValue(_sessionModeCacheKey),
+      _storage.deleteCacheValue(_userCacheKey, scoped: false),
+      _storage.deleteCacheValue('auth_user', scoped: false),
+      _storage.deleteCacheValue(_sessionModeCacheKey, scoped: false),
     ]);
   }
 
@@ -278,7 +442,26 @@ class AuthRepository {
 
   Future<void> _cacheUser(Map<String, dynamic> user) async {
     if (user.isEmpty) return;
-    await _storage.setCacheValue(_userCacheKey, jsonEncode(user));
+    final newUserId = user['id']?.toString() ??
+        user['user_id']?.toString() ??
+        user['login_id']?.toString();
+
+    final currentAccountId = AccountScopedPreferences.instance.activeAccountId;
+    if (newUserId != null && newUserId.isNotEmpty) {
+      if (currentAccountId != null && currentAccountId != newUserId) {
+        try {
+          await AccountLocalStateResetter(
+            storage: _storage,
+            preferences: AccountScopedPreferences.instance,
+          ).clearAccountState();
+        } catch (_) {}
+      }
+      AccountScopedPreferences.instance.setActiveAccountId(newUserId);
+      _storage.setActiveAccountId(newUserId);
+    }
+    await _storage.setCacheValue(_userCacheKey, jsonEncode(user),
+        scoped: false);
+    await _storage.setCacheValue('auth_user', jsonEncode(user), scoped: false);
   }
 
   AuthSessionMode _parseSessionMode(String? raw) {
@@ -295,7 +478,7 @@ class AuthRepository {
       AuthSessionMode.none => 'none',
       AuthSessionMode.jwt => 'jwt',
     };
-    await _storage.setCacheValue(_sessionModeCacheKey, value);
+    await _storage.setCacheValue(_sessionModeCacheKey, value, scoped: false);
   }
 
   Map<String, dynamic>? _decodeCachedUser(String? raw) {
@@ -308,6 +491,11 @@ class AuthRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  void _debugLog(String message) {
+    if (!kDebugMode) return;
+    debugPrint(message);
   }
 
   Map<String, dynamic> _normalizeAuthResponse(Map<String, dynamic> raw) {
@@ -337,6 +525,7 @@ class AuthRepository {
       'xp': (source['xp'] as num?)?.toInt() ?? 0,
       'level': source['level'],
       'streak_days': (source['streak_days'] as num?)?.toInt() ?? 0,
+      'role': source['role'] as String? ?? 'user',
     };
   }
 }

@@ -20,31 +20,31 @@ class AiProviderDefinition {
 
 const aiProviderCatalog = <AiProviderDefinition>[
   AiProviderDefinition(
-    id: 'gemini',
-    label: 'Gemini',
-    description: 'Mais economico para quizzes e geracao geral.',
-    buyUrl: 'https://aistudio.google.com/app/apikey',
-    docsUrl: 'https://ai.google.dev/gemini-api/docs/api-key',
-    storageKey: 'api_key_gemini',
-    defaultModel: 'gemini-2.0-flash',
-  ),
-  AiProviderDefinition(
-    id: 'openai',
-    label: 'OpenAI',
-    description: 'Melhor opção para qualidade e dissertativas.',
-    buyUrl: 'https://platform.openai.com/api-keys',
-    docsUrl: 'https://platform.openai.com/docs/quickstart',
-    storageKey: 'api_key_openai',
-    defaultModel: 'gpt-4o-mini',
-  ),
-  AiProviderDefinition(
     id: 'groq',
-    label: 'Groq',
-    description: 'Muito rapido para estudo e respostas curtas.',
+    label: 'Groq (Ultrarrápido)',
+    description: 'Provedor mais rápido (respostas em ~0.3s) com Llama 3.3 70B.',
     buyUrl: 'https://console.groq.com/keys',
     docsUrl: 'https://console.groq.com/docs/quickstart',
     storageKey: 'api_key_groq',
     defaultModel: 'llama-3.3-70b-versatile',
+  ),
+  AiProviderDefinition(
+    id: 'gemini',
+    label: 'Gemini (Google)',
+    description: 'Excelente para explicações detalhadas e quizzes do ENEM.',
+    buyUrl: 'https://aistudio.google.com/app/apikey',
+    docsUrl: 'https://ai.google.dev/gemini-api/docs/api-key',
+    storageKey: 'api_key_gemini',
+    defaultModel: 'gemini-3.5-flash',
+  ),
+  AiProviderDefinition(
+    id: 'openai',
+    label: 'OpenAI',
+    description: 'Modelos GPT para quizzes, explicações e correções.',
+    buyUrl: 'https://platform.openai.com/api-keys',
+    docsUrl: 'https://platform.openai.com/docs/quickstart',
+    storageKey: 'api_key_openai',
+    defaultModel: 'gpt-4o-mini',
   ),
 ];
 

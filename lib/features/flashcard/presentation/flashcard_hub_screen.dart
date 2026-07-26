@@ -144,7 +144,7 @@ class _FlashcardHubScreenState extends ConsumerState<FlashcardHubScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
       body: SafeArea(
         child: Column(
           children: [
@@ -302,7 +302,7 @@ class _FlashcardHubScreenState extends ConsumerState<FlashcardHubScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    'Gerar Flashcards com IA',
+                                    'Gerar Flashcards',
                                     style: TextStyle(
                                       color: AppColors.textPrimary,
                                       fontSize: 14,

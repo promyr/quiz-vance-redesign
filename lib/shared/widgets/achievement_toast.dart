@@ -183,9 +183,7 @@ class _ToastOverlayState extends State<_ToastOverlay>
                         style: const TextStyle(fontSize: 22),
                       ),
                     ),
-                  )
-                      .animate(onPlay: (c) => c.forward())
-                      .scale(
+                  ).animate(onPlay: (c) => c.forward()).scale(
                         duration: 400.ms,
                         delay: 150.ms,
                         curve: Curves.elasticOut,

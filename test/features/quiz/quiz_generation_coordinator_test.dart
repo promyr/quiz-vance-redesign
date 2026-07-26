@@ -62,7 +62,7 @@ void main() {
     );
   });
 
-  test('recupera geracao com fallback de provider e contexto', () async {
+  test('mantem provider no servidor e reduz contexto ao repetir', () async {
     when(
       () => aiGenerationGuard.ensureReadyForGeneration(
         overrideProvider: any(named: 'overrideProvider'),
@@ -71,22 +71,7 @@ void main() {
       return invocation.namedArguments[#overrideProvider] as String? ??
           'gemini';
     });
-    when(
-      () => aiGenerationGuard.loadConfig(
-        overrideProvider: any(named: 'overrideProvider'),
-      ),
-    ).thenAnswer(
-      (_) async => const AiGenerationConfigState(
-        selectedProvider: 'gemini',
-        selectedProviderLabel: 'Gemini',
-        selectedProviderKey: 'g-key',
-        geminiKey: 'g-key',
-        openaiKey: 'o-key',
-        groqKey: '',
-        syncPending: false,
-        lastSyncedProvider: 'gemini',
-      ),
-    );
+    var attempts = 0;
     when(
       () => repository.generate(
         topic: any(named: 'topic'),
@@ -96,8 +81,8 @@ void main() {
         conteudo: any(named: 'conteudo'),
       ),
     ).thenAnswer((invocation) async {
-      final aiProvider = invocation.namedArguments[#aiProvider] as String?;
-      if (aiProvider == 'gemini') {
+      attempts++;
+      if (attempts == 1) {
         throw const RemoteServiceException('Tente novamente');
       }
       return questions;
@@ -114,7 +99,7 @@ void main() {
     );
 
     expect(result.questions, equals(questions));
-    expect(result.aiProvider, equals('openai'));
+    expect(result.aiProvider, equals('gemini'));
     expect(result.infiniteMode, isTrue);
     verify(
       () => repository.generate(
@@ -124,16 +109,61 @@ void main() {
         aiProvider: 'gemini',
         conteudo: any(named: 'conteudo'),
       ),
-    ).called(1);
-    verify(
+    ).called(2);
+  });
+
+  test('nao repete outro provider no cliente quando gateway esgota o pool',
+      () async {
+    when(
+      () => aiGenerationGuard.ensureReadyForGeneration(
+        overrideProvider: any(named: 'overrideProvider'),
+      ),
+    ).thenAnswer((invocation) async {
+      return invocation.namedArguments[#overrideProvider] as String? ??
+          'gemini';
+    });
+    when(
       () => repository.generate(
-        topic: selectedFile.nome,
-        difficulty: 'hard',
-        quantity: 5,
-        aiProvider: 'openai',
+        topic: any(named: 'topic'),
+        difficulty: any(named: 'difficulty'),
+        quantity: any(named: 'quantity'),
+        aiProvider: any(named: 'aiProvider'),
         conteudo: any(named: 'conteudo'),
       ),
-    ).called(greaterThanOrEqualTo(1));
+    ).thenAnswer((invocation) async {
+      throw const RemoteServiceException('Quota exceeded');
+    });
+
+    await expectLater(
+      coordinator.generate(
+        useLibrary: false,
+        topic: 'Direito constitucional',
+        difficulty: 'medium',
+        quantity: 10,
+        infiniteMode: false,
+        preferredProvider: 'gemini',
+      ),
+      throwsA(isA<RemoteServiceException>()),
+    );
+
+    verify(
+      () => repository.generate(
+        topic: 'Direito constitucional',
+        difficulty: 'medium',
+        quantity: 10,
+        aiProvider: 'gemini',
+        conteudo: null,
+      ),
+    ).called(1);
+    verifyNever(
+      () => repository.generate(
+        topic: any(named: 'topic'),
+        difficulty: any(named: 'difficulty'),
+        quantity: any(named: 'quantity'),
+        aiProvider: 'groq',
+        conteudo: any(named: 'conteudo'),
+      ),
+    );
   });
 
   test('limpa memoria a partir do topico selecionado', () async {

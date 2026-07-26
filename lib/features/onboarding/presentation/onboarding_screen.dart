@@ -120,7 +120,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ? GestureDetector(
                         onTap: _finish,
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           child: Text(
                             'Pular',
                             style: TextStyle(
@@ -181,7 +182,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: _slides[_currentPage].accentColor.withOpacity(0.30),
+                        color:
+                            _slides[_currentPage].accentColor.withOpacity(0.30),
                         blurRadius: 20,
                         offset: const Offset(0, 6),
                       ),
@@ -189,7 +191,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   child: Center(
                     child: Text(
-                      _currentPage < _slides.length - 1 ? 'Próximo →' : 'Começar agora',
+                      _currentPage < _slides.length - 1
+                          ? 'Próximo →'
+                          : 'Começar agora',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
@@ -238,9 +242,7 @@ class _SlideView extends StatelessWidget {
             child: Center(
               child: Text(slide.emoji, style: const TextStyle(fontSize: 52)),
             ),
-          )
-              .animate()
-              .scale(duration: 450.ms, curve: Curves.elasticOut),
+          ).animate().scale(duration: 450.ms, curve: Curves.elasticOut),
 
           const SizedBox(height: 36),
 
@@ -253,10 +255,7 @@ class _SlideView extends StatelessWidget {
               fontWeight: FontWeight.w900,
               height: 1.2,
             ),
-          )
-              .animate()
-              .fadeIn(delay: 100.ms)
-              .slideY(begin: 0.06, end: 0),
+          ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.06, end: 0),
 
           const SizedBox(height: 16),
 
@@ -268,10 +267,7 @@ class _SlideView extends StatelessWidget {
               fontSize: 15,
               height: 1.6,
             ),
-          )
-              .animate()
-              .fadeIn(delay: 180.ms)
-              .slideY(begin: 0.06, end: 0),
+          ).animate().fadeIn(delay: 180.ms).slideY(begin: 0.06, end: 0),
         ],
       ),
     );

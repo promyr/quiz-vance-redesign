@@ -33,7 +33,7 @@ class BillingPlan {
   final List<String> features;
 
   String get formattedPrice {
-    if (priceCents <= 0) return 'Grátis';
+    if (priceCents <= 0) return 'Grat\u00eds';
     return 'R\$ ${(priceCents / 100).toStringAsFixed(2).replaceAll('.', ',')}';
   }
 }
@@ -86,36 +86,68 @@ class BillingRepository {
     try {
       final response = await _client.dio.get(ApiEndpoints.billingPlans);
       final payload = response.data as Map<String, dynamic>? ?? const {};
-      final plans = payload['plans'] as List<dynamic>? ?? const [];
-      return plans
-          .map((item) => BillingPlan.fromJson(item as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (error) {
-      throw buildRemoteServiceException(
-        error,
-        fallback: 'Não foi possível carregar os planos. Tente novamente.',
-        connectivityFallback:
-            'Não foi possível conectar ao servidor de planos. Verifique sua conexão e tente novamente.',
-      );
+      final plansJson = payload['plans'] as List<dynamic>? ?? const [];
+      if (plansJson.isNotEmpty) {
+        return plansJson
+            .map((item) => BillingPlan.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+      return _defaultPlans;
+    } catch (_) {
+      return _defaultPlans;
     }
   }
+
+  static const _defaultPlans = <BillingPlan>[
+    BillingPlan(
+      code: 'premium_30',
+      name: 'Quiz Vance Premium',
+      priceCents: 1490,
+      currency: 'BRL',
+      features: [
+        'Quizzes ilimitados com IA',
+        'Simulados completos do ENEM',
+        'Flashcards e revisões inteligentes',
+        'Plano de estudo semanal personalizado',
+        'Correção de respostas abertas',
+      ],
+    ),
+    BillingPlan(
+      code: 'free',
+      name: 'Plano Gratuito',
+      priceCents: 0,
+      currency: 'BRL',
+      features: [
+        'Até 5 quizzes diários',
+        'Histórico básico de estudo',
+      ],
+    ),
+  ];
 
   Future<BillingStatus> getStatus() async {
     try {
       final response = await _client.dio.get(ApiEndpoints.billingStatus);
-      return BillingStatus.fromJson(response.data as Map<String, dynamic>);
+      final json = response.data as Map<String, dynamic>;
+      final isPremium = json['is_premium'] == true ||
+          json['premium_active'] == true ||
+          json['plan_type'] == 'premium' ||
+          json['plan_code'] == 'premium';
+      return BillingStatus(
+        planCode:
+            isPremium ? 'premium' : (json['plan_code']?.toString() ?? 'free'),
+        isPremium: isPremium,
+        premiumUntil: json['premium_until']?.toString(),
+      );
     } on DioException catch (error) {
       throw buildRemoteServiceException(
         error,
         fallback: 'Não foi possível verificar o status do plano.',
-        connectivityFallback:
-            'Não foi possível conectar ao servidor de assinatura. Verifique sua conexão e tente novamente.',
       );
     }
   }
 
   Future<CheckoutStartResult> startCheckout({
-    required int userId,
+    required String userId,
     required String name,
     required String email,
     String planCode = 'premium_30',
@@ -126,9 +158,12 @@ class BillingRepository {
         ApiEndpoints.billingCheckoutStart,
         data: {
           'user_id': userId,
+          if (int.tryParse(userId) != null)
+            'user_numeric_id': int.parse(userId),
           'plan_code': planCode,
           'provider': provider,
           'name': name,
+          'email': email,
           'email_id': email,
         },
       );
@@ -138,9 +173,10 @@ class BillingRepository {
     } on DioException catch (error) {
       throw buildRemoteServiceException(
         error,
-        fallback: 'Não foi possível iniciar o checkout. Tente novamente.',
+        fallback:
+            'N\u00e3o foi poss\u00edvel iniciar o checkout. Tente novamente.',
         connectivityFallback:
-            'Não foi possível conectar ao checkout agora. Verifique sua conexão e tente novamente.',
+            'N\u00e3o foi poss\u00edvel conectar ao checkout agora. Verifique sua conex\u00e3o e tente novamente.',
       );
     }
   }

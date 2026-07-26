@@ -1,19 +1,22 @@
-import 'dart:async';
-
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/storage/local_storage.dart';
+import '../../../shared/application/offline_sync_queue.dart';
 import '../domain/flashcard_model.dart';
+import '../domain/spaced_repetition.dart';
 
 bool shouldSyncFlashcardReview(String? remoteId) {
   return remoteId != null && remoteId.trim().isNotEmpty;
 }
 
 class FlashcardRepository {
-  const FlashcardRepository(this._client);
+  const FlashcardRepository(this._client, {OfflineSyncQueue? syncQueue})
+      : _syncQueue = syncQueue;
   final ApiClient _client;
+  final OfflineSyncQueue? _syncQueue;
 
   Future<List<Flashcard>> getDue() async {
     try {
@@ -51,75 +54,62 @@ class FlashcardRepository {
   }
 
   Future<void> review({
-    required int localId,
-    required String? remoteId,
+    required Flashcard card,
     required FsrsGrade grade,
   }) async {
     final gradeValue = grade.index;
-    final result = _calculateFsrs(grade);
-    await LocalStorage.instance.updateFlashcard(localId, {
+    final reviewedAt = DateTime.now().toUtc();
+    final result = scheduleFlashcardReview(
+      card: card,
+      grade: grade,
+      reviewedAt: reviewedAt,
+    );
+    await LocalStorage.instance.updateFlashcard(card.id, {
       'interval_days': result.intervalDays,
       'easiness': result.easiness,
       'due_date': result.nextDue.toIso8601String().substring(0, 10),
       'repetitions': result.repetitions,
-      'last_reviewed': DateTime.now().toIso8601String(),
+      'last_reviewed': reviewedAt.toIso8601String(),
       'synced': 0,
     });
-    if (shouldSyncFlashcardReview(remoteId)) {
-      unawaited(_syncReview(remoteId: remoteId!, gradeValue: gradeValue));
+    if (shouldSyncFlashcardReview(card.remoteId)) {
+      await _syncReview(
+        remoteId: card.remoteId!,
+        gradeValue: gradeValue,
+        reviewedAt: reviewedAt,
+      );
     }
   }
 
   Future<void> _syncReview({
     required String remoteId,
     required int gradeValue,
+    required DateTime reviewedAt,
   }) async {
+    final payload = {'card_id': remoteId, 'grade': gradeValue};
+    final idempotencyKey =
+        'flashcard:$remoteId:${reviewedAt.toIso8601String()}';
     try {
       await _client.dio.post(
         ApiEndpoints.flashcardsReview,
-        data: {'card_id': remoteId, 'grade': gradeValue},
+        data: payload,
+        options: Options(headers: {'Idempotency-Key': idempotencyKey}),
       );
     } catch (_) {
-      // Sync remoto best-effort.
+      await _syncQueue?.enqueueItem(
+        type: 'flashcard_review',
+        payload: payload,
+        idempotencyKey: idempotencyKey,
+      );
     }
   }
-
-  _FsrsResult _calculateFsrs(FsrsGrade grade) {
-    const defaultEasiness = 2.5;
-    final gradeMap = {
-      FsrsGrade.again: 0,
-      FsrsGrade.hard: 2,
-      FsrsGrade.good: 4,
-      FsrsGrade.easy: 5,
-    };
-    final q = gradeMap[grade]!;
-    final easiness = (defaultEasiness + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
-        .clamp(1.3, 4.0);
-    final intervalDays = q < 3 ? 1 : (1 * easiness).round().clamp(1, 365);
-    return _FsrsResult(
-      intervalDays: intervalDays,
-      easiness: easiness,
-      nextDue: DateTime.now().add(Duration(days: intervalDays)),
-      repetitions: q >= 3 ? 1 : 0,
-    );
-  }
-}
-
-class _FsrsResult {
-  const _FsrsResult({
-    required this.intervalDays,
-    required this.easiness,
-    required this.nextDue,
-    required this.repetitions,
-  });
-  final int intervalDays;
-  final double easiness;
-  final DateTime nextDue;
-  final int repetitions;
 }
 
 final flashcardRepositoryProvider = Provider<FlashcardRepository>(
-  (ref) => FlashcardRepository(ref.watch(apiClientProvider)),
+  (ref) => FlashcardRepository(
+    ref.watch(apiClientProvider),
+    syncQueue: ref.watch(offlineSyncQueueProvider),
+  ),
 );
 
 final dueFlashcardsProvider =

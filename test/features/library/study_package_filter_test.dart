@@ -103,5 +103,37 @@ Lideres moldam normas, incentivos e colaboracao entre equipes.
       expect(sanitized.flashcards, hasLength(1));
       expect(sanitized.topicosPrincipais, ['Tipicidade']);
     });
+
+    test('preserves non-metadata flashcards when strict relevance drops all',
+        () {
+      final package = StudyPackage(
+        titulo: 'Comportamento Organizacional',
+        resumoCurto: 'Resumo valido.',
+        topicosPrincipais: const ['Engajamento de equipes'],
+        flashcards: const [
+          {
+            'front': 'Como alinhar incentivos internos?',
+            'back': 'Metas claras e reconhecimento fortalecem o engajamento.',
+          },
+          {
+            'front': 'Qual e o ISBN do livro?',
+            'back': '978-85-0000-000-0',
+          },
+        ],
+        questoes: const [],
+        checklistEstudo: const ['Mapear fatores de engajamento'],
+      );
+
+      final sanitized = sanitizeStudyPackageForMaterial(
+        package: package,
+        file: file,
+      );
+
+      expect(sanitized.flashcards, hasLength(1));
+      expect(
+        sanitized.flashcards.first['front'],
+        equals('Como alinhar incentivos internos?'),
+      );
+    });
   });
 }

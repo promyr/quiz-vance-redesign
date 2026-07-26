@@ -25,7 +25,8 @@ abstract class AppTheme {
       cardTheme: _buildCardTheme(base),
       elevatedButtonTheme: _buildElevatedButtonTheme(),
       inputDecorationTheme: _buildInputDecorationTheme(),
-      dividerTheme: const DividerThemeData(color: AppColors.border, thickness: 1),
+      dividerTheme:
+          const DividerThemeData(color: AppColors.border, thickness: 1),
       bottomNavigationBarTheme: _buildBottomNavTheme(),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -60,9 +61,12 @@ abstract class AppTheme {
       headlineSmall: _t(size: 18, weight: FontWeight.w600),
       titleLarge: _t(size: 16, weight: FontWeight.w600),
       titleMedium: _t(size: 14, weight: FontWeight.w500),
-      bodyLarge: _t(size: 16, weight: FontWeight.w400, color: AppColors.textSecondary),
-      bodyMedium: _t(size: 14, weight: FontWeight.w400, color: AppColors.textSecondary),
-      bodySmall: _t(size: 12, weight: FontWeight.w400, color: AppColors.textMuted),
+      bodyLarge:
+          _t(size: 16, weight: FontWeight.w400, color: AppColors.textSecondary),
+      bodyMedium:
+          _t(size: 14, weight: FontWeight.w400, color: AppColors.textSecondary),
+      bodySmall:
+          _t(size: 12, weight: FontWeight.w400, color: AppColors.textMuted),
       labelLarge: _t(size: 14, weight: FontWeight.w600),
     );
   }
@@ -125,8 +129,10 @@ abstract class AppTheme {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.error),
       ),
-      hintStyle: _t(size: 14, weight: FontWeight.w400, color: AppColors.textMuted),
-      labelStyle: _t(size: 14, weight: FontWeight.w400, color: AppColors.textMuted),
+      hintStyle:
+          _t(size: 14, weight: FontWeight.w400, color: AppColors.textMuted),
+      labelStyle:
+          _t(size: 14, weight: FontWeight.w400, color: AppColors.textMuted),
     );
   }
 

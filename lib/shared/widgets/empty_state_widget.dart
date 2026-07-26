@@ -83,10 +83,7 @@ class EmptyStateWidget extends StatelessWidget {
               fontSize: titleSize,
               fontWeight: FontWeight.w700,
             ),
-          )
-              .animate()
-              .fadeIn(delay: 80.ms)
-              .slideY(begin: 0.05, end: 0),
+          ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.05, end: 0),
 
           // Subtítulo
           if (subtitle != null) ...[
@@ -99,9 +96,7 @@ class EmptyStateWidget extends StatelessWidget {
                 fontSize: subtitleSize,
                 height: 1.5,
               ),
-            )
-                .animate()
-                .fadeIn(delay: 140.ms),
+            ).animate().fadeIn(delay: 140.ms),
           ],
 
           // CTA
@@ -110,7 +105,8 @@ class EmptyStateWidget extends StatelessWidget {
             GestureDetector(
               onTap: onCtaTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(12),
@@ -131,10 +127,7 @@ class EmptyStateWidget extends StatelessWidget {
                   ),
                 ),
               ),
-            )
-                .animate()
-                .fadeIn(delay: 200.ms)
-                .slideY(begin: 0.06, end: 0),
+            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.06, end: 0),
           ],
         ],
       ),

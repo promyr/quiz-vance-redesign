@@ -45,14 +45,14 @@ PremiumHeroContent buildPremiumHeroContent({
   if (entryMode == PremiumEntryMode.manage) {
     if (status.isPremium) {
       final untilText = formattedPremiumUntil == null
-          ? 'Seu acesso premium esta ativo.'
-          : 'Seu acesso premium esta ativo ate $formattedPremiumUntil.';
+          ? 'Seu acesso Premium está ativo.'
+          : 'Seu acesso Premium está ativo até $formattedPremiumUntil.';
 
       return PremiumHeroContent(
         title: 'Plano atual: $currentPlanName',
         subtitle:
-            '$untilText Esta tela é focada em status, renovação e troca de plano.',
-        badgeLabel: 'Modo gerenciamento',
+            '$untilText Aproveite todos os recursos ilimitados de estudo.',
+        badgeLabel: 'Assinatura Ativa',
         gradient: AppColors.successGradient,
       );
     }
@@ -60,27 +60,27 @@ PremiumHeroContent buildPremiumHeroContent({
     return const PremiumHeroContent(
       title: 'Você está no plano grátis',
       subtitle:
-          'Esta tela mostra seu status atual. Quando quiser comprar, entre pelo atalho Assinar Premium.',
-      badgeLabel: 'Modo gerenciamento',
+          'Estude até 5 quizzes por dia ou assine o Premium por apenas R\$ 14,90/mês.',
+      badgeLabel: 'Plano Gratuito',
       gradient: AppColors.primaryGradient,
     );
   }
 
   if (status.isPremium) {
     return const PremiumHeroContent(
-      title: 'Troque ou renove seu Premium',
+      title: 'Seu Premium está ativo',
       subtitle:
-          'Esta tela é focada em compra. Compare os planos pagos e escolha a melhor opção para continuar.',
-      badgeLabel: 'Modo assinatura',
+          'Confira os benefícios do seu plano atual e acompanhe sua evolução nos estudos.',
+      badgeLabel: 'Membro Premium',
       gradient: AppColors.successGradient,
     );
   }
 
   return const PremiumHeroContent(
-    title: 'Assine o Quiz Vance Premium',
+    title: 'Quiz Vance Premium',
     subtitle:
-        'Esta tela é focada em compra. Escolha um plano pago para liberar quizzes, simulados, flashcards e plano de estudo.',
-    badgeLabel: 'Modo assinatura',
+        'Quizzes ilimitados com IA, simulados completos, flashcards e plano de estudo por apenas R\$ 14,90/mês.',
+    badgeLabel: 'Oferta Especial',
     gradient: AppColors.primaryGradient,
   );
 }
@@ -379,7 +379,7 @@ class _PremiumLoadedView extends StatelessWidget {
                 _RefreshButton(onRefresh: onRefresh),
                 const SizedBox(height: 20),
                 Text(
-                  status.isPremium ? 'Troca de plano' : 'Assinatura premium',
+                  status.isPremium ? 'Sua assinatura' : 'Seja Premium',
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 16,
@@ -389,8 +389,8 @@ class _PremiumLoadedView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   status.isPremium
-                      ? 'Para comparar ou trocar de plano, entre no fluxo comercial dedicado.'
-                      : 'A compra agora fica fora desta tela. Use o fluxo Assinar Premium para ver os planos e iniciar checkout.',
+                      ? 'Gerencie seus benefícios e veja todas as novidades disponíveis para você.'
+                      : 'Estude sem limites com inteligência artificial por apenas R\$ 14,90 por mês.',
                   style: const TextStyle(
                     color: AppColors.textMuted,
                     height: 1.45,
@@ -399,14 +399,14 @@ class _PremiumLoadedView extends StatelessWidget {
                 const SizedBox(height: 14),
                 _ModeSwitchCard(
                   title: status.isPremium
-                      ? 'Ver opcoes de troca'
-                      : 'Ir para assinatura',
+                      ? 'Ver benefícios do plano'
+                      : 'Assinar por R\$ 14,90/mês',
                   subtitle: status.isPremium
-                      ? 'Abra a tela comercial para comparar os planos pagos.'
-                      : 'Abra a tela de assinatura para comparar planos e comprar sem redundancia.',
+                      ? 'Conheça tudo o que está incluído na sua assinatura.'
+                      : 'Desbloqueie quizzes ilimitados, simulados do ENEM e correção de respostas abertas.',
                   buttonLabel: status.isPremium
-                      ? 'Abrir fluxo de troca'
-                      : 'Abrir fluxo de assinatura',
+                      ? 'Conhecer Benefícios'
+                      : 'Quero ser Premium (R\$ 14,90)',
                   onTap: () => context
                       .push(premiumRouteForEntry(PremiumEntryMode.subscribe)),
                 ),
@@ -420,7 +420,7 @@ class _PremiumLoadedView extends StatelessWidget {
                 const _SubscribeBenefitsCard(),
                 const SizedBox(height: 20),
                 Text(
-                  status.isPremium ? 'Troque ou renove' : 'Escolha seu plano',
+                  status.isPremium ? 'Detalhes do plano' : 'Escolha seu plano',
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 16,
@@ -430,8 +430,8 @@ class _PremiumLoadedView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   status.isPremium
-                      ? 'Seu plano atual continua visivel abaixo, mas esta tela prioriza compra e troca.'
-                      : 'Os planos pagos aparecem primeiro para manter o fluxo de compra direto.',
+                      ? 'Confira os detalhes do seu plano ativo abaixo.'
+                      : 'Escolha a opção ideal para acelerar seus estudos.',
                   style: const TextStyle(
                     color: AppColors.textMuted,
                     height: 1.45,

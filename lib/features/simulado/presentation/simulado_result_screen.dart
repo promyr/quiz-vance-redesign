@@ -11,6 +11,7 @@ import '../../../features/history/data/history_repository.dart';
 import '../../../features/quiz/domain/question_model.dart';
 import '../../../shared/providers/gamification_provider.dart';
 import '../../../shared/providers/user_provider.dart';
+import '../../../shared/application/offline_sync_queue.dart';
 import '../../../shared/widgets/achievement_toast.dart';
 import '../../../shared/widgets/sync_status_card.dart';
 import '../data/simulado_repository.dart';
@@ -75,17 +76,6 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
         'accuracy': result.accuracy,
         'xp_earned': result.xpEarned,
         'time_taken_seconds': result.timeTaken.inSeconds,
-        'answers': result.answers
-            .map(
-              (answer) => {
-                'question_id': answer.question.id,
-                'selected_option_id': answer.selectedOptionId,
-                'is_correct': answer.isCorrect,
-                'topic': answer.question.topic,
-                'difficulty': answer.question.difficulty,
-              },
-            )
-            .toList(),
       });
       await ref.read(userStatsNotifierProvider.notifier).refresh();
       ref.invalidate(activityHistoryProvider);
@@ -98,11 +88,30 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
       });
     } catch (error) {
       debugPrint('Simulado submit error: $error');
+      var queued = false;
+      try {
+        await ref.read(offlineSyncQueueProvider).enqueueItem(
+          type: 'simulado_result',
+          idempotencyKey: result.sessionId,
+          payload: {
+            'session_id': result.sessionId,
+            'correct': result.correct,
+            'total': result.total,
+            'accuracy': result.accuracy,
+            'xp_earned': result.xpEarned,
+            'time_taken_seconds': result.timeTaken.inSeconds,
+          },
+        );
+        queued = true;
+      } catch (queueError) {
+        debugPrint('Simulado offline queue error: $queueError');
+      }
       if (!mounted) return;
       setState(() {
         _syncState = SyncStatusState.pending;
-        _syncMessage =
-            'O resultado ficou disponível nesta tela, mas o backend não confirmou a sincronização. Toque para tentar novamente.';
+        _syncMessage = queued
+            ? 'Resultado salvo no aparelho. A sincronização será retomada quando a conexão voltar.'
+            : 'Não foi possível salvar o resultado. Tente novamente antes de sair.';
       });
     }
   }

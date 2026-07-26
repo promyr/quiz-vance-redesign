@@ -1,14 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../features/error_notebook/providers/error_notebook_provider.dart';
 import '../../../features/history/data/history_repository.dart';
+import '../providers/quiz_do_dia_provider.dart';
 import '../../../shared/providers/gamification_provider.dart';
 import '../../../shared/providers/user_provider.dart';
+import '../../../shared/application/offline_sync_queue.dart';
 import '../../../shared/widgets/achievement_toast.dart';
 import '../../../shared/widgets/sync_status_card.dart';
 import '../data/quiz_repository.dart';
@@ -30,12 +34,18 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
   String _syncMessage =
       'Estamos salvando seu resultado, atualizando estatísticas e histórico.';
 
+  bool _showGabarito = false;
+
   @override
   void initState() {
     super.initState();
     _gamificationSubscription =
         ref.listenManual(gamificationProvider, _onGamificationChanged);
     unawaited(_persistResult());
+
+    if ((widget.result.accuracy * 100).round() >= 80) {
+      HapticFeedback.heavyImpact();
+    }
   }
 
   @override
@@ -46,27 +56,91 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
 
   Future<void> _persistResult() async {
     final result = widget.result;
+
+    final gamification = ref.read(gamificationProvider.notifier);
+    final quizRepo = ref.read(quizRepositoryProvider);
+    final userStatsNotifier = ref.read(userStatsNotifierProvider.notifier);
+    final errorNotebook = ref.read(errorNotebookNotifierProvider.notifier);
+    final dailyNotifier = ref.read(dailyChallengeNotifierProvider.notifier);
+
     if (mounted) {
       setState(() {
         _syncState = SyncStatusState.syncing;
         _syncMessage =
-            'Estamos salvando seu resultado, atualizando estatísticas e histórico.';
+            'Salvando seu progresso e atualizando seu histórico de estudos...';
       });
     }
 
     try {
-      await ref.read(gamificationProvider.notifier).recordQuizCompletion(
-            eventId: result.sessionId,
-            xpEarned: result.xpEarned,
-          );
+      final currentDaily = ref.read(dailyChallengeNotifierProvider).valueOrNull;
+      if (currentDaily != null &&
+          result.topic != null &&
+          (result.topic == currentDaily.topic ||
+              result.topic!.contains(currentDaily.topic))) {
+        await dailyNotifier.markCompleted();
+      }
+    } catch (_) {}
+
+    final wrongAnswers = result.answers.where((a) => !a.isCorrect).toList();
+    if (wrongAnswers.isNotEmpty) {
+      try {
+        await errorNotebook.recordWrongQuestions(
+          wrongAnswers: wrongAnswers,
+          topic: result.topic ?? '',
+        );
+      } catch (error) {
+        debugPrint('ErrorNotebook error: $error');
+      }
+    }
+
+    try {
+      await gamification.recordQuizCompletion(
+        eventId: result.sessionId,
+        xpEarned: result.xpEarned,
+      );
     } catch (error) {
       debugPrint('Gamification error: $error');
     }
 
     try {
-      await ref.read(quizRepositoryProvider).submit(
-            sessionId: result.sessionId,
-            answers: result.answers
+      await quizRepo.submit(
+        sessionId: result.sessionId,
+        answers: result.answers
+            .map(
+              (answer) => {
+                'question_id': answer.question.id,
+                'selected_option_id': answer.selectedOptionId,
+                'is_correct': answer.isCorrect,
+              },
+            )
+            .toList(),
+        timeTaken: result.timeTaken,
+        total: result.total,
+        correct: result.correct,
+        xpEarned: result.xpEarned,
+        topic: result.topic,
+      );
+      await userStatsNotifier.refresh();
+      try {
+        ref.invalidate(activityHistoryProvider);
+      } catch (_) {}
+
+      if (!mounted) return;
+      setState(() {
+        _syncState = SyncStatusState.saved;
+        _syncMessage =
+            'Resultado salvo! Seu progresso e histórico foram atualizados.';
+      });
+    } catch (error) {
+      debugPrint('Quiz submit error: $error');
+      var queued = false;
+      try {
+        await ref.read(offlineSyncQueueProvider).enqueueItem(
+          type: 'quiz_result',
+          idempotencyKey: result.sessionId,
+          payload: {
+            'session_id': result.sessionId,
+            'answers': result.answers
                 .map(
                   (answer) => {
                     'question_id': answer.question.id,
@@ -75,28 +149,24 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
                   },
                 )
                 .toList(),
-            timeTaken: result.timeTaken,
-            total: result.total,
-            correct: result.correct,
-            xpEarned: result.xpEarned,
-            topic: result.topic,
-          );
-      await ref.read(userStatsNotifierProvider.notifier).refresh();
-      ref.invalidate(activityHistoryProvider);
-
-      if (!mounted) return;
-      setState(() {
-        _syncState = SyncStatusState.saved;
-        _syncMessage =
-            'Resultado salvo com sucesso. Estatísticas, quotas e histórico foram sincronizados.';
-      });
-    } catch (error) {
-      debugPrint('Quiz submit error: $error');
+            'time_taken_seconds': result.timeTaken.inSeconds,
+            'total': result.total,
+            'correct': result.correct,
+            'xp_earned': result.xpEarned,
+            if (result.topic != null && result.topic!.isNotEmpty)
+              'topic': result.topic,
+          },
+        );
+        queued = true;
+      } catch (queueError) {
+        debugPrint('Quiz offline queue error: $queueError');
+      }
       if (!mounted) return;
       setState(() {
         _syncState = SyncStatusState.pending;
-        _syncMessage =
-            'O resultado ficou disponível nesta tela, mas o backend não confirmou a sincronização. Toque para tentar novamente.';
+        _syncMessage = queued
+            ? 'Resultado salvo no seu aparelho! Sincronizaremos com a nuvem quando a conexão voltar.'
+            : 'Não foi possível salvar o resultado. Tente novamente antes de sair.';
       });
     }
   }
@@ -220,7 +290,7 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
                   _StatCard(
                     label: 'Erradas',
                     value: '${result.total - result.correct}',
-                    color: AppColors.accent,
+                    color: AppColors.error,
                   ),
                   const SizedBox(width: 10),
                   _StatCard(
@@ -270,6 +340,186 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
                     ? () => unawaited(_persistResult())
                     : null,
               ).animate(delay: 260.ms).fadeIn(),
+
+              // BOTÃO E SEÇÃO DE GABARITO & EXPLICAÇÕES (NOVO)
+              if (result.answers.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () => setState(() => _showGabarito = !_showGabarito),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.menu_book_rounded,
+                          color: AppColors.primaryLight,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _showGabarito
+                                ? 'Ocultar Gabarito e Explicações'
+                                : 'Revisar Gabarito e Explicações (${result.answers.length})',
+                            style: const TextStyle(
+                              color: AppColors.primaryLight,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          _showGabarito
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: AppColors.primaryLight,
+                        ),
+                      ],
+                    ),
+                  ),
+                ).animate(delay: 280.ms).fadeIn(),
+                if (_showGabarito) ...[
+                  const SizedBox(height: 12),
+                  ...result.answers.asMap().entries.map((entry) {
+                    final index = entry.key + 1;
+                    final answer = entry.value;
+                    final question = answer.question;
+                    final isCorrect = answer.isCorrect;
+
+                    QuizOption? selectedOpt;
+                    try {
+                      selectedOpt = question.options.firstWhere(
+                        (o) => o.id == answer.selectedOptionId,
+                      );
+                    } catch (_) {}
+
+                    QuizOption? correctOpt;
+                    try {
+                      correctOpt = question.options.firstWhere(
+                        (o) => o.id == question.correctOptionId,
+                      );
+                    } catch (_) {}
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isCorrect
+                              ? AppColors.success.withOpacity(0.4)
+                              : AppColors.error.withOpacity(0.4),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isCorrect
+                                      ? AppColors.success.withOpacity(0.15)
+                                      : AppColors.error.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Q$index • ${isCorrect ? "Correta" : "Incorreta"}',
+                                  style: TextStyle(
+                                    color: isCorrect
+                                        ? AppColors.success
+                                        : AppColors.error,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            question.text,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          if (!isCorrect && selectedOpt != null) ...[
+                            Text(
+                              'Sua resposta: ${selectedOpt.text}',
+                              style: const TextStyle(
+                                color: AppColors.error,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
+                          if (correctOpt != null)
+                            Text(
+                              'Resposta correta: ${correctOpt.text}',
+                              style: const TextStyle(
+                                color: AppColors.success,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          if (question.explanation != null &&
+                              question.explanation!.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface2,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.lightbulb_outline_rounded,
+                                    color: AppColors.xpGold,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      question.explanation!,
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12,
+                                        height: 1.45,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ],
+
               const SizedBox(height: 22),
               _PrimaryAction(
                 label: 'Fazer outro quiz',
@@ -277,7 +527,7 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
               ).animate(delay: 300.ms).fadeIn(),
               const SizedBox(height: 10),
               _SecondaryAction(
-                label: 'Voltar ao inicio',
+                label: 'Voltar ao início',
                 onTap: () => context.go('/'),
               ).animate(delay: 360.ms).fadeIn(),
             ],

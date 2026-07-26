@@ -93,7 +93,9 @@ void main() {
 
     test('extra com questions presente retorna lista corretamente', () {
       final q = _makeQuestion('1');
-      final Map<String, dynamic> extra = {'questions': <Question>[q]};
+      final Map<String, dynamic> extra = {
+        'questions': <Question>[q]
+      };
       final rawList = extra['questions'] as List<dynamic>?;
       final result = (rawList ?? const []).whereType<Question>().toList();
       expect(result, hasLength(1));

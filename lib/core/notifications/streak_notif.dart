@@ -19,35 +19,19 @@ class StreakNotif {
 
     const android = AndroidInitializationSettings('@drawable/ic_launcher');
     const ios = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
+      requestAlertPermission: true,
+      requestBadgePermission: true,
       requestSoundPermission: false,
     );
 
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
     );
-  }
 
-  Future<bool> requestPermissionAndSchedule() async {
-    var granted = true;
-    if (Platform.isAndroid) {
-      granted = await _plugin
-              .resolvePlatformSpecificImplementation<
-                  AndroidFlutterLocalNotificationsPlugin>()
-              ?.requestNotificationsPermission() ??
-          false;
-    } else if (Platform.isIOS) {
-      granted = await _plugin
-              .resolvePlatformSpecificImplementation<
-                  IOSFlutterLocalNotificationsPlugin>()
-              ?.requestPermissions(alert: true, badge: true, sound: false) ??
-          false;
-    }
-    if (granted) {
-      await scheduleDailyReminder();
-    }
-    return granted;
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
   }
 
   Future<void> scheduleDailyReminder() async {
@@ -56,7 +40,7 @@ class StreakNotif {
       return;
     }
 
-    await _plugin.cancel(1);
+    await _plugin.cancelAll();
 
     final now = tz.TZDateTime.now(tz.local);
     var scheduledDate = tz.TZDateTime(
@@ -87,7 +71,7 @@ class StreakNotif {
       ),
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }

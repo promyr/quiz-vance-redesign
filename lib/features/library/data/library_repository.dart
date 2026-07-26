@@ -108,6 +108,7 @@ class LibraryRepository {
   Future<StudyPackage> generatePackage({
     required LibraryFile file,
     String? aiProvider,
+    List<String>? avoidFronts,
   }) async {
     try {
       final context = sanitizeStudyMaterialForPrompt(file.conteudo);
@@ -120,6 +121,8 @@ class LibraryRepository {
           'context': context,
           if (aiProvider != null && aiProvider.isNotEmpty)
             'provider': aiProvider,
+          if (avoidFronts != null && avoidFronts.isNotEmpty)
+            'avoid_fronts': avoidFronts,
         },
       );
 

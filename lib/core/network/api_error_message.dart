@@ -36,13 +36,58 @@ String? extractApiErrorMessage(Object? payload) {
   return null;
 }
 
+String translateApiErrorMessage(String rawMessage) {
+  final lower = rawMessage.trim().toLowerCase();
+
+  if (lower.contains('resource_exhausted') ||
+      lower.contains('quota exceeded') ||
+      lower.contains('rate limit')) {
+    return 'Cota de geração excedida no provedor de IA. Tente novamente mais tarde ou verifique suas Chaves de API.';
+  }
+  if (lower.contains('invalid credentials') ||
+      lower.contains('invalid email or password') ||
+      lower.contains('user not found')) {
+    return 'Credenciais inválidas. Verifique seu ID/e-mail ou senha e tente novamente.';
+  }
+  if (lower.contains('code is invalid') ||
+      lower.contains('invalid code') ||
+      lower.contains('code expired') ||
+      lower.contains('invalid_code')) {
+    return 'O código informado é inválido ou expirou. Solicite um novo código por e-mail.';
+  }
+  if (lower.contains('email already registered') ||
+      lower.contains('user already exists') ||
+      lower.contains('already in use')) {
+    return 'Este e-mail ou ID de acesso já está em uso por outra conta.';
+  }
+  if (lower.contains('field required') ||
+      lower.contains('missing required field')) {
+    return 'Preencha todos os campos obrigatórios para continuar.';
+  }
+  if (lower.contains('internal server error')) {
+    return 'Ocorreu um erro temporário no servidor. Tente novamente em alguns instantes.';
+  }
+  if (lower.contains('unauthorized') ||
+      lower.contains('could not validate credentials') ||
+      lower.contains('token invalido') ||
+      lower.contains('token inválido') ||
+      lower.contains('token expirado')) {
+    return 'Sessão expirada. Faça login novamente para continuar.';
+  }
+  if (lower.contains('network error') || lower.contains('failed to connect')) {
+    return 'Falha na conexão de rede. Verifique sua internet e tente novamente.';
+  }
+
+  return rawMessage;
+}
+
 String userVisibleErrorMessage(
   Object error, {
   required String fallback,
   int maxLength = 180,
 }) {
   if (error is RemoteServiceException) {
-    return error.message;
+    return translateApiErrorMessage(error.message);
   }
 
   final raw = error.toString().trim();
@@ -69,7 +114,7 @@ String userVisibleErrorMessage(
     return fallback;
   }
 
-  return normalized;
+  return translateApiErrorMessage(normalized);
 }
 
 RemoteServiceException buildRemoteServiceException(
@@ -77,9 +122,17 @@ RemoteServiceException buildRemoteServiceException(
   required String fallback,
   String? connectivityFallback,
 }) {
+  final statusCode = error.response?.statusCode ?? 0;
+
+  // Para 401/403 em requisicoes de funcionalidades (nao de auth),
+  // usa o fallback direto sem traduzir como "Sessao expirada"
+  if (statusCode == 401 || statusCode == 403) {
+    return RemoteServiceException(fallback);
+  }
+
   final detail = extractApiErrorMessage(error.response?.data);
   if (detail != null) {
-    return RemoteServiceException(detail);
+    return RemoteServiceException(translateApiErrorMessage(detail));
   }
 
   if (_isConnectivityDioException(error)) {

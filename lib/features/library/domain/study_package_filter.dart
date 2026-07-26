@@ -123,6 +123,21 @@ StudyPackage sanitizeStudyPackageForMaterial({
 }) {
   final profile = _buildRelevanceProfile(file.nome, file.conteudo);
 
+  final rawFlashcards = package.flashcards
+      .map(
+        (card) => <String, String>{
+          'front': (card['front'] ?? '').trim(),
+          'back': (card['back'] ?? '').trim(),
+        },
+      )
+      .where((card) => card['front']!.isNotEmpty && card['back']!.isNotEmpty)
+      .where(
+        (card) => !_containsMetadataNoise(
+          '${card['front']!}\n${card['back']!}',
+        ),
+      )
+      .toList(growable: false);
+
   final flashcards = package.flashcards
       .where(
         (card) => _isRelevantText(
@@ -139,6 +154,10 @@ StudyPackage sanitizeStudyPackageForMaterial({
       )
       .where((card) => card['front']!.isNotEmpty && card['back']!.isNotEmpty)
       .toList();
+
+  final effectiveFlashcards = flashcards.isNotEmpty
+      ? flashcards
+      : rawFlashcards.take(12).toList(growable: false);
 
   final questoes = package.questoes
       .where((question) {
@@ -180,7 +199,7 @@ StudyPackage sanitizeStudyPackageForMaterial({
     titulo: title,
     resumoCurto: package.resumoCurto,
     topicosPrincipais: topicosPrincipais,
-    flashcards: flashcards,
+    flashcards: effectiveFlashcards,
     questoes: questoes,
     checklistEstudo: checklistEstudo,
   );
@@ -296,30 +315,6 @@ String _normalizeMatchText(String input) {
     'ü': 'u',
     'ç': 'c',
     'ñ': 'n',
-    'Ã¡': 'a',
-    'Ã ': 'a',
-    'Ã¢': 'a',
-    'Ã£': 'a',
-    'Ã¤': 'a',
-    'Ã©': 'e',
-    'Ã¨': 'e',
-    'Ãª': 'e',
-    'Ã«': 'e',
-    'Ã­': 'i',
-    'Ã¬': 'i',
-    'Ã®': 'i',
-    'Ã¯': 'i',
-    'Ã³': 'o',
-    'Ã²': 'o',
-    'Ã´': 'o',
-    'Ãµ': 'o',
-    'Ã¶': 'o',
-    'Ãº': 'u',
-    'Ã¹': 'u',
-    'Ã»': 'u',
-    'Ã¼': 'u',
-    'Ã§': 'c',
-    'Ã±': 'n',
   };
 
   replacements.forEach((from, to) {

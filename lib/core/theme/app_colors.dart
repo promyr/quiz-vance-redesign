@@ -3,53 +3,66 @@ import 'package:flutter/material.dart';
 /// Paleta de cores centralizada do Quiz Vance.
 /// Nenhuma tela define cores diretamente — todas referenciam esta classe.
 abstract class AppColors {
-  // Backgrounds
-  static const Color background = Color(0xFF0D0E14);
-  static const Color surface = Color(0xFF16171F);
-  static const Color surface2 = Color(0xFF1E2030);
+  // Backgrounds - Modern Slate Dark Palette
+  static const Color background = Color(0xFF0F172A);
+  static const Color surface = Color(0xFF1E293B);
+  static const Color surface2 = Color(0xFF334155);
 
   // Borders
-  static const Color border = Color(0xFF2A2D3E);
+  static const Color border = Color(0xFF334155);
 
   // Brand
-  static const Color primary = Color(0xFF6C63FF);
-  static const Color primaryLight = Color(0xFF9D97FF);
-  static const Color primaryDark = Color(0xFF4B44CC);
+  static const Color primary = Color(0xFF7C3AED);
+  static const Color primaryLight = Color(0xFFA78BFA);
+  static const Color primaryDark = Color(0xFF5B21B6);
 
   // Accent
-  static const Color accent = Color(0xFFFF6B6B);
+  static const Color accent = Color(0xFF06B6D4);
 
   // Semantic
-  static const Color success = Color(0xFF4ECDC4);
-  static const Color warning = Color(0xFFFF9F43);
-  static const Color error = Color(0xFFFF4757);
+  static const Color success = Color(0xFF10B981);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color error = Color(0xFFF43F5E);
 
   // Gamification
-  static const Color xpGold = Color(0xFFFFE66D);
-  static const Color streakOrange = Color(0xFFFF6B35);
-  static const Color levelPurple = Color(0xFFAD48FF);
+  static const Color xpGold = Color(0xFFFFB800);
+  static const Color streakOrange = Color(0xFFFF5722);
+  static const Color levelPurple = Color(0xFF8B5CF6);
 
   // Text
-  static const Color textPrimary = Color(0xFFF0F0FF);
-  static const Color textSecondary = Color(0xFFBFC3D6);
-  static const Color textMuted = Color(0xFF8B8FA8);
-  static const Color textDisabled = Color(0xFF4A4E63);
+  static const Color textPrimary = Color(0xFFF8FAFC);
+  static const Color textSecondary = Color(0xFFCBD5E1);
+  // Slate 400 preserves readable contrast on both background and surfaces.
+  static const Color textMuted = Color(0xFF94A3B8);
+  static const Color textDisabled = Color(0xFF334155);
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF6C63FF), Color(0xFF9D63FF)],
+    colors: [Color(0xFF7C3AED), Color(0xFFC084FC)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient goldGradient = LinearGradient(
-    colors: [Color(0xFFFFE66D), Color(0xFFFFB347)],
+    colors: [Color(0xFFFFB800), Color(0xFFF59E0B)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient successGradient = LinearGradient(
-    colors: [Color(0xFF4ECDC4), Color(0xFF44CF6C)],
+    colors: [Color(0xFF10B981), Color(0xFF059669)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient cyberGradient = LinearGradient(
+    colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient fireGradient = LinearGradient(
+    colors: [Color(0xFFFF5722), Color(0xFFEF4444)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

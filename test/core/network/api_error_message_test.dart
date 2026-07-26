@@ -64,5 +64,16 @@ void main() {
 
       expect(message, 'Mensagem generica');
     });
+
+    test('translates english api error messages to portuguese', () {
+      expect(
+        translateApiErrorMessage('RESOURCE_EXHAUSTED: quota exceeded'),
+        contains('Cota de geração excedida'),
+      );
+      expect(
+        translateApiErrorMessage('code is invalid'),
+        contains('código informado é inválido'),
+      );
+    });
   });
 }

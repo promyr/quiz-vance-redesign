@@ -8,6 +8,7 @@ class AuthState {
     this.email,
     this.name,
     this.avatarUrl,
+    this.role = 'user',
   });
 
   factory AuthState.unauthenticated() =>
@@ -19,6 +20,9 @@ class AuthState {
   final String? email;
   final String? name;
   final String? avatarUrl;
+  final String role;
+
+  bool get isAdmin => role == 'admin';
 
   AuthState copyWith({
     bool? isAuthenticated,
@@ -27,6 +31,7 @@ class AuthState {
     Object? email = _unset,
     Object? name = _unset,
     Object? avatarUrl = _unset,
+    String? role,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -36,6 +41,7 @@ class AuthState {
       name: identical(name, _unset) ? this.name : name as String?,
       avatarUrl:
           identical(avatarUrl, _unset) ? this.avatarUrl : avatarUrl as String?,
+      role: role ?? this.role,
     );
   }
 }

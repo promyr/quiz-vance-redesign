@@ -66,7 +66,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const AppBottomNav(currentIndex: 4),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 3),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

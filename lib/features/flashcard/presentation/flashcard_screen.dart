@@ -60,6 +60,11 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
   }
 
   void _toggleCardFace() {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _flipController.value = _showAnswer ? 0 : 1;
+      setState(() => _showAnswer = !_showAnswer);
+      return;
+    }
     if (_showAnswer) {
       _flipController.reverse();
     } else {
@@ -72,8 +77,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
     final card = cards[_currentIndex];
 
     await ref.read(flashcardRepositoryProvider).review(
-          localId: card.id,
-          remoteId: card.remoteId,
+          card: card,
           grade: grade,
         );
     await applyFlashcardReviewRewards(
@@ -171,7 +175,8 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
             }
 
             final card = sessionCards[_currentIndex];
-            final visiblePosition = (_reviewedCount + 1).clamp(1, _cycleTotalCount);
+            final visiblePosition =
+                (_reviewedCount + 1).clamp(1, _cycleTotalCount);
 
             return Column(
               children: [
@@ -222,162 +227,175 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 18),
                     child: Column(
                       children: [
-                        GestureDetector(
-                          onTap: _toggleCardFace,
-                          child: AnimatedBuilder(
-                            animation: _flipAnimation,
-                            builder: (context, child) {
-                              final angle = _flipAnimation.value * 3.14159;
-                              final isBack = _flipAnimation.value > 0.5;
+                        Semantics(
+                          button: true,
+                          label: _showAnswer
+                              ? 'Mostrar frente do flashcard'
+                              : 'Mostrar resposta do flashcard',
+                          child: GestureDetector(
+                            onTap: _toggleCardFace,
+                            child: AnimatedBuilder(
+                              animation: _flipAnimation,
+                              builder: (context, child) {
+                                final angle = _flipAnimation.value * 3.14159;
+                                final isBack = _flipAnimation.value > 0.5;
 
-                              return Transform(
-                                transform: Matrix4.identity()
-                                  ..setEntry(3, 2, 0.001)
-                                  ..rotateY(angle),
-                                alignment: Alignment.center,
-                                child: Container(
-                                  width: double.infinity,
-                                  constraints:
-                                      const BoxConstraints(minHeight: 220),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        AppColors.surface,
-                                        AppColors.surface2,
+                                return Transform(
+                                  transform: Matrix4.identity()
+                                    ..setEntry(3, 2, 0.001)
+                                    ..rotateY(angle),
+                                  alignment: Alignment.center,
+                                  child: Container(
+                                    width: double.infinity,
+                                    constraints:
+                                        const BoxConstraints(minHeight: 220),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          AppColors.surface,
+                                          AppColors.surface2,
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border:
+                                          Border.all(color: AppColors.border),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.4),
+                                          blurRadius: 60,
+                                          offset: const Offset(0, 20),
+                                        ),
                                       ],
                                     ),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: AppColors.border),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.4),
-                                        blurRadius: 60,
-                                        offset: const Offset(0, 20),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      Positioned(
-                                        top: 0,
-                                        left: 20,
-                                        right: 20,
-                                        child: Container(
-                                          height: 1,
-                                          decoration: BoxDecoration(
-                                            gradient: const LinearGradient(
-                                              colors: [
-                                                Colors.transparent,
-                                                AppColors.primary,
-                                                Colors.transparent,
-                                              ],
+                                    child: Stack(
+                                      children: [
+                                        Positioned(
+                                          top: 0,
+                                          left: 20,
+                                          right: 20,
+                                          child: Container(
+                                            height: 1,
+                                            decoration: BoxDecoration(
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Colors.transparent,
+                                                  AppColors.primary,
+                                                  Colors.transparent,
+                                                ],
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(1),
                                             ),
-                                            borderRadius:
-                                                BorderRadius.circular(1),
                                           ),
                                         ),
-                                      ),
-                                      Positioned(
-                                        top: 14,
-                                        right: 14,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 9,
-                                            vertical: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary
-                                                .withOpacity(0.2),
-                                            border: Border.all(
+                                        Positioned(
+                                          top: 14,
+                                          right: 14,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 9,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
                                               color: AppColors.primary
-                                                  .withOpacity(0.4),
+                                                  .withOpacity(0.2),
+                                              border: Border.all(
+                                                color: AppColors.primary
+                                                    .withOpacity(0.4),
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(100),
                                             ),
-                                            borderRadius:
-                                                BorderRadius.circular(100),
-                                          ),
-                                          child: Text(
-                                            isBack
-                                                ? 'Resposta'
-                                                : 'SRS  Revisao',
-                                            style: const TextStyle(
-                                              color: AppColors.primary,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          22,
-                                          40,
-                                          22,
-                                          28,
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              isBack ? 'RESPOSTA' : 'PERGUNTA',
+                                            child: Text(
+                                              isBack
+                                                  ? 'Resposta'
+                                                  : 'SRS  Revisao',
                                               style: const TextStyle(
-                                                color: AppColors.textMuted,
+                                                color: AppColors.primary,
                                                 fontSize: 10,
-                                                letterSpacing: 1,
                                                 fontWeight: FontWeight.w700,
                                               ),
                                             ),
-                                            const SizedBox(height: 12),
-                                            Transform(
-                                              transform: isBack
-                                                  ? (Matrix4.identity()
-                                                    ..rotateY(3.14159))
-                                                  : Matrix4.identity(),
-                                              alignment: Alignment.center,
-                                              child: Text(
-                                                isBack ? card.back : card.front,
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                            22,
+                                            40,
+                                            22,
+                                            28,
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                isBack
+                                                    ? 'RESPOSTA'
+                                                    : 'PERGUNTA',
                                                 style: const TextStyle(
-                                                  color: AppColors.textPrimary,
-                                                  fontSize: 16,
+                                                  color: AppColors.textMuted,
+                                                  fontSize: 10,
+                                                  letterSpacing: 1,
                                                   fontWeight: FontWeight.w700,
-                                                  height: 1.5,
                                                 ),
-                                                textAlign: TextAlign.center,
                                               ),
-                                            ),
-                                            if (!isBack) ...[
-                                              const SizedBox(height: 20),
-                                              const Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.touch_app_rounded,
-                                                    size: 14,
-                                                    color: AppColors.textMuted,
+                                              const SizedBox(height: 12),
+                                              Transform(
+                                                transform: isBack
+                                                    ? (Matrix4.identity()
+                                                      ..rotateY(3.14159))
+                                                    : Matrix4.identity(),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  isBack
+                                                      ? card.back
+                                                      : card.front,
+                                                  style: const TextStyle(
+                                                    color:
+                                                        AppColors.textPrimary,
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w700,
+                                                    height: 1.5,
                                                   ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    'Toque para ver a resposta',
-                                                    style: TextStyle(
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                              if (!isBack) ...[
+                                                const SizedBox(height: 20),
+                                                const Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.touch_app_rounded,
+                                                      size: 14,
                                                       color:
                                                           AppColors.textMuted,
-                                                      fontSize: 11,
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
+                                                    SizedBox(width: 4),
+                                                    Text(
+                                                      'Toque para ver a resposta',
+                                                      style: TextStyle(
+                                                        color:
+                                                            AppColors.textMuted,
+                                                        fontSize: 11,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
                                             ],
-                                          ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
                         ),
                         if (_showAnswer) ...[
