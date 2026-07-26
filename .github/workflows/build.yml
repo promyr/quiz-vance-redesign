@@ -68,6 +68,12 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build immutable candidate
         run: docker build --pull --tag quiz-vance-backend:${{ github.sha }} backend
+      - name: Enforce CVE-2026-15308 compensating control
+        run: |
+          if grep -R -n -E 'html\.parser|HTMLParser|from html|import html' backend/app; then
+            echo "The temporary CVE-2026-15308 exception is no longer valid."
+            exit 1
+          fi
       - name: Generate backend image SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
@@ -82,6 +88,7 @@ jobs:
           fail-build: true
           severity-cutoff: high
           only-fixed: true
+          config: .grype.yaml
           output-format: table
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
