@@ -92,6 +92,10 @@ sandbox Mercado Pago e teste em aparelho físico.
 | certificado SHA-256 | `b039a11e96aafa7107be445bd6404516ada37962c0b735c059939ea15ca67215` |
 | package/version | `com.quizvance.quiz_vance_flutter`, `2.0.36+35` |
 | SDK | min 21, target 34 |
+| GitHub secret hygiene | aprovado |
+| GitHub backend Python 3.14 | aprovado: testes, Ruff, Bandit, compileall e Alembic |
+| imagem backend | aprovado: build imutável, SBOM e scanner |
+| CVE-2026-15308 | exceção estreita registrada; módulo vulnerável fora do caminho executável e protegido por gate |
 
 Artefato local:
 `output_apk/quiz-vance-2.0.36+35-universal.apk`.
@@ -100,14 +104,16 @@ Artefato local:
 
 1. Revogar e rotacionar o token comprometido no BotFather.
 2. Limpar ocorrências históricas em logs e `last_error` de produção.
-3. Configurar `MP_WEBHOOK_SECRET`, `TELEGRAM_WEBHOOK_SECRET`,
-   `SESSION_SIGNING_SECRET`, `INTERNAL_API_SECRET` e `DATA_ENCRYPTION_KEY`.
+3. Configurar `MP_WEBHOOK_SECRET`, `SESSION_SIGNING_SECRET`,
+   `INTERNAL_API_SECRET` e `DATA_ENCRYPTION_KEY`.
 4. Executar migration 18, backup/restore e rollback em staging.
 5. Executar ensaio concorrente em PostgreSQL e sandbox completo Mercado Pago.
-6. Executar build/SBOM/scan real no CI com Docker.
+6. Autorizar explicitamente o armazenamento do keystore e das senhas de
+   assinatura Android como GitHub Actions Secrets; o pipeline falha fechado.
 7. Instalar e testar em aparelho real: instalação limpa, upgrade, login,
    geração, offline, background e download Telegram.
-8. Verificar políticas autenticadas do repositório e branch protection.
+8. Atualizar os contextos antigos da branch protection depois da consolidação
+   do novo workflow.
 
 ## Pendências de qualidade não bloqueadoras do código crítico
 
