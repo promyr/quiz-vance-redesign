@@ -81,6 +81,7 @@ jobs:
           image: quiz-vance-backend:${{ github.sha }}
           fail-build: true
           severity-cutoff: high
+          only-fixed: true
           output-format: table
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
