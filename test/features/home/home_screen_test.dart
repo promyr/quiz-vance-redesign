@@ -3,7 +3,8 @@ import 'package:quiz_vance_flutter/features/home/presentation/home_screen.dart';
 import 'package:quiz_vance_flutter/features/profile/data/billing_repository.dart';
 
 void main() {
-  test('preparePremiumUpsell aborta sem consultar billing quando frequencia bloqueia',
+  test(
+      'preparePremiumUpsell aborta sem consultar billing quando frequencia bloqueia',
       () async {
     var fetchCalled = false;
     var markCalled = false;

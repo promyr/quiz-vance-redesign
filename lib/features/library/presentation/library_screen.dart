@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -523,40 +524,40 @@ class _AddFileFormState extends State<_AddFileForm> {
       if (picked.size > maxStudyDocumentBytes) {
         throw const StudyDocumentTooLargeException();
       }
-      final path = picked.path;
-      if (path == null) {
+
+      Uint8List? bytes = picked.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        final path = picked.path;
+        if (path != null && path.isNotEmpty) {
+          final file = File(path);
+          if (await file.exists()) {
+            bytes = Uint8List.fromList(
+              await file
+                  .openRead(0, maxStudyDocumentBytes + 1)
+                  .expand((chunk) => chunk)
+                  .toList(),
+            );
+          }
+        }
+      }
+
+      if (bytes == null || bytes.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível ler o arquivo')),
+            const SnackBar(
+              content:
+                  Text('Não foi possível ler os dados do arquivo selecionado.'),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
         return;
       }
 
-      final bytes = await File(path).readAsBytes();
       final text = await extractStudyDocumentText(
         bytes: bytes,
         extension: picked.extension ?? '',
       );
-      /* Legacy inline extraction replaced by the isolated importer.
-      String legacyText;
-      final ext = picked.extension?.toLowerCase() ?? '';
-
-      if (ext == 'pdf') {
-        final doc = PdfDocument(inputBytes: bytes);
-        legacyText = PdfTextExtractor(doc).extractText();
-        doc.dispose();
-      } else {
-        // TXT ou MD — leitura direta como UTF-8
-        legacyText = utf8.decode(bytes, allowMalformed: true);
-      }
-
-      // Normaliza espaçamento excessivo
-      legacyText = legacyText
-          .replaceAll(RegExp(r'[ \t]{3,}'), ' ')
-          .replaceAll(RegExp(r'\n{4,}'), '\n\n')
-          .trim();
-      */
 
       if (mounted) {
         setState(() {
@@ -570,13 +571,62 @@ class _AddFileFormState extends State<_AddFileForm> {
           }
         });
       }
-    } catch (e) {
+    } on StudyDocumentTooLargeException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-                'Não foi possível processar o arquivo. Tente novamente.'),
+          const SnackBar(
+            content: Text(
+              'O arquivo selecionado é maior que 10 MB. Escolha um arquivo menor.',
+            ),
             backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } on StudyDocumentTypeException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'O conteúdo não corresponde a um PDF, TXT ou Markdown válido.',
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } on StudyDocumentEmptyException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Este PDF não possui texto selecionável (pode ser uma imagem/escaneamento). Use um PDF digital com texto ou arquivo TXT/MD.',
+            ),
+            backgroundColor: AppColors.error,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } on StudyDocumentParseException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Erro ao ler a estrutura do PDF. Verifique se o arquivo não possui senha ou se está corrompido.',
+            ),
+            backgroundColor: AppColors.error,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().replaceAll('Exception:', '').trim();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Falha ao processar arquivo: $msg',
+            ),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
           ),
         );
       }

@@ -2,11 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/exceptions/premium_limit_exception.dart';
+import '../../../core/exceptions/provider_rate_limit_exception.dart';
 import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
-import '../../../core/network/result_outbox.dart';
 import '../../quiz/domain/question_model.dart';
 
 class SimuladoRepository {
@@ -41,24 +41,23 @@ class SimuladoRepository {
       final statusCode = e.response?.statusCode ?? 0;
       final detail = extractApiErrorMessage(e.response?.data);
 
-      if (detail != null) {
-        if (statusCode == 429) {
-          throw PremiumLimitException(detail);
-        }
-        if (statusCode >= 400 && statusCode < 500) {
-          throw RemoteServiceException(detail);
-        }
-        throw RemoteServiceException(detail);
-      }
-
       if (statusCode == 429) {
+        if (detail != null && isProviderRateLimitMessage(detail)) {
+          throw ProviderRateLimitException(detail);
+        }
         throw PremiumLimitException(
-          'Limite diário atingido. Faça upgrade para Premium.',
+          detail ?? 'Limite diário atingido. Faça upgrade para Premium.',
         );
       }
 
-      if (statusCode >= 400 && statusCode < 500) {
-        throw RemoteServiceException('Erro $statusCode ao gerar simulado');
+      if (statusCode == 401 || statusCode == 403) {
+        throw const RemoteServiceException(
+          'Não foi possível gerar o simulado. Verifique sua conexão e tente novamente.',
+        );
+      }
+
+      if (detail != null && statusCode >= 400 && statusCode < 500) {
+        throw RemoteServiceException(detail);
       }
 
       throw buildRemoteServiceException(
@@ -71,24 +70,8 @@ class SimuladoRepository {
   }
 
   Future<void> submitResult(Map<String, dynamic> payload) async {
-    final sessionId = payload['session_id']?.toString() ??
-        DateTime.now().microsecondsSinceEpoch.toString();
-    final outboxId = 'simulado:$sessionId';
-    await ResultOutbox.instance.flush(_client.dio);
-    await ResultOutbox.instance.enqueue(
-      PendingResultSubmission(
-        id: outboxId,
-        endpoint: ApiEndpoints.simuladoSubmit,
-        payload: payload,
-      ),
-    );
     try {
-      await _client.dio.post(
-        ApiEndpoints.simuladoSubmit,
-        data: payload,
-        options: Options(headers: {'Idempotency-Key': outboxId}),
-      );
-      await ResultOutbox.instance.remove(outboxId);
+      await _client.dio.post(ApiEndpoints.simuladoSubmit, data: payload);
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode ?? 0;
       final detail = extractApiErrorMessage(e.response?.data);

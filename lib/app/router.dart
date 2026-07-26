@@ -22,6 +22,7 @@ import '../features/quiz/presentation/quiz_result_screen.dart';
 import '../features/quiz/presentation/quiz_session_screen.dart'
     show QuizGenerationParams, QuizSessionScreen;
 import '../features/ranking/presentation/ranking_screen.dart';
+import '../features/settings/presentation/admin_master_keys_screen.dart';
 import '../features/settings/presentation/api_keys_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/simulado/presentation/simulado_config_screen.dart';
@@ -30,6 +31,7 @@ import '../features/simulado/presentation/simulado_review_screen.dart';
 import '../features/simulado/presentation/simulado_screen.dart';
 import '../features/stats/presentation/stats_screen.dart';
 import '../features/study_plan/presentation/study_plan_screen.dart';
+import '../features/estudar/presentation/estudar_screen.dart';
 import '../shared/providers/auth_provider.dart';
 
 const _bootRoute = '/boot';
@@ -57,6 +59,7 @@ bool isAppBootstrapLoading({
 String? resolveAppRedirect({
   required bool authLoading,
   required bool isAuthenticated,
+  bool isAdmin = false,
   required bool shouldShowOnboardingFlag,
   required String location,
   String? pendingLocation,
@@ -95,6 +98,10 @@ String? resolveAppRedirect({
     return '/login';
   }
 
+  if (isAuthenticated && location.startsWith('/admin/') && !isAdmin) {
+    return '/';
+  }
+
   if (isAuthenticated && (isLoginRoute || isOnboardingRoute)) {
     return '/';
   }
@@ -110,6 +117,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: _bootRoute,
     redirect: (context, state) {
       final isAuthenticated = authState.valueOrNull?.isAuthenticated ?? false;
+      final isAdmin = authState.valueOrNull?.isAdmin ?? false;
       final bootstrapLoading = isAppBootstrapLoading(
         authLoading: authState.isLoading,
         authHasValue: authState.hasValue,
@@ -120,6 +128,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       return resolveAppRedirect(
         authLoading: bootstrapLoading,
         isAuthenticated: isAuthenticated,
+        isAdmin: isAdmin,
         shouldShowOnboardingFlag: onboardingState.valueOrNull ?? false,
         location: state.matchedLocation,
         pendingLocation: state.uri.queryParameters['from'],
@@ -147,6 +156,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const HomeScreen(),
       ),
       GoRoute(
+        path: '/estudar',
+        name: 'estudar',
+        builder: (context, state) => const EstudarScreen(),
+      ),
+      GoRoute(
         path: '/quiz',
         name: 'quizConfig',
         builder: (context, state) => const QuizConfigScreen(),
@@ -163,6 +177,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 generationParams:
                     extra?['generationParams'] as QuizGenerationParams?,
                 infiniteMode: (extra?['infiniteMode'] as bool?) ?? false,
+                isErrorRevisionMode:
+                    (extra?['isErrorRevisionMode'] as bool?) ?? false,
               );
             },
           ),
@@ -239,6 +255,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
+        path: '/admin/keys',
+        name: 'adminKeys',
+        builder: (context, state) => const AdminMasterKeysScreen(),
+      ),
+      GoRoute(
         path: '/premium',
         name: 'premium',
         builder: (context, state) => PremiumScreen(
@@ -268,10 +289,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: 'api-keys',
-            name: 'apiKeys',
             builder: (context, state) => const ApiKeysScreen(),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/api-keys',
+        name: 'apiKeys',
+        builder: (context, state) => const ApiKeysScreen(),
       ),
       GoRoute(
         path: '/open-quiz',

@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/content/study_material_sanitizer.dart';
-import '../../../core/network/api_error_message.dart';
 import '../../../core/observability/app_observability.dart';
 import '../../library/domain/library_model.dart';
+import '../../settings/data/ai_generation_fallback.dart';
 import '../../settings/data/ai_generation_guard.dart';
 import '../data/quiz_repository.dart';
 import '../domain/question_model.dart';
@@ -101,20 +101,11 @@ class QuizGenerationCoordinator {
         infiniteMode: infiniteMode,
       );
     } catch (firstError) {
-      if (!selection.useLibrary) rethrow;
-
-      final firstMessage = userVisibleErrorMessage(firstError, fallback: '');
-      if (!_isRetryableAiGenerationFailure(firstMessage)) {
+      if (!isRetryableAiGenerationFailure(firstError)) {
         rethrow;
       }
 
-      final config = await _aiGenerationGuard.loadConfig(
-        overrideProvider: preferredProvider,
-      );
-      final providerCandidates = _buildProviderFallbackOrder(
-        preferredProvider: resolvedProvider,
-        config: config,
-      );
+      final providerCandidates = <String>[resolvedProvider];
       final contextCandidates = _buildContextFallbackOrder(
         initialContext: selection.libraryContext,
         rawLibraryContent: selection.rawLibraryContent,
@@ -129,9 +120,6 @@ class QuizGenerationCoordinator {
           if (sameAsOriginal) continue;
 
           try {
-            await _aiGenerationGuard.ensureReadyForGeneration(
-              overrideProvider: candidateProvider,
-            );
             final questions = await _quizRepository.generate(
               topic: selection.topic,
               difficulty: difficulty,
@@ -160,11 +148,7 @@ class QuizGenerationCoordinator {
             );
           } catch (retryError) {
             lastError = retryError;
-            final retryMessage = userVisibleErrorMessage(
-              retryError,
-              fallback: '',
-            );
-            if (!_isRetryableAiGenerationFailure(retryMessage)) {
+            if (!isRetryableAiGenerationFailure(retryError)) {
               rethrow;
             }
           }
@@ -251,39 +235,6 @@ class _QuizSelection {
   final bool useLibrary;
 }
 
-bool _isRetryableAiGenerationFailure(String message) {
-  final normalized = message.trim().toLowerCase();
-  if (normalized.isEmpty) return false;
-
-  return normalized.contains('erro ao gerar') ||
-      normalized.contains('nao foi possivel gerar') ||
-      normalized.contains('tente novamente') ||
-      normalized.contains('chave de api') ||
-      normalized.contains('prove') ||
-      normalized.contains('modelo') ||
-      normalized.contains('autentic') ||
-      normalized.contains('quota') ||
-      normalized.contains('credito');
-}
-
-List<String> _buildProviderFallbackOrder({
-  required String preferredProvider,
-  required AiGenerationConfigState config,
-}) {
-  final providers = <String>[
-    if (config.geminiKey.trim().isNotEmpty) 'gemini',
-    if (config.openaiKey.trim().isNotEmpty) 'openai',
-    if (config.groqKey.trim().isNotEmpty) 'groq',
-  ];
-
-  if (providers.contains(preferredProvider)) {
-    providers.remove(preferredProvider);
-    providers.insert(0, preferredProvider);
-  }
-
-  return providers;
-}
-
 List<String?> _buildContextFallbackOrder({
   required String? initialContext,
   required String? rawLibraryContent,
@@ -296,12 +247,17 @@ List<String?> _buildContextFallbackOrder({
     initialContext,
     sanitizeStudyMaterialForPrompt(rawLibraryContent, maxChars: 1400),
     sanitizeStudyMaterialForPrompt(rawLibraryContent, maxChars: 900),
+    null,
   ];
 
   final deduped = <String?>[];
   for (final candidate in candidates) {
     final text = candidate?.trim();
-    if (text == null || text.isEmpty) continue;
+    if (text == null) {
+      if (!deduped.contains(null)) deduped.add(null);
+      continue;
+    }
+    if (text.isEmpty) continue;
     if (deduped.contains(text)) continue;
     deduped.add(text);
   }

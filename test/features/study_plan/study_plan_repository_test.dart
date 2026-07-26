@@ -5,6 +5,8 @@ import 'package:quiz_vance_flutter/core/exceptions/remote_service_exception.dart
 import 'package:quiz_vance_flutter/core/network/api_client.dart';
 import 'package:quiz_vance_flutter/core/network/api_endpoints.dart';
 import 'package:quiz_vance_flutter/features/study_plan/data/study_plan_repository.dart';
+import 'package:quiz_vance_flutter/features/study_plan/domain/study_plan_model.dart';
+import 'package:quiz_vance_flutter/shared/application/account_scoped_preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockApiClient extends Mock implements ApiClient {}
@@ -15,15 +17,64 @@ void main() {
   late _MockApiClient apiClient;
   late _MockDio dio;
   late StudyPlanRepository repository;
+  late AccountScopedPreferences preferences;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
 
     apiClient = _MockApiClient();
     dio = _MockDio();
+    preferences = AccountScopedPreferences.instance;
+    preferences.setActiveAccountId(null);
     repository = StudyPlanRepository(apiClient);
 
     when(() => apiClient.dio).thenReturn(dio);
+  });
+
+  test('savePlan e getActivePlan respeitam a conta ativa', () async {
+    preferences.setActiveAccountId('user-a');
+    await repository.savePlan(
+      StudyPlan(
+        objetivo: 'TRT',
+        tempoDiario: 60,
+        items: const [
+          StudyPlanItem(
+            id: 1,
+            dia: 'Segunda',
+            tema: 'Direito',
+            atividade: 'Revisar teoria',
+            duracaoMin: 60,
+            prioridade: 1,
+          ),
+        ],
+      ),
+    );
+
+    preferences.setActiveAccountId('user-b');
+    await repository.savePlan(
+      StudyPlan(
+        objetivo: 'INSS',
+        tempoDiario: 30,
+        items: const [
+          StudyPlanItem(
+            id: 2,
+            dia: 'Terca',
+            tema: 'Português',
+            atividade: 'Resolver questoes',
+            duracaoMin: 30,
+            prioridade: 2,
+          ),
+        ],
+      ),
+    );
+
+    preferences.setActiveAccountId('user-a');
+    final planA = await repository.getActivePlan();
+    preferences.setActiveAccountId('user-b');
+    final planB = await repository.getActivePlan();
+
+    expect(planA?.objetivo, 'TRT');
+    expect(planB?.objetivo, 'INSS');
   });
 
   test('generatePlan preserves backend validation detail', () async {

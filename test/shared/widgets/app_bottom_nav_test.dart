@@ -16,10 +16,10 @@ void main() {
           ),
         ),
         GoRoute(
-          path: '/quiz',
+          path: '/estudar',
           builder: (context, state) => const Scaffold(
             bottomNavigationBar: AppBottomNav(currentIndex: 1),
-            body: Text('Quiz page'),
+            body: Text('Estudar page'),
           ),
         ),
       ],
@@ -28,10 +28,26 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Quiz'));
+    await tester.tap(find.text('Estudar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Quiz page'), findsOneWidget);
+    expect(find.text('Estudar page'), findsOneWidget);
+  });
+
+  testWidgets('AppBottomNav usa icones vetoriais em vez de emojis',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          bottomNavigationBar: AppBottomNav(currentIndex: 0),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome_outlined), findsOneWidget);
+    expect(find.text('🏠'), findsNothing);
+    expect(find.text('🎯'), findsNothing);
   });
 
   testWidgets('AppBottomNav expõe semântica acessível para abas',
@@ -49,10 +65,10 @@ void main() {
             ),
           ),
           GoRoute(
-            path: '/quiz',
+            path: '/estudar',
             builder: (context, state) => const Scaffold(
               bottomNavigationBar: AppBottomNav(currentIndex: 1),
-              body: Text('Quiz page'),
+              body: Text('Estudar page'),
             ),
           ),
         ],
@@ -62,10 +78,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        tester.getSemantics(find.text('Quiz')),
+        tester.getSemantics(find.text('Estudar')),
         matchesSemantics(
-          label: 'Quiz',
-          hint: 'Abrir aba Quiz',
+          label: 'Estudar',
+          hint: 'Abrir aba Estudar',
           hasTapAction: true,
           isButton: true,
           hasEnabledState: true,

@@ -51,10 +51,14 @@ class FlashcardGenerationCoordinator {
       selectedLibraryFile: selectedLibraryFile,
     );
 
+    // Load existing flashcard fronts from local storage to avoid duplication
+    final existingFronts = await LocalStorage.instance.getAllFlashcardFronts();
+
     final provider = await _aiGenerationGuard.ensureReadyForGeneration();
-    final package = await _libraryRepository.generatePackage(
+    final package = await _generatePackageWithFallback(
       file: sourceFile,
-      aiProvider: provider,
+      preferredProvider: provider,
+      avoidFronts: existingFronts,
     );
 
     if (package.flashcards.isEmpty) {
@@ -88,6 +92,18 @@ class FlashcardGenerationCoordinator {
     return FlashcardGenerationResult(
       createdCount: package.flashcards.length,
       packageTitle: package.titulo,
+    );
+  }
+
+  Future<StudyPackage> _generatePackageWithFallback({
+    required LibraryFile file,
+    required String preferredProvider,
+    required List<String> avoidFronts,
+  }) async {
+    return _libraryRepository.generatePackage(
+      file: file,
+      aiProvider: preferredProvider,
+      avoidFronts: avoidFronts,
     );
   }
 

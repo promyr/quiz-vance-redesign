@@ -1,13 +1,15 @@
 param(
-    [string]$BackendUrl = "https://quiz-vance-redesign-backend.fly.dev"
+    [string]$BackendUrl = ""
 )
 
 $ErrorActionPreference = "Continue"
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$BackendConfigFile = Join-Path $ProjectDir "backend_url.txt"
 $LogFile = Join-Path $ProjectDir "build_log.txt"
 $LocalPropertiesFile = Join-Path $ProjectDir "android\local.properties"
 $PackageConfig = Join-Path $ProjectDir ".dart_tool\package_config.json"
 $PubspecLock = Join-Path $ProjectDir "pubspec.lock"
+$PubspecFile = Join-Path $ProjectDir "pubspec.yaml"
 
 function Write-Log {
     param([string]$Message, [string]$Color = "White")
@@ -33,12 +35,37 @@ function Get-LocalProperty {
     return ($line -replace '^[^=]+=','') -replace '\\\\','\'
 }
 
+function Resolve-BackendUrl {
+    param([string]$CliValue)
+
+    if ($CliValue -and $CliValue.Trim()) {
+        return $CliValue.Trim()
+    }
+
+    if ($env:QUIZ_VANCE_BACKEND_URL -and $env:QUIZ_VANCE_BACKEND_URL.Trim()) {
+        return $env:QUIZ_VANCE_BACKEND_URL.Trim()
+    }
+
+    if (Test-Path $BackendConfigFile) {
+        $configuredUrl = Get-Content $BackendConfigFile |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -and -not $_.StartsWith("#") } |
+            Select-Object -First 1
+        if ($configuredUrl) {
+            return $configuredUrl
+        }
+    }
+
+    return "https://quiz-vance-redesign-backend.fly.dev"
+}
+
 function Resolve-FlutterPath {
     $candidates = @(
-        "$env:USERPROFILE\.puro\envs\stable\flutter\bin\flutter.bat",
-        "$env:USERPROFILE\.puro\envs\stable\flutter\bin\flutter",
         "C:\flutter\bin\flutter.bat",
-        "C:\src\flutter\bin\flutter.bat"
+        "C:\flutter\bin\flutter",
+        "C:\src\flutter\bin\flutter.bat",
+        "$env:USERPROFILE\.puro\envs\stable\flutter\bin\flutter.bat",
+        "$env:USERPROFILE\.puro\envs\stable\flutter\bin\flutter"
     )
 
     foreach ($candidate in $candidates) {
@@ -113,6 +140,23 @@ function Resolve-SdkManager {
     return $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 }
 
+function Resolve-AppVersion {
+    if (Test-Path $PubspecFile) {
+        $match = Select-String -Path $PubspecFile -Pattern '^version:\s*([0-9A-Za-z.\-_]+\+\d+)\s*$' | Select-Object -First 1
+        if ($match) {
+            return $match.Matches[0].Groups[1].Value.Trim()
+        }
+    }
+
+    $localVersion = Get-LocalProperty "flutter.versionName"
+    $localCode = Get-LocalProperty "flutter.versionCode"
+    if ($localVersion -and $localCode) {
+        return "$($localVersion.Trim())+$($localCode.Trim())"
+    }
+
+    return "1.0.0"
+}
+
 function Ensure-Dependencies {
     if ((Test-Path $PubspecLock) -and (Test-Path $PackageConfig)) {
         Write-Log "[OK] Dependencias ja preparadas. Build seguira com --no-pub." "Green"
@@ -136,6 +180,40 @@ function Ensure-Dependencies {
         exit 1
     }
     Write-Log ""
+}
+
+function Invoke-FlutterLogged {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $stdoutFile = [System.IO.Path]::GetTempFileName()
+    $stderrFile = [System.IO.Path]::GetTempFileName()
+    $quotedFlutter = '"' + $Flutter + '"'
+    $commandLine = "$quotedFlutter $($Arguments -join ' ')"
+
+    try {
+        $process = Start-Process `
+            -FilePath "C:\Windows\System32\cmd.exe" `
+            -ArgumentList "/c", $commandLine `
+            -NoNewWindow `
+            -Wait `
+            -PassThru `
+            -RedirectStandardOutput $stdoutFile `
+            -RedirectStandardError $stderrFile
+
+        if (Test-Path $stdoutFile) {
+            Get-Content $stdoutFile | Tee-Object -Append -FilePath $LogFile | Out-Host
+        }
+        if (Test-Path $stderrFile) {
+            Get-Content $stderrFile | Tee-Object -Append -FilePath $LogFile | Out-Host
+        }
+
+        return [int]$process.ExitCode
+    } finally {
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Show-AndroidSdkHelp {
@@ -172,9 +250,12 @@ if (-not $Flutter) {
 }
 
 Set-Location $ProjectDir
+$BackendUrl = Resolve-BackendUrl -CliValue $BackendUrl
+$AppVersion = Resolve-AppVersion
 
 Write-Log "[OK] Flutter encontrado: $Flutter" "Green"
 Write-Log "[INFO] Projeto: $ProjectDir"
+Write-Log "[INFO] App version header: $AppVersion"
 Write-Log ""
 
 $SdkPath = Resolve-SdkPath
@@ -193,29 +274,30 @@ $env:ANDROID_SDK_ROOT = $SdkPath
 Update-LocalPropertiesSdk -SdkPath $SdkPath
 
 Write-Log "[DIAG] flutter --version:" "Yellow"
-& $Flutter --version 2>&1 | Tee-Object -Append -FilePath $LogFile
+$versionExitCode = Invoke-FlutterLogged -Arguments @("--version")
 Write-Log ""
+if ($versionExitCode -ne 0) {
+    Write-Log "[ERRO] Nao foi possivel consultar a versao do Flutter." "Red"
+    Read-Host "Pressione Enter para fechar"
+    exit 1
+}
 
 Ensure-Dependencies
 
-Write-Log "[2/4] flutter build apk --release --split-per-abi" "Yellow"
-Write-Log "      (aguarde 5-10 minutos na primeira vez...)"
+Write-Log "[2/3] flutter build apk --release (production universal)" "Yellow"
 Write-Log ""
 
-$splitBuildOk = $true
-& $Flutter build apk --release --split-per-abi --no-pub "--dart-define=BACKEND_URL=$BackendUrl" 2>&1 | Tee-Object -Append -FilePath $LogFile
-if ($LASTEXITCODE -ne 0) {
-    $splitBuildOk = $false
-    Write-Log ""
-    Write-Log "[AVISO] split-per-abi falhou. O APK arm64 nao sera atualizado nesta execucao." "Yellow"
-}
-
-Write-Log ""
-Write-Log "[3/4] flutter build apk --release (universal)" "Yellow"
-Write-Log ""
-
-& $Flutter build apk --release --no-pub "--dart-define=BACKEND_URL=$BackendUrl" 2>&1 | Tee-Object -Append -FilePath $LogFile
-if ($LASTEXITCODE -ne 0) {
+$buildExitCode = Invoke-FlutterLogged -Arguments @(
+    "build",
+    "apk",
+    "--release",
+    "--flavor",
+    "production",
+    "--no-pub",
+    "--dart-define=BACKEND_URL=$BackendUrl",
+    "--dart-define=APP_VERSION=$AppVersion"
+)
+if ($buildExitCode -ne 0) {
     Write-Log ""
     Write-Log "[ERRO] Build universal falhou. Leia o log acima." "Red"
     Write-Log "Log completo salvo em: $LogFile"
@@ -225,25 +307,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Log ""
-Write-Log "[4/4] Copiando APKs finais..." "Yellow"
+Write-Log "[3/3] Copiando APK final..." "Yellow"
 
 $OutputDir = Join-Path $ProjectDir "output_apk"
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
-Get-ChildItem -Path $OutputDir -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Extension -in @(".apk", ".aab") } |
-    Remove-Item -Force -ErrorAction SilentlyContinue
-
-$arm64Source = Join-Path $ProjectDir "build\app\outputs\flutter-apk\app-arm64-v8a-release.apk"
-$universalSource = Join-Path $ProjectDir "build\app\outputs\flutter-apk\app-release.apk"
-
-if ($splitBuildOk -and (Test-Path $arm64Source)) {
-    $arm64Target = Join-Path $OutputDir "app-arm64-v8a-release.apk"
-    Copy-Item $arm64Source -Destination $arm64Target -Force
-    Write-Log "  -> app-arm64-v8a-release.apk" "Green"
-} else {
-    Write-Log "[AVISO] app-arm64-v8a-release.apk nao foi copiado porque o build split falhou." "Yellow"
-}
+$universalSource = Join-Path $ProjectDir "build\app\outputs\flutter-apk\app-production-release.apk"
 
 if (-not (Test-Path $universalSource)) {
     Write-Log "[ERRO] APK universal nao encontrado apos o build." "Red"
@@ -253,9 +322,47 @@ if (-not (Test-Path $universalSource)) {
     exit 1
 }
 
-$universalTarget = Join-Path $OutputDir "app-universal-release.apk"
+$universalTarget = Join-Path $OutputDir "quiz-vance-$AppVersion-universal.apk"
 Copy-Item $universalSource -Destination $universalTarget -Force
-Write-Log "  -> app-universal-release.apk" "Green"
+Write-Log "  -> quiz-vance-$AppVersion-universal.apk" "Green"
+
+$apksigner = Get-ChildItem (Join-Path $SdkPath "build-tools") `
+    -Recurse -Filter "apksigner.bat" -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending |
+    Select-Object -First 1 -ExpandProperty FullName
+if (-not $apksigner) {
+    throw "apksigner nao encontrado no Android SDK."
+}
+
+$signatureReport = & $apksigner verify --verbose --print-certs $universalTarget 2>&1
+if ($LASTEXITCODE -ne 0) {
+    throw "Falha ao validar assinatura do APK de producao."
+}
+$certificateLine = $signatureReport |
+    Select-String "Signer #1 certificate SHA-256 digest:" |
+    Select-Object -First 1
+if (-not $certificateLine) {
+    throw "Digest do certificado de assinatura nao encontrado."
+}
+$certificateSha256 = ($certificateLine.Line -split ":", 2)[1].Trim().ToUpperInvariant()
+$apkSha256 = (Get-FileHash -LiteralPath $universalTarget -Algorithm SHA256).Hash
+$gitCommit = (& git rev-parse HEAD 2>$null).Trim()
+$cleanTree = -not [bool](& git status --porcelain 2>$null)
+$manifest = [ordered]@{
+    schema_version = 1
+    app_version = $AppVersion
+    artifact = Split-Path -Leaf $universalTarget
+    size_bytes = (Get-Item -LiteralPath $universalTarget).Length
+    apk_sha256 = $apkSha256
+    certificate_sha256 = $certificateSha256
+    commit = $gitCommit
+    clean_tree = $cleanTree
+    backend_url = $BackendUrl
+}
+$manifest |
+    ConvertTo-Json |
+    Set-Content -LiteralPath (Join-Path $OutputDir "release-manifest.json") -Encoding UTF8
+Write-Log "  SHA256: $apkSha256" "Green"
 
 Start-Process explorer $OutputDir
 

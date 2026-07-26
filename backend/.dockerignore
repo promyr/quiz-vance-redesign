@@ -1,0 +1,8 @@
+.venv
+.pytest_cache
+.pytest.sqlite3
+__pycache__
+*.pyc
+tests
+scripts/*
+!scripts/publish_telegram_release_link.py

@@ -29,7 +29,8 @@ class HistoryRepository {
       final detail = extractApiErrorMessage(error.response?.data);
 
       if (statusCode >= 400 && statusCode < 500) {
-        throw RemoteServiceException(detail ?? 'Erro $statusCode ao carregar histórico');
+        throw RemoteServiceException(
+            detail ?? 'Erro $statusCode ao carregar histórico');
       }
 
       throw RemoteServiceException(

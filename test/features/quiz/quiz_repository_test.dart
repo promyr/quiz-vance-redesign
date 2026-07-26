@@ -1,7 +1,8 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/core/exceptions/premium_limit_exception.dart';
+import 'package:quiz_vance_flutter/core/exceptions/provider_rate_limit_exception.dart';
 import 'package:quiz_vance_flutter/core/exceptions/remote_service_exception.dart';
 import 'package:quiz_vance_flutter/core/network/api_client.dart';
 import 'package:quiz_vance_flutter/core/network/api_endpoints.dart';
@@ -93,6 +94,42 @@ void main() {
           (error) => error.message,
           'message',
           'Limite diario atingido.',
+        ),
+      ),
+    );
+  });
+
+  test('generate distinguishes provider saturation from user quota', () async {
+    when(
+      () => dio.post(
+        ApiEndpoints.quizGenerate,
+        data: any(named: 'data'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: ApiEndpoints.quizGenerate),
+        response: Response(
+          requestOptions: RequestOptions(path: ApiEndpoints.quizGenerate),
+          statusCode: 429,
+          data: {
+            'detail': 'O provedor Gemini recusou a geracao por rate limit.',
+          },
+        ),
+        type: DioExceptionType.badResponse,
+      ),
+    );
+
+    await expectLater(
+      repository.generate(
+        topic: 'Historia',
+        difficulty: 'medium',
+        quantity: 10,
+      ),
+      throwsA(
+        isA<ProviderRateLimitException>().having(
+          (error) => error.message,
+          'message',
+          contains('Gemini'),
         ),
       ),
     );

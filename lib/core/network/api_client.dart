@@ -1,17 +1,13 @@
-import 'dart:async';
-
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/app_config.dart';
 import 'api_endpoints.dart';
-import 'api_request_policy.dart';
 
 const _tokenKey = 'auth_token';
 const _refreshTokenKey = 'refresh_token';
 const _authRetryKey = 'auth_retry_count';
-const _networkRetryKey = 'network_retry_count';
 
 /// Dio configurado com interceptor JWT automatico + refresh em 401.
 class ApiClient {
@@ -19,7 +15,7 @@ class ApiClient {
     final baseOptions = BaseOptions(
       baseUrl: AppConfig.backendUrl,
       connectTimeout: AppConfig.connectTimeout,
-      sendTimeout: AppConfig.sendTimeout,
+      sendTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
       headers: {
         'Content-Type': 'application/json',
@@ -40,11 +36,20 @@ class ApiClient {
   late final Dio _refreshDio;
   final _storage = const FlutterSecureStorage();
   Future<bool>? _refreshFuture;
-  final _sessionExpiredController = StreamController<void>.broadcast();
-  static int _requestSequence = 0;
 
   Dio get dio => _dio;
-  Stream<void> get sessionExpired => _sessionExpiredController.stream;
+
+  bool _isRefreshRequest(RequestOptions options) {
+    return options.path == ApiEndpoints.refreshToken ||
+        options.uri.path == ApiEndpoints.refreshToken;
+  }
+
+  bool _isLoginRequest(RequestOptions options) {
+    return options.path == ApiEndpoints.login ||
+        options.uri.path == ApiEndpoints.login ||
+        options.path == ApiEndpoints.register ||
+        options.uri.path == ApiEndpoints.register;
+  }
 
   Future<void> _onRequest(
     RequestOptions options,
@@ -53,13 +58,9 @@ class ApiClient {
     options.headers['X-App-Version'] = AppConfig.appVersion;
     options.headers['X-Client-App'] = AppConfig.clientAppId;
     options.headers['X-Ranking-Namespace'] = AppConfig.rankingNamespace;
-    options.headers.putIfAbsent('X-Request-ID', _nextRequestId);
-    if (isLongRunningApiPath(options.path)) {
-      options.receiveTimeout = AppConfig.generationTimeout;
-    }
     final token = await _storage.read(key: _tokenKey);
     final skipAuth =
-        options.extra['skipAuth'] == true || isPublicApiPath(options.path);
+        options.extra['skipAuth'] == true || _isRefreshRequest(options);
     if (!skipAuth && token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -74,50 +75,32 @@ class ApiClient {
     final retryCount = (request.extra[_authRetryKey] as int?) ?? 0;
     final isUnauthorized = err.response?.statusCode == 401;
 
-    if (isUnauthorized && !isPublicApiPath(request.path) && retryCount == 0) {
-      final refreshed = await _tryRefreshToken();
-      if (refreshed) {
-        final token = await _storage.read(key: _tokenKey);
-        final retryRequest = _cloneRequestOptions(
-          request,
-          headers: {
-            ...request.headers,
-            if (token != null && token.isNotEmpty)
-              'Authorization': 'Bearer $token',
-          },
-          extra: {
-            ...request.extra,
-            _authRetryKey: retryCount + 1,
-          },
-        );
-        final response = await _dio.fetch(retryRequest);
-        return handler.resolve(response);
-      }
-      await clearTokens();
-      _sessionExpiredController.add(null);
-    }
+    // Se recebeu 401 e nao e uma tentativa de retry ja feita
+    if (isUnauthorized &&
+        !_isRefreshRequest(request) &&
+        !_isLoginRequest(request) &&
+        retryCount == 0) {
+      try {
+        final refreshed = await _tryRefreshToken();
 
-    final networkRetryCount = (request.extra[_networkRetryKey] as int?) ?? 0;
-    final isTransient = isRetryableStatus(err.response?.statusCode) ||
-        err.type == DioExceptionType.connectionError ||
-        err.type == DioExceptionType.connectionTimeout ||
-        err.type == DioExceptionType.receiveTimeout;
-    if (!isUnauthorized &&
-        isTransient &&
-        isIdempotentMethod(request.method) &&
-        networkRetryCount < 2) {
-      await Future<void>.delayed(
-        Duration(milliseconds: 250 * (1 << networkRetryCount)),
-      );
-      final retryRequest = _cloneRequestOptions(
-        request,
-        extra: {
-          ...request.extra,
-          _networkRetryKey: networkRetryCount + 1,
-        },
-      );
-      final response = await _dio.fetch(retryRequest);
-      return handler.resolve(response);
+        if (refreshed) {
+          final newToken = await _storage.read(key: _tokenKey);
+          final retryRequest = _cloneRequestOptions(
+            request,
+            headers: {
+              ...request.headers,
+              if (newToken != null && newToken.isNotEmpty)
+                'Authorization': 'Bearer $newToken',
+            },
+            extra: {
+              ...request.extra,
+              _authRetryKey: retryCount + 1,
+            },
+          );
+          final response = await _dio.fetch(retryRequest);
+          return handler.resolve(response);
+        }
+      } catch (_) {}
     }
 
     return handler.next(err);
@@ -144,7 +127,9 @@ class ApiClient {
       final refreshToken = await _storage.read(key: _refreshTokenKey);
       final accessToken = await _storage.read(key: _tokenKey);
       final tokenToRefresh = refreshToken ?? accessToken;
-      if (tokenToRefresh == null || tokenToRefresh.isEmpty) return false;
+      if (tokenToRefresh == null || tokenToRefresh.isEmpty) {
+        return false;
+      }
 
       final response = await _refreshDio.post(
         ApiEndpoints.refreshToken,
@@ -218,21 +203,6 @@ class ApiClient {
   }
 
   Future<String?> getAccessToken() => _storage.read(key: _tokenKey);
-
-  void dispose() {
-    _sessionExpiredController.close();
-    _dio.close(force: true);
-    _refreshDio.close(force: true);
-  }
-
-  static String _nextRequestId() {
-    _requestSequence++;
-    return '${DateTime.now().microsecondsSinceEpoch}-$_requestSequence';
-  }
 }
 
-final apiClientProvider = Provider<ApiClient>((ref) {
-  final client = ApiClient();
-  ref.onDispose(client.dispose);
-  return client;
-});
+final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());

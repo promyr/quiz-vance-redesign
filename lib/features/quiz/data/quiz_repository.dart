@@ -2,11 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/exceptions/premium_limit_exception.dart';
+import '../../../core/exceptions/provider_rate_limit_exception.dart';
 import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
-import '../../../core/network/result_outbox.dart';
 import '../domain/question_model.dart';
 
 class QuizRepository {
@@ -43,24 +43,24 @@ class QuizRepository {
       final statusCode = e.response?.statusCode ?? 0;
       final detail = extractApiErrorMessage(e.response?.data);
 
-      if (detail != null) {
-        if (statusCode == 429) {
-          throw PremiumLimitException(detail);
-        }
-        if (statusCode >= 400 && statusCode < 500) {
-          throw RemoteServiceException(detail);
-        }
-        throw RemoteServiceException(detail);
-      }
-
       if (statusCode == 429) {
+        if (detail != null && isProviderRateLimitMessage(detail)) {
+          throw ProviderRateLimitException(detail);
+        }
         throw PremiumLimitException(
-          'Limite diário atingido. Faça upgrade para Premium.',
+          detail ?? 'Limite diário atingido. Faça upgrade para Premium.',
         );
       }
 
-      if (statusCode >= 400 && statusCode < 500) {
-        throw RemoteServiceException('Erro $statusCode ao gerar quiz');
+      // 401/403: nao expoe mensagem interna (ex: token inválido)
+      if (statusCode == 401 || statusCode == 403) {
+        throw const RemoteServiceException(
+          'Não foi possível gerar o quiz. Verifique sua conexão e tente novamente.',
+        );
+      }
+
+      if (detail != null && statusCode >= 400 && statusCode < 500) {
+        throw RemoteServiceException(detail);
       }
 
       throw buildRemoteServiceException(
@@ -81,29 +81,18 @@ class QuizRepository {
     required int xpEarned,
     String? topic,
   }) async {
-    final payload = <String, dynamic>{
-      'session_id': sessionId,
-      'answers': answers,
-      'time_taken_seconds': timeTaken.inSeconds,
-      'total': total,
-      'correct': correct,
-      'xp_earned': xpEarned,
-      if (topic != null && topic.isNotEmpty) 'topic': topic,
-    };
-    await ResultOutbox.instance.flush(_client.dio);
-    await ResultOutbox.instance.enqueue(
-      PendingResultSubmission(
-        id: 'quiz:$sessionId',
-        endpoint: ApiEndpoints.quizSubmit,
-        payload: payload,
-      ),
-    );
     final response = await _client.dio.post(
       ApiEndpoints.quizSubmit,
-      data: payload,
-      options: Options(headers: {'Idempotency-Key': 'quiz:$sessionId'}),
+      data: {
+        'session_id': sessionId,
+        'answers': answers,
+        'time_taken_seconds': timeTaken.inSeconds,
+        'total': total,
+        'correct': correct,
+        'xp_earned': xpEarned,
+        if (topic != null && topic.isNotEmpty) 'topic': topic,
+      },
     );
-    await ResultOutbox.instance.remove('quiz:$sessionId');
     return response.data as Map<String, dynamic>;
   }
 

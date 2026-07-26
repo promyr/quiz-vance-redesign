@@ -107,4 +107,35 @@ void main() {
       ),
     ).called(1);
   });
+
+  test('generatePackage delega fallback ao gateway do servidor', () async {
+    when(() => aiGenerationGuard.ensureReadyForGeneration())
+        .thenAnswer((_) async => 'gemini');
+    when(
+      () => libraryRepository.generatePackage(
+        file: file,
+        aiProvider: 'gemini',
+      ),
+    ).thenThrow(
+      Exception('You exceeded your current quota. Rate limit exceeded.'),
+    );
+    when(
+      () => libraryRepository.generatePackage(
+        file: file,
+        aiProvider: 'groq',
+      ),
+    ).thenAnswer((_) async => package);
+
+    await expectLater(
+      coordinator.generatePackage(file),
+      throwsA(isA<Exception>()),
+    );
+
+    verifyNever(
+      () => libraryRepository.generatePackage(
+        file: file,
+        aiProvider: 'groq',
+      ),
+    );
+  });
 }

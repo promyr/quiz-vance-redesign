@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/conquistas/data/achievement_repository.dart';
 import '../../features/conquistas/domain/achievement_catalog.dart';
+import '../application/account_scoped_preferences.dart';
 
 class GamificationState {
   const GamificationState({
@@ -76,6 +76,8 @@ const _lastStreakDateKey = 'gamif_last_streak_date';
 
 class GamificationNotifier extends AsyncNotifier<GamificationState> {
   Timer? _transientFlagTimer;
+  final AccountScopedPreferences _preferences =
+      AccountScopedPreferences.instance;
 
   AchievementRepository get _achievementRepo =>
       ref.read(achievementRepositoryProvider);
@@ -83,60 +85,49 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
   @override
   Future<GamificationState> build() async {
     ref.onDispose(() => _transientFlagTimer?.cancel());
-    final prefs = await SharedPreferences.getInstance();
 
-    final localAchievements = prefs.getStringList(_achievementsKey) ?? [];
+    final localAchievements =
+        await _preferences.getStringList(_achievementsKey) ?? <String>[];
 
-    // Sincroniza conquistas do backend de forma assíncrona — não bloqueia o
-    // boot. Se o backend tiver conquistas que o dispositivo perdeu (reinstal,
-    // troca de celular), elas são restauradas sem spam de notificações.
-    _syncAchievementsFromBackend(prefs, localAchievements);
+    unawaited(_syncAchievementsFromBackend(localAchievements));
 
     return GamificationState(
-      totalXp: prefs.getInt(_xpKey) ?? 0,
-      level: prefs.getInt(_levelKey) ?? 1,
-      streak: prefs.getInt(_streakKey) ?? 0,
-      longestStreak: prefs.getInt(_longestStreakKey) ?? 0,
-      totalQuizzes: prefs.getInt(_totalQuizzesKey) ?? 0,
+      totalXp: await _preferences.getInt(_xpKey) ?? 0,
+      level: await _preferences.getInt(_levelKey) ?? 1,
+      streak: await _preferences.getInt(_streakKey) ?? 0,
+      longestStreak: await _preferences.getInt(_longestStreakKey) ?? 0,
+      totalQuizzes: await _preferences.getInt(_totalQuizzesKey) ?? 0,
       unlockedAchievements: localAchievements,
     );
   }
 
-  /// Baixa conquistas do backend e mescla com o estado local.
-  ///
-  /// Conquistas presentes no backend mas ausentes localmente são restauradas
-  /// silenciosamente (sem toast) — evita spam depois de reinstalação.
-  Future<void> _syncAchievementsFromBackend(
-    SharedPreferences prefs,
-    List<String> currentLocal,
-  ) async {
+  Future<void> _syncAchievementsFromBackend(List<String> currentLocal) async {
     try {
       final remoteCodes = await _achievementRepo.getAchievements();
       if (remoteCodes.isEmpty) return;
 
-      // Converte codes de volta para displayNames usados no estado local.
       final remoteNames = remoteCodes
           .map((code) {
             try {
-              return achievementCatalog.firstWhere((a) => a.code == code);
+              return achievementCatalog.firstWhere((item) => item.code == code);
             } catch (_) {
               return null;
             }
           })
           .whereType<AchievementDefinition>()
           .map(achievementDisplayName)
-          .toList();
+          .toList(growable: false);
 
-      final merged = {...currentLocal, ...remoteNames}.toList();
-      if (merged.length == currentLocal.length) return; // nada novo
+      final merged = {...currentLocal, ...remoteNames}.toList(growable: false);
+      if (merged.length == currentLocal.length) return;
 
-      await prefs.setStringList(_achievementsKey, merged);
-      // Atualiza estado sem disparar toast (justUnlockedAchievement = false).
+      await _preferences.setStringList(_achievementsKey, merged);
       state.whenData(
-        (s) => state = AsyncData(s.copyWith(unlockedAchievements: merged)),
+        (current) =>
+            state = AsyncData(current.copyWith(unlockedAchievements: merged)),
       );
     } catch (_) {
-      // Falha silenciosa — conquistas locais permanecem intactas.
+      // Falha silenciosa; o estado local continua valido.
     }
   }
 
@@ -161,13 +152,11 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
         ? [...current.unlockedAchievements, newAchievementName]
         : current.unlockedAchievements;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_xpKey, newXp);
-    await prefs.setInt(_levelKey, newLevel);
+    await _preferences.setInt(_xpKey, newXp);
+    await _preferences.setInt(_levelKey, newLevel);
     if (newAchievementName != null) {
-      await prefs.setStringList(_achievementsKey, updatedAchievements);
-      // Persiste no backend de forma assíncrona (fire-and-forget).
-      _achievementRepo.unlock(newAchievementDef!);
+      await _preferences.setStringList(_achievementsKey, updatedAchievements);
+      unawaited(_achievementRepo.unlock(newAchievementDef!));
     }
 
     state = AsyncData(
@@ -188,9 +177,8 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
   Future<void> incrementStreak() async {
     final current = state.valueOrNull ?? const GamificationState();
     final newStreak = current.streak + 1;
-    final newLongest = newStreak > current.longestStreak
-        ? newStreak
-        : current.longestStreak;
+    final newLongest =
+        newStreak > current.longestStreak ? newStreak : current.longestStreak;
 
     final newAchievementDef = _checkAchievementDef(
       existing: current.unlockedAchievements,
@@ -206,12 +194,11 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
         ? [...current.unlockedAchievements, newAchievementName]
         : current.unlockedAchievements;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_streakKey, newStreak);
-    await prefs.setInt(_longestStreakKey, newLongest);
+    await _preferences.setInt(_streakKey, newStreak);
+    await _preferences.setInt(_longestStreakKey, newLongest);
     if (newAchievementName != null) {
-      await prefs.setStringList(_achievementsKey, updatedAchievements);
-      _achievementRepo.unlock(newAchievementDef!);
+      await _preferences.setStringList(_achievementsKey, updatedAchievements);
+      unawaited(_achievementRepo.unlock(newAchievementDef!));
     }
 
     state = AsyncData(
@@ -225,7 +212,9 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
       ),
     );
 
-    if (newAchievementName != null) _clearTransientFlags();
+    if (newAchievementName != null) {
+      _clearTransientFlags();
+    }
   }
 
   Future<void> incrementTotalQuizzes() async {
@@ -246,11 +235,10 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
         ? [...current.unlockedAchievements, newAchievementName]
         : current.unlockedAchievements;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_totalQuizzesKey, newTotal);
+    await _preferences.setInt(_totalQuizzesKey, newTotal);
     if (newAchievementName != null) {
-      await prefs.setStringList(_achievementsKey, updatedAchievements);
-      _achievementRepo.unlock(newAchievementDef!);
+      await _preferences.setStringList(_achievementsKey, updatedAchievements);
+      unawaited(_achievementRepo.unlock(newAchievementDef!));
     }
 
     state = AsyncData(
@@ -263,59 +251,76 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
       ),
     );
 
-    if (newAchievementName != null) _clearTransientFlags();
+    if (newAchievementName != null) {
+      _clearTransientFlags();
+    }
   }
 
   Future<void> recordQuizCompletion({
     required String eventId,
     required int xpEarned,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final processed = prefs.getStringList(_processedQuizEventsKey) ?? const [];
+    final processed =
+        await _preferences.getStringList(_processedQuizEventsKey) ?? const [];
     if (processed.contains(eventId)) return;
 
     await addXp(xpEarned);
     await incrementTotalQuizzes();
 
-    // Streak só incrementa uma vez por dia — evita inflação quando o
-    // usuário completa vários quizzes no mesmo dia.
     final today = DateTime.now().toIso8601String().substring(0, 10);
-    final lastStreakDate = prefs.getString(_lastStreakDateKey);
-    if (lastStreakDate != today) {
-      await incrementStreak();
-      await prefs.setString(_lastStreakDateKey, today);
-    }
+    await _updateDailyStreak(today);
 
     final updated = [...processed, eventId];
-    // Mantém os últimos 500 eventos para melhor proteção contra XP duplicado.
     if (updated.length > 500) {
       updated.removeRange(0, updated.length - 500);
     }
-    await prefs.setStringList(_processedQuizEventsKey, updated);
+    await _preferences.setStringList(_processedQuizEventsKey, updated);
   }
 
   Future<void> recordFlashcardReview({int xpEarned = 5}) async {
     await addXp(xpEarned);
 
-    final prefs = await SharedPreferences.getInstance();
     final today = DateTime.now().toIso8601String().substring(0, 10);
-    final lastStreakDate = prefs.getString(_lastStreakDateKey);
-    if (lastStreakDate != today) {
-      await incrementStreak();
-      await prefs.setString(_lastStreakDateKey, today);
+    await _updateDailyStreak(today);
+  }
+
+  Future<void> _updateDailyStreak(String todayStr) async {
+    final lastStreakDateStr = await _preferences.getString(_lastStreakDateKey);
+    if (lastStreakDateStr == todayStr) return;
+
+    if (lastStreakDateStr != null && lastStreakDateStr.isNotEmpty) {
+      final now = DateTime.now();
+      final yesterdayStr = now
+          .subtract(const Duration(days: 1))
+          .toIso8601String()
+          .substring(0, 10);
+      if (lastStreakDateStr != yesterdayStr) {
+        // Passou mais de 1 dia desde a última prática: resetar streak para 1
+        await _preferences.setInt(_streakKey, 1);
+        await _preferences.setString(_lastStreakDateKey, todayStr);
+        state.whenData((current) {
+          final newLongest =
+              current.longestStreak < 1 ? 1 : current.longestStreak;
+          state = AsyncData(current.copyWith(
+            streak: 1,
+            longestStreak: newLongest,
+          ));
+        });
+        return;
+      }
     }
+
+    await incrementStreak();
+    await _preferences.setString(_lastStreakDateKey, todayStr);
   }
 
   Future<void> resetStreak() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_streakKey, 0);
-    state.whenData((s) => state = AsyncData(s.copyWith(streak: 0)));
+    await _preferences.setInt(_streakKey, 0);
+    state.whenData((current) => state = AsyncData(current.copyWith(streak: 0)));
   }
 
   int _calculateLevel(int xp) => (xp ~/ 100) + 1;
 
-  /// Retorna a definição completa da primeira conquista recém-atingida,
-  /// ou null se nenhuma nova foi desbloqueada.
   AchievementDefinition? _checkAchievementDef({
     required List<String> existing,
     required int xp,
@@ -340,20 +345,19 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
   }
 
   void _clearTransientFlags() {
-    // Cancela timer anterior para evitar múltiplos callbacks empilhados.
     _transientFlagTimer?.cancel();
     _transientFlagTimer = Timer(const Duration(seconds: 3), () {
       try {
         state.whenData(
-          (s) => state = AsyncData(
-            s.copyWith(
+          (current) => state = AsyncData(
+            current.copyWith(
               justLeveledUp: false,
               justUnlockedAchievement: false,
             ),
           ),
         );
       } catch (_) {
-        // Notifier descartado — ignorado com segurança.
+        // Notifier ja foi descartado.
       }
     });
   }

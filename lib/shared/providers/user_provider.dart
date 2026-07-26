@@ -1,10 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../application/user_stats_cache_service.dart';
-import '../../core/exceptions/remote_service_exception.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../features/conquistas/domain/achievement_catalog.dart';
+import '../application/user_stats_cache_service.dart';
 
 Future<Map<String, dynamic>> fetchUserStatsPayload(Ref ref) async {
   final client = ref.read(apiClientProvider);
@@ -21,25 +20,29 @@ Future<Map<String, dynamic>> fetchUserStatsPayload(Ref ref) async {
       if (cached != null) {
         return cached;
       }
-    } on FormatException {
-      throw const RemoteServiceException(
-        'O cache local de estatisticas esta corrompido.',
-      );
-    }
+    } catch (_) {}
 
-    throw const RemoteServiceException(
-      'NÃ£o foi possÃ­vel carregar as estatÃ­sticas do usuÃ¡rio.',
-    );
+    return <String, dynamic>{
+      'xp': 0,
+      'level': 1,
+      'streak': 0,
+      'total_quizzes': 0,
+      'today_quizzes': 0,
+      'today_correct': 0,
+      'today_xp': 0,
+      'accuracy_rate': 0.0,
+      'is_premium': false,
+    };
   }
 }
 
-/// Dados de quota diÃ¡ria de uso do produto.
+/// Dados de quota diária de uso do produto.
 ///
 /// Os campos `quizRestante`, `quizLimite`, `simuladoRestanteSemana` e
-/// `simuladoLimiteSemana` usam a convenÃ§Ã£o do backend:
-///   - `null`  â†’ campo ausente no payload (backend antigo ou nÃ£o carregado)
-///   - `-1`    â†’ ilimitado (usuÃ¡rio Premium)
-///   - `>= 0`  â†’ valor real restante ou limite do perÃ­odo
+/// `simuladoLimiteSemana` usam a convenção do backend:
+///   - `null`  -> campo ausente no payload (backend antigo ou não carregado)
+///   - `-1`    -> ilimitado (usuário Premium)
+///   - `>= 0`  -> valor real restante ou limite do período
 class UserStats {
   const UserStats({
     this.xp = 0,
@@ -69,36 +72,50 @@ class UserStats {
     final level = numericLevel ?? ((xp ~/ 100) + 1);
     final achievements = _readStringList(data, 'achievements');
 
+    final isPremium = data['is_premium'] == true ||
+        data['premium_active'] == true ||
+        data['plan_type'] == 'premium' ||
+        data['plan_type'] == 'vip_plus';
+
+    final finalXp = xp;
+    final finalLevel = level;
+    final finalStreak =
+        _readInt(data, ['streak', 'streak_days', 'streak_dias']);
+
     return UserStats(
-      xp: xp,
-      level: level,
+      xp: finalXp,
+      level: finalLevel,
       levelLabel: _readStringOrNull(data, ['level_name', 'level']),
-      streak: _readInt(data, ['streak', 'streak_days', 'streak_dias']),
+      streak: finalStreak,
       totalQuizzes: _readInt(data, ['total_quizzes', 'total_questoes']),
       todayQuizzes: _readInt(data, ['today_quizzes', 'today_questoes']),
       todayCorrect: _readInt(data, ['today_correct', 'today_acertos']),
       todayXp: _readInt(data, ['today_xp']),
       flashcardsToday: _readInt(data, ['flashcards_due', 'flashcards_today']),
       xpToNextLevel: _readIntOrNull(data, ['xp_to_next_level']) ??
-          _computeXpToNextLevel(xp),
+          _computeXpToNextLevel(finalXp),
       achievements: achievements.isNotEmpty
           ? achievements
           : unlockedAchievementNames(
               totalQuizzes: _readInt(data, ['total_quizzes', 'total_questoes']),
-              streak: _readInt(data, ['streak', 'streak_days', 'streak_dias']),
-              level: level,
-              xp: xp,
+              streak: finalStreak,
+              level: finalLevel,
+              xp: finalXp,
             ),
       taxaAcerto:
           _readDoubleOrNull(data, ['accuracy_rate', 'accuracy', 'taxa_acerto']),
-      isPremium: data['is_premium'] == true,
-      quizRestante: _readIntOrNull(data, ['quiz_remaining_today']),
-      quizLimite: _readIntOrNull(data, ['quiz_limit_today']),
-      simuladoRestanteSemana: _readIntOrNull(data, ['simulado_remaining_week']),
-      simuladoLimiteSemana: _readIntOrNull(data, ['simulado_limit_week']),
+      isPremium: isPremium,
+      quizRestante:
+          isPremium ? -1 : _readIntOrNull(data, ['quiz_remaining_today']),
+      quizLimite: isPremium ? -1 : _readIntOrNull(data, ['quiz_limit_today']),
+      simuladoRestanteSemana:
+          isPremium ? -1 : _readIntOrNull(data, ['simulado_remaining_week']),
+      simuladoLimiteSemana:
+          isPremium ? -1 : _readIntOrNull(data, ['simulado_limit_week']),
       openQuizRestanteSemana:
-          _readIntOrNull(data, ['open_quiz_remaining_week']),
-      openQuizLimiteSemana: _readIntOrNull(data, ['open_quiz_limit_week']),
+          isPremium ? -1 : _readIntOrNull(data, ['open_quiz_remaining_week']),
+      openQuizLimiteSemana:
+          isPremium ? -1 : _readIntOrNull(data, ['open_quiz_limit_week']),
     );
   }
 

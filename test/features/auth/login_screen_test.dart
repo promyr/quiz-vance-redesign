@@ -50,4 +50,15 @@ void main() {
     expect(find.text('Digite seu ID ou e-mail'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
   });
+
+  testWidgets('login screen offers remembering the authenticated session',
+      (tester) async {
+    await pumpLoginScreen(tester);
+
+    expect(find.text('Lembrar meu login'), findsOneWidget);
+    expect(
+      tester.widget<Checkbox>(find.byType(Checkbox)).value,
+      isTrue,
+    );
+  });
 }

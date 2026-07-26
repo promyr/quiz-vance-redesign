@@ -8,7 +8,7 @@ import '../../../core/network/api_error_message.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../features/library/domain/library_model.dart';
 import '../../../features/profile/presentation/premium_upsell_dialog.dart';
-import '../../../shared/providers/stats_provider.dart';
+import '../../../shared/providers/user_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/library_source_selector.dart';
 import '../application/open_quiz_coordinator.dart';
@@ -272,7 +272,7 @@ class _OpenQuizScreenState extends ConsumerState<OpenQuizScreen> {
             final isSelected = _difficulty == d;
             final labels = {
               'facil': 'Fácil',
-              'intermediario': 'Intermediário',
+              'intermediario': 'Médio',
               'dificil': 'Difícil',
             };
             return Expanded(

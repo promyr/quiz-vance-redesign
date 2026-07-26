@@ -1,0 +1,12 @@
+# FastAPI intentionally evaluates Depends/Header factories in endpoint
+# signatures; B008 is therefore structural rather than an eager side effect.
+# BLE001 is limited to integration-boundary modules that translate arbitrary
+# SDK/HTTP/database exceptions into stable API errors or safe fallbacks.
+
+[lint.per-file-ignores]
+"app/main.py" = ["B008", "BLE001"]
+"app/routers/*.py" = ["B008", "BLE001"]
+"app/ai_service.py" = ["BLE001", "S110"]
+"app/mercadopago.py" = ["BLE001"]
+"app/services.py" = ["BLE001"]
+"app/telegram_bot.py" = ["BLE001"]

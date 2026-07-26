@@ -36,4 +36,26 @@ void main() {
 
     expect(text.length, maxStudyDocumentCharacters);
   });
+
+  test('rejects a file renamed to pdf without a PDF signature', () {
+    expect(
+      () => extractStudyDocumentText(
+        bytes: Uint8List.fromList(utf8.encode('not really a pdf')),
+        extension: 'pdf',
+        mimeType: 'application/pdf',
+      ),
+      throwsA(isA<StudyDocumentTypeException>()),
+    );
+  });
+
+  test('rejects binary content renamed to txt', () {
+    expect(
+      () => extractStudyDocumentText(
+        bytes: Uint8List.fromList([0, 1, 2, 3, 0, 255]),
+        extension: 'txt',
+        mimeType: 'text/plain',
+      ),
+      throwsA(isA<StudyDocumentTypeException>()),
+    );
+  });
 }

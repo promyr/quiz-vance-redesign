@@ -88,6 +88,7 @@ void main() {
       () => libraryRepository.generatePackage(
         file: any(named: 'file'),
         aiProvider: any(named: 'aiProvider'),
+        avoidFronts: any(named: 'avoidFronts'),
       ),
     ).thenAnswer((_) async => package);
 
@@ -105,6 +106,7 @@ void main() {
       () => libraryRepository.generatePackage(
         file: captureAny(named: 'file'),
         aiProvider: 'gemini',
+        avoidFronts: any(named: 'avoidFronts'),
       ),
     ).captured.single as LibraryFile;
 
@@ -119,6 +121,7 @@ void main() {
       () => libraryRepository.generatePackage(
         file: any(named: 'file'),
         aiProvider: any(named: 'aiProvider'),
+        avoidFronts: any(named: 'avoidFronts'),
       ),
     ).thenAnswer((_) async => package);
 
@@ -132,8 +135,47 @@ void main() {
       () => libraryRepository.generatePackage(
         file: selectedFile,
         aiProvider: 'openai',
+        avoidFronts: any(named: 'avoidFronts'),
       ),
     ).called(1);
     expect(storedCards, hasLength(2));
+  });
+
+  test('delega fallback ao gateway e nao troca provedor no cliente', () async {
+    when(() => aiGenerationGuard.ensureReadyForGeneration())
+        .thenAnswer((_) async => 'gemini');
+    when(
+      () => libraryRepository.generatePackage(
+        file: any(named: 'file'),
+        aiProvider: 'gemini',
+        avoidFronts: any(named: 'avoidFronts'),
+      ),
+    ).thenThrow(
+      Exception('You exceeded your current quota. Rate limit exceeded.'),
+    );
+    when(
+      () => libraryRepository.generatePackage(
+        file: any(named: 'file'),
+        aiProvider: 'groq',
+        avoidFronts: any(named: 'avoidFronts'),
+      ),
+    ).thenAnswer((_) async => package);
+
+    await expectLater(
+      coordinator.generateAndStore(
+        useLibrary: true,
+        topic: '',
+        selectedLibraryFile: selectedFile,
+      ),
+      throwsA(isA<Exception>()),
+    );
+
+    verifyNever(
+      () => libraryRepository.generatePackage(
+        file: selectedFile,
+        aiProvider: 'groq',
+        avoidFronts: any(named: 'avoidFronts'),
+      ),
+    );
   });
 }

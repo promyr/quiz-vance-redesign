@@ -2,27 +2,54 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/features/auth/data/auth_repository.dart';
 import 'package:quiz_vance_flutter/features/auth/domain/auth_state.dart';
 import 'package:quiz_vance_flutter/shared/providers/auth_provider.dart';
+import 'package:quiz_vance_flutter/shared/providers/gamification_provider.dart';
+import 'package:quiz_vance_flutter/shared/providers/user_provider.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
+class _FakeUserStatsNotifier extends UserStatsNotifier {
+  @override
+  Future<UserStats> build() async => const UserStats();
+}
+
+class _FakeGamificationNotifier extends GamificationNotifier {
+  @override
+  Future<GamificationState> build() async => const GamificationState();
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const secureStorageChannel =
+      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+
   late _MockAuthRepository authRepository;
 
   ProviderContainer makeContainer() {
     return ProviderContainer(
       overrides: [
         authRepositoryProvider.overrideWith((ref) => authRepository),
+        userStatsNotifierProvider.overrideWith(_FakeUserStatsNotifier.new),
+        userStatsProvider.overrideWith((ref) async => <String, dynamic>{}),
+        gamificationProvider.overrideWith(_FakeGamificationNotifier.new),
       ],
     );
   }
 
   setUp(() {
     authRepository = _MockAuthRepository();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(secureStorageChannel, (_) async => null);
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(secureStorageChannel, null);
   });
 
   test('mantem sessao com usuario em cache quando getMe falha temporariamente',

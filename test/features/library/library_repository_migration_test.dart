@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -13,12 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _FakeApiClient implements ApiClient {
   @override
   Dio get dio => Dio();
-
-  @override
-  Stream<void> get sessionExpired => const Stream<void>.empty();
-
-  @override
-  void dispose() {}
 
   @override
   Future<void> clearTokens() async {}

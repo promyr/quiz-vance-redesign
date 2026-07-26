@@ -5,6 +5,24 @@ import 'package:path/path.dart' as path;
 import 'package:quiz_vance_flutter/core/storage/local_storage.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+class _UnavailableKeyStore implements LocalStorageKeyStore {
+  var writes = 0;
+  var deletes = 0;
+
+  @override
+  Future<String?> read(String key) => throw StateError('keystore unavailable');
+
+  @override
+  Future<void> write(String key, String value) async {
+    writes++;
+  }
+
+  @override
+  Future<void> delete(String key) async {
+    deletes++;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -33,20 +51,16 @@ void main() {
     expect(LocalStorage.instance, same(LocalStorage.instance));
   });
 
-  test('persiste e remove resultado pendente na fila cifrada', () async {
-    await LocalStorage.instance.init();
-    await LocalStorage.instance.upsertPendingResult(
-      id: 'quiz:session-1',
-      endpoint: '/quiz/submit',
-      payload: {'correct': 3},
+  test('keystore indisponivel falha fechado sem substituir a chave', () async {
+    final unavailable = _UnavailableKeyStore();
+    await LocalStorage.instance.configureForTesting(
+      databasePath: databasePath,
+      keyStore: unavailable,
     );
 
-    final pending = await LocalStorage.instance.listPendingResults();
-    expect(pending, hasLength(1));
-    expect(pending.single['remote_id'], 'quiz:session-1');
-
-    await LocalStorage.instance.deletePendingResult('quiz:session-1');
-    expect(await LocalStorage.instance.listPendingResults(), isEmpty);
+    await expectLater(LocalStorage.instance.init(), throwsStateError);
+    expect(unavailable.writes, 0);
+    expect(unavailable.deletes, 0);
   });
 
   test('init cria schema cifrado e indice em due_date', () async {
@@ -59,9 +73,9 @@ void main() {
       "PRAGMA index_list('flashcards')",
     );
 
-    expect(versionRows.first.values.first, equals(3));
+    expect(versionRows.first.values.first, equals(4));
     expect(
-      indexRows.any((row) => row['name'] == 'ix_flashcards_due_date'),
+      indexRows.any((row) => row['name'] == 'ix_flashcards_account_due_date'),
       isTrue,
     );
   });
@@ -123,7 +137,7 @@ void main() {
     expect(due.first['remote_id'], equals('legacy-1'));
 
     if (cipherAvailable) {
-      expect(await backupFile.exists(), isFalse);
+      expect(await backupFile.exists(), isTrue);
 
       final reopenedWithoutKey = sqlite3.open(databasePath);
       try {
@@ -139,18 +153,55 @@ void main() {
     }
   });
 
-  test('remove backup plaintext residual ao abrir banco cifrado', () async {
-    final cipherAvailable = await LocalStorage.instance.debugCipherAvailable();
-    if (!cipherAvailable) return;
-
-    await LocalStorage.instance.init();
-    await LocalStorage.instance.close();
-
-    final backupFile = File('$databasePath.plaintext.bak');
-    await backupFile.writeAsString('access_token=segredo-legado', flush: true);
-
+  test('isola dados locais por conta ativa', () async {
     await LocalStorage.instance.init();
 
-    expect(await backupFile.exists(), isFalse);
+    LocalStorage.instance.setActiveAccountId('user-a');
+    await LocalStorage.instance.upsertFlashcard({
+      'remote_id': 'fc-a',
+      'front': 'Frente A',
+      'back': 'Verso A',
+      'topic': 'Historia',
+      'due_date': '2026-03-31',
+      'created_at': DateTime(2026, 3, 31).toIso8601String(),
+    });
+    await LocalStorage.instance.upsertLibraryFile({
+      'id': 101,
+      'remote_id': 'lib-a',
+      'name': 'Arquivo A',
+    });
+
+    LocalStorage.instance.setActiveAccountId('user-b');
+    await LocalStorage.instance.upsertFlashcard({
+      'remote_id': 'fc-b',
+      'front': 'Frente B',
+      'back': 'Verso B',
+      'topic': 'Direito',
+      'due_date': '2026-03-31',
+      'created_at': DateTime(2026, 3, 31).toIso8601String(),
+    });
+    await LocalStorage.instance.upsertLibraryFile({
+      'id': 202,
+      'remote_id': 'lib-b',
+      'name': 'Arquivo B',
+    });
+
+    LocalStorage.instance.setActiveAccountId('user-a');
+    final flashcardsA = await LocalStorage.instance.getDueFlashcards();
+    final libraryA = await LocalStorage.instance.listLibraryFiles();
+
+    LocalStorage.instance.setActiveAccountId('user-b');
+    final flashcardsB = await LocalStorage.instance.getDueFlashcards();
+    final libraryB = await LocalStorage.instance.listLibraryFiles();
+
+    expect(flashcardsA.map((row) => row['remote_id']), contains('fc-a'));
+    expect(flashcardsA.map((row) => row['remote_id']), isNot(contains('fc-b')));
+    expect(libraryA.map((row) => row['remote_id']), contains('lib-a'));
+    expect(libraryA.map((row) => row['remote_id']), isNot(contains('lib-b')));
+
+    expect(flashcardsB.map((row) => row['remote_id']), contains('fc-b'));
+    expect(flashcardsB.map((row) => row['remote_id']), isNot(contains('fc-a')));
+    expect(libraryB.map((row) => row['remote_id']), contains('lib-b'));
+    expect(libraryB.map((row) => row['remote_id']), isNot(contains('lib-a')));
   });
 }

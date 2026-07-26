@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../error_notebook/providers/error_notebook_provider.dart';
 import '../data/quiz_repository.dart';
 import '../domain/question_model.dart';
 
@@ -30,6 +32,7 @@ class QuizSessionScreen extends ConsumerStatefulWidget {
     required this.questions,
     this.generationParams,
     this.infiniteMode = false,
+    this.isErrorRevisionMode = false,
   });
 
   /// Questões iniciais carregadas pela tela de configuração.
@@ -40,6 +43,9 @@ class QuizSessionScreen extends ConsumerStatefulWidget {
 
   /// Quando true, ativa o modo infinito com prefetch automático.
   final bool infiniteMode;
+
+  /// Quando true, ativa o modo de revisão do Caderno de Erros.
+  final bool isErrorRevisionMode;
 
   @override
   ConsumerState<QuizSessionScreen> createState() => _QuizSessionScreenState();
@@ -140,6 +146,18 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
 
   void _selectOption(String optionId) {
     if (_answered) return;
+    final isCorrect = optionId == _current.correctOptionId;
+    if (isCorrect) {
+      HapticFeedback.lightImpact();
+      if (widget.isErrorRevisionMode) {
+        ref
+            .read(errorNotebookNotifierProvider.notifier)
+            .markQuestionMastered(_current.id);
+      }
+    } else {
+      HapticFeedback.mediumImpact();
+    }
+
     setState(() {
       _selectedOptionId = optionId;
       _answered = true;
@@ -231,20 +249,25 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
               child: Row(
                 children: [
                   // Back button
-                  GestureDetector(
-                    onTap: () => _showExitConfirmation(),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(10),
+                  Semantics(
+                    button: true,
+                    label: 'Voltar e fechar quiz',
+                    child: GestureDetector(
+                      onTap: () => _showExitConfirmation(),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                            child: Text('←',
+                                style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 18))),
                       ),
-                      child: const Center(
-                          child: Text('←',
-                              style: TextStyle(
-                                  color: AppColors.textPrimary, fontSize: 16))),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -295,7 +318,8 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
                               color: AppColors.primary.withOpacity(0.3)),
                           borderRadius: BorderRadius.circular(100),
                         ),
-                        child: Text('⚖️ ${_current.topic!}',
+                        child: Text(
+                            '${_getTopicIcon(_current.topic!)} ${_current.topic!}',
                             style: const TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 11,
@@ -341,11 +365,11 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
                         letterColor = Colors.white;
                         textColor = AppColors.success;
                       } else if (isWrong) {
-                        borderColor = AppColors.accent;
-                        bgColor = AppColors.accent.withOpacity(0.12);
-                        letterBg = AppColors.accent;
+                        borderColor = AppColors.error;
+                        bgColor = AppColors.error.withOpacity(0.12);
+                        letterBg = AppColors.error;
                         letterColor = Colors.white;
-                        textColor = AppColors.accent;
+                        textColor = AppColors.error;
                       } else if (isSelected) {
                         borderColor = AppColors.primary;
                         bgColor = AppColors.primary.withOpacity(0.08);
@@ -398,7 +422,7 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
                                     color: AppColors.success, size: 18),
                               if (isWrong)
                                 const Icon(Icons.cancel_rounded,
-                                    color: AppColors.accent, size: 18),
+                                    color: AppColors.error, size: 18),
                             ],
                           ),
                         )
@@ -729,8 +753,8 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
         ),
         content: Text(
           _isInfinite
-              ? 'Você respondeu ${_answers.length} questões. Deseja ver o resultado ou descartar?'
-              : 'Seu progresso será perdido.',
+              ? 'Você respondeu ${_answers.length} questões. Deseja ver seu resultado ou continuar praticando?'
+              : 'Deseja pausar este quiz e voltar para o início?',
           style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
         actions: [
@@ -760,4 +784,53 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
       ),
     );
   }
+}
+
+String _getTopicIcon(String topic) {
+  final lower = topic.toLowerCase();
+  if (lower.contains('bio') ||
+      lower.contains('saúde') ||
+      lower.contains('cel')) {
+    return '🧬';
+  }
+  if (lower.contains('mat') ||
+      lower.contains('alg') ||
+      lower.contains('calc') ||
+      lower.contains('núm')) {
+    return '📐';
+  }
+  if (lower.contains('hist') ||
+      lower.contains('brasil') ||
+      lower.contains('guerra')) {
+    return '📜';
+  }
+  if (lower.contains('quím') ||
+      lower.contains('átom') ||
+      lower.contains('reac')) {
+    return '🧪';
+  }
+  if (lower.contains('fís') ||
+      lower.contains('moli') ||
+      lower.contains('ener')) {
+    return '🔬';
+  }
+  if (lower.contains('port') ||
+      lower.contains('gram') ||
+      lower.contains('lit')) {
+    return '📚';
+  }
+  if (lower.contains('geog') ||
+      lower.contains('map') ||
+      lower.contains('clima')) {
+    return '🌍';
+  }
+  if (lower.contains('dir') ||
+      lower.contains('le') ||
+      lower.contains('const')) {
+    return '⚖️';
+  }
+  if (lower.contains('ingl') || lower.contains('eng')) {
+    return '🔤';
+  }
+  return '💡';
 }

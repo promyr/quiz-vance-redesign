@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_error_message.dart';
+import '../../../core/storage/local_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/providers/auth_provider.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -24,6 +27,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isRegister = false;
   bool _isSubmitting = false;
   bool _obscurePassword = true;
+  bool _rememberSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedLoginId();
+  }
+
+  Future<void> _loadRememberedLoginId() async {
+    try {
+      final savedId = await LocalStorage.instance.getCacheValue(
+        'remembered_login_id',
+        scoped: false,
+      );
+      if (savedId != null && savedId.isNotEmpty && mounted) {
+        setState(() {
+          _loginIdCtrl.text = savedId;
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -39,6 +63,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    final loginId = _loginIdCtrl.text.trim();
+    if (loginId.isNotEmpty) {
+      try {
+        await LocalStorage.instance.setCacheValue(
+          'remembered_login_id',
+          loginId,
+          scoped: false,
+        );
+      } catch (_) {}
+    }
+
     final auth = ref.read(authStateNotifierProvider.notifier);
     setState(() => _isSubmitting = true);
 
@@ -46,33 +81,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (_isRegister) {
         await auth.register(
           name: _nameCtrl.text.trim(),
-          loginId: _loginIdCtrl.text.trim(),
+          loginId: loginId,
           email: _emailCtrl.text.trim(),
           password: _passwordCtrl.text,
         );
       } else {
         await auth.login(
-          loginId: _loginIdCtrl.text.trim(),
+          loginId: loginId,
           password: _passwordCtrl.text,
+          rememberSession: _rememberSession,
         );
       }
 
-      final state = ref.read(authStateNotifierProvider);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
+      final state = ref.read(authStateNotifierProvider);
+      final hasError =
+          state.maybeWhen(error: (_, __) => true, orElse: () => false);
+      if (!hasError) {
+        TextInput.finishAutofillContext();
+      }
       state.whenOrNull(
         error: (error, _) {
+          // Campos preservados — usuario nao precisa redigitar
           final message = _friendlyAuthError(error);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(message),
               backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () =>
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              ),
             ),
           );
         },
       );
+    } catch (error) {
+      // Erro inesperado — mostra mensagem sem limpar campos
+      if (mounted) {
+        final message = _friendlyAuthError(error);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -81,13 +148,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _openForgotPassword() async {
-    await showModalBottomSheet<void>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       builder: (_) => const ForgotPasswordSheet(),
     );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Senha redefinida com sucesso! Insira suas novas credenciais.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
   }
 
   static final _emailRe = RegExp(
@@ -187,89 +264,130 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                if (_isRegister) ...[
-                  _buildLabel('Nome'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Seu nome completo',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Informe seu nome';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                _buildLabel(
-                  _isRegister ? 'ID de acesso' : 'ID de acesso ou e-mail',
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _loginIdCtrl,
-                  textInputAction:
-                      _isRegister ? TextInputAction.next : TextInputAction.done,
-                  autocorrect: false,
-                  decoration: InputDecoration(
-                    hintText: _isRegister
-                        ? 'ex.: belchior.vance'
-                        : 'Digite seu ID ou e-mail',
-                    helperText: _isRegister
-                        ? 'Voce usara esse ID para entrar na sua conta'
-                        : null,
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                  ),
-                  validator: _validateLoginId,
-                ),
-                const SizedBox(height: 16),
-                if (_isRegister) ...[
-                  _buildLabel('E-mail'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      hintText: 'seu@email.com',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: _validateEmail,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                _buildLabel('Senha'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _passwordCtrl,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    hintText: '********',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_isRegister) ...[
+                        _buildLabel('Nome'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _nameCtrl,
+                          autofillHints: const [AutofillHints.name],
+                          keyboardType: TextInputType.name,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            hintText: 'Seu nome completo',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Informe seu nome';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _buildLabel(
+                        _isRegister ? 'ID de acesso' : 'ID de acesso ou e-mail',
                       ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _loginIdCtrl,
+                        autofillHints: const [
+                          AutofillHints.username,
+                          AutofillHints.email,
+                        ],
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: _isRegister
+                            ? TextInputAction.next
+                            : TextInputAction.next,
+                        autocorrect: false,
+                        decoration: InputDecoration(
+                          hintText: _isRegister
+                              ? 'ex.: belchior.vance'
+                              : 'Digite seu ID ou e-mail',
+                          helperText: _isRegister
+                              ? 'Voce usara esse ID para entrar na sua conta'
+                              : null,
+                          prefixIcon: const Icon(Icons.badge_outlined),
+                        ),
+                        validator: _validateLoginId,
+                      ),
+                      const SizedBox(height: 16),
+                      if (_isRegister) ...[
+                        _buildLabel('E-mail'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _emailCtrl,
+                          autofillHints: const [AutofillHints.email],
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            hintText: 'seu@email.com',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          validator: _validateEmail,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _buildLabel('Senha'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _passwordCtrl,
+                        obscureText: _obscurePassword,
+                        autofillHints: [
+                          _isRegister
+                              ? AutofillHints.newPassword
+                              : AutofillHints.password,
+                        ],
+                        textInputAction: TextInputAction.done,
+                        keyboardType: TextInputType.visiblePassword,
+                        onFieldSubmitted: (_) => _submit(),
+                        decoration: InputDecoration(
+                          hintText: '********',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                            onPressed: () {
+                              setState(
+                                  () => _obscurePassword = !_obscurePassword);
+                            },
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Informe a senha';
+                          }
+                          if (value.length < 6) {
+                            return 'Minimo 6 caracteres';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe a senha';
-                    }
-                    if (value.length < 6) {
-                      return 'Minimo 6 caracteres';
-                    }
-                    return null;
-                  },
                 ),
+                if (!_isRegister)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _rememberSession,
+                    onChanged: isLoading
+                        ? null
+                        : (value) => setState(
+                              () => _rememberSession = value ?? true,
+                            ),
+                    title: const Text('Lembrar meu login'),
+                    subtitle: const Text(
+                      'Mantenha sua sessao neste aparelho.',
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
                 const SizedBox(height: 32),
                 AppButton(
                   label: _isRegister ? 'Criar conta' : 'Entrar',
@@ -321,12 +439,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   String _friendlyAuthError(Object error) {
-    final raw = error.toString();
-    if (raw.length <= 120 &&
-        !raw.contains('Exception') &&
-        !raw.contains('Error')) {
-      return raw;
+    final message = userVisibleErrorMessage(
+      error,
+      fallback: 'ID de acesso ou senha incorretos. Verifique suas credenciais.',
+    );
+    if (message.contains('DioException') ||
+        message.contains('Exception') ||
+        message.contains('Error')) {
+      return 'ID de acesso ou senha incorretos. Verifique suas credenciais.';
     }
-    return 'Nao foi possivel entrar. Verifique seus dados e tente novamente.';
+    return message;
   }
 }

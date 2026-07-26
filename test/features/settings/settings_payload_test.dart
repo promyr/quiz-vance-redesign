@@ -5,17 +5,15 @@ void main() {
   group('buildAiConfigPayload', () {
     test('omite chaves vazias do payload remoto', () {
       final payload = buildAiConfigPayload(
-        provider: 'openai',
+        provider: 'groq',
         geminiKey: '   ',
-        openaiKey: 'sk-openai',
-        groqKey: '',
+        groqKey: 'gsk-groq',
       );
 
-      expect(payload['provider'], equals('openai'));
-      expect(payload['model'], equals('gpt-4o-mini'));
+      expect(payload['provider'], equals('groq'));
+      expect(payload['model'], equals('llama-3.3-70b-versatile'));
       expect(payload.containsKey('api_key_gemini'), isFalse);
-      expect(payload['api_key_openai'], equals('sk-openai'));
-      expect(payload.containsKey('api_key_groq'), isFalse);
+      expect(payload['api_key_groq'], equals('gsk-groq'));
     });
 
     test('mantem somente os campos preenchidos', () {
@@ -28,26 +26,8 @@ void main() {
         payload,
         equals({
           'provider': 'gemini',
-          'model': 'gemini-2.0-flash',
+          'model': 'gemini-3.5-flash',
           'api_key_gemini': 'gem-key',
-        }),
-      );
-    });
-
-    test('envia somente a chave do provedor ativo', () {
-      final payload = buildAiConfigPayload(
-        provider: 'openai',
-        geminiKey: 'gem-key',
-        openaiKey: 'sk-openai',
-        groqKey: 'gsk-groq',
-      );
-
-      expect(
-        payload,
-        equals({
-          'provider': 'openai',
-          'model': 'gpt-4o-mini',
-          'api_key_openai': 'sk-openai',
         }),
       );
     });
@@ -59,6 +39,16 @@ void main() {
       );
 
       expect(payload['model'], equals('llama-3.3-70b-versatile'));
+    });
+
+    test('sincroniza chave OpenAI com modelo compatível', () {
+      final payload = buildAiConfigPayload(
+        provider: 'openai',
+        openaiKey: 'sk-openai-test',
+      );
+
+      expect(payload['model'], equals('gpt-4o-mini'));
+      expect(payload['api_key_openai'], equals('sk-openai-test'));
     });
   });
 }

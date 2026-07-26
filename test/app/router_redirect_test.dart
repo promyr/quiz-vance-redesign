@@ -38,6 +38,30 @@ void main() {
   });
 
   group('resolveAppRedirect', () {
+    test('blocks admin route for an authenticated regular user', () {
+      final redirect = resolveAppRedirect(
+        authLoading: false,
+        isAuthenticated: true,
+        isAdmin: false,
+        shouldShowOnboardingFlag: false,
+        location: '/admin/keys',
+      );
+
+      expect(redirect, '/');
+    });
+
+    test('allows admin route when role came from the backend', () {
+      final redirect = resolveAppRedirect(
+        authLoading: false,
+        isAuthenticated: true,
+        isAdmin: true,
+        shouldShowOnboardingFlag: false,
+        location: '/admin/keys',
+      );
+
+      expect(redirect, isNull);
+    });
+
     test('envia para boot enquanto auth esta carregando', () {
       final redirect = resolveAppRedirect(
         authLoading: true,

@@ -13,33 +13,34 @@ if (keystorePropertiesFile.exists()) {
     }
 }
 
-def requiredSigningProperties = [
-    "storeFile",
-    "storePassword",
-    "keyAlias",
-    "keyPassword",
-]
-def missingSigningProperties = requiredSigningProperties.findAll {
-    !keystoreProperties[it]?.trim()
-}
-def releaseBuildRequested = gradle.startParameter.taskNames.any {
+def releaseTaskRequested = gradle.startParameter.taskNames.any {
     it.toLowerCase().contains("release")
 }
-def releaseStoreFile = keystoreProperties["storeFile"] ?
-    rootProject.file(keystoreProperties["storeFile"]) : null
-def hasReleaseSigning = keystorePropertiesFile.exists() &&
-    missingSigningProperties.isEmpty() &&
-    releaseStoreFile?.exists()
-
-if (releaseBuildRequested && !hasReleaseSigning) {
-    def reason = !keystorePropertiesFile.exists() ?
-        "android/key.properties is missing" :
-        missingSigningProperties ?
-            "missing properties: ${missingSigningProperties.join(', ')}" :
-            "keystore file does not exist: ${releaseStoreFile}"
-    throw new GradleException(
-        "Release signing credentials are required; ${reason}."
-    )
+def requiredSigningProperties = [
+    "keyAlias",
+    "keyPassword",
+    "storeFile",
+    "storePassword",
+]
+if (releaseTaskRequested) {
+    if (!keystorePropertiesFile.exists()) {
+        throw new GradleException(
+            "Release signing requires android/key.properties; debug fallback is forbidden."
+        )
+    }
+    requiredSigningProperties.each { propertyName ->
+        if (!keystoreProperties[propertyName]?.toString()?.trim()) {
+            throw new GradleException(
+                "Release signing property is missing: ${propertyName}"
+            )
+        }
+    }
+    def configuredStoreFile = rootProject.file(keystoreProperties["storeFile"])
+    if (!configuredStoreFile.exists()) {
+        throw new GradleException(
+            "Release keystore was not found at the configured storeFile."
+        )
+    }
 }
 
 android {
@@ -65,6 +66,51 @@ android {
         versionName flutter.versionName
 
         multiDexEnabled true
+        manifestPlaceholders += [
+            appLabel: "Quiz Vance"
+        ]
+    }
+
+    flavorDimensions += "app"
+    productFlavors {
+        production {
+            dimension "app"
+            manifestPlaceholders += [
+                appLabel: "Quiz Vance"
+            ]
+        }
+        experimental {
+            dimension "app"
+            applicationIdSuffix ".experimental"
+            versionNameSuffix "-experimental"
+            manifestPlaceholders += [
+                appLabel: "Quiz Vance Experimental"
+            ]
+        }
+        experimental1 {
+            dimension "app"
+            applicationIdSuffix ".experimental1"
+            versionNameSuffix "-experimental1"
+            manifestPlaceholders += [
+                appLabel: "Quiz Vance Cor 1"
+            ]
+        }
+        experimental2 {
+            dimension "app"
+            applicationIdSuffix ".experimental2"
+            versionNameSuffix "-experimental2"
+            manifestPlaceholders += [
+                appLabel: "Quiz Vance Cor 2"
+            ]
+        }
+        experimental4 {
+            dimension "app"
+            applicationIdSuffix ".experimental4"
+            versionNameSuffix "-experimental4"
+            manifestPlaceholders += [
+                appLabel: "Quiz Vance Cor 4"
+            ]
+        }
     }
 
     packagingOptions {
@@ -75,10 +121,10 @@ android {
 
     signingConfigs {
         release {
-            if (hasReleaseSigning) {
+            if (keystorePropertiesFile.exists()) {
                 keyAlias keystoreProperties["keyAlias"]
                 keyPassword keystoreProperties["keyPassword"]
-                storeFile releaseStoreFile
+                storeFile rootProject.file(keystoreProperties["storeFile"])
                 storePassword keystoreProperties["storePassword"]
             }
         }
@@ -86,12 +132,9 @@ android {
 
     buildTypes {
         release {
-            if (hasReleaseSigning) {
-                signingConfig signingConfigs.release
-            }
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }

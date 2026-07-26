@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:sqflite/sqflite.dart' show getDatabasesPath;
 
+import '../../shared/application/account_scoped_key.dart';
+
 const _databaseFileName = 'quiz_vance.db';
 const _databaseKeyStorageKey = 'local_db_encryption_key_v1';
 const _legacyBackupSuffix = '.plaintext.bak';
@@ -96,11 +98,16 @@ class LocalStorage {
 
   static final LocalStorage instance = LocalStorage._();
 
-  static const int _version = 3;
+  static const int _version = 4;
   static const List<String> _trackedTables = <String>[
     'flashcards',
     'quiz_sessions',
     'user_cache',
+    'library_files',
+  ];
+  static const List<String> _accountScopedTables = <String>[
+    'flashcards',
+    'quiz_sessions',
     'library_files',
   ];
 
@@ -109,6 +116,7 @@ class LocalStorage {
   String? _databasePathOverride;
   LocalStorageKeyStore _keyStore = const _FlutterSecureKeyStore();
   bool _allowPlaintextFallback = false;
+  String? _activeAccountId;
 
   Database get _database {
     final db = _db;
@@ -133,6 +141,7 @@ class LocalStorage {
     );
 
     _applyConnectionPragmas(db);
+    _migrateSchema(db);
     _ensureSchema(db);
 
     _db = db;
@@ -143,7 +152,18 @@ class LocalStorage {
     final db = _db;
     _db = null;
     _openedPath = null;
+    _activeAccountId = null;
     db?.dispose();
+  }
+
+  void setActiveAccountId(String? accountId) {
+    final normalized = accountId?.trim();
+    final resolved =
+        normalized == null || normalized.isEmpty ? null : normalized;
+    _activeAccountId = resolved;
+    if (_db != null && resolved != null) {
+      _claimLegacyAccountScopedData(resolved);
+    }
   }
 
   Future<T> transaction<T>(
@@ -164,8 +184,12 @@ class LocalStorage {
   Future<List<Map<String, dynamic>>> getDueFlashcards() {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     return _select(
-      'SELECT * FROM flashcards WHERE due_date <= ? ORDER BY due_date ASC, id ASC',
-      [today],
+      '''
+      SELECT * FROM flashcards
+      WHERE account_id = ? AND due_date <= ?
+      ORDER BY due_date ASC, id ASC
+      ''',
+      [_currentAccountId, today],
     );
   }
 
@@ -174,6 +198,7 @@ class LocalStorage {
     return _select(
       '''
       SELECT * FROM flashcards
+      WHERE account_id = ?
       ORDER BY
         CASE
           WHEN due_date IS NULL OR due_date <= ? THEN 0
@@ -187,13 +212,34 @@ class LocalStorage {
         due_date ASC,
         id ASC
       ''',
-      [today],
+      [_currentAccountId, today],
     );
+  }
+
+  /// Returns all flashcard front texts to be used as an avoid list for generation.
+  /// Useful for deduplication during library package generation.
+  Future<List<String>> getAllFlashcardFronts() async {
+    try {
+      final rows = await _select(
+        '''
+        SELECT DISTINCT front FROM flashcards
+        WHERE account_id = ? AND front IS NOT NULL AND front != ""
+        ''',
+        [_currentAccountId],
+      );
+      return rows
+          .map((row) => (row['front'] as String?)?.trim() ?? '')
+          .where((f) => f.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<int> upsertFlashcard(Map<String, dynamic> card) async {
     final payload = <String, dynamic>{
       'remote_id': _trimmedString(card['remote_id']),
+      'account_id': _currentAccountId,
       'front': card['front'] ?? '',
       'back': card['back'] ?? '',
       'topic': card['topic'] ?? '',
@@ -214,6 +260,7 @@ class LocalStorage {
     const sql = '''
       INSERT INTO flashcards (
         remote_id,
+        account_id,
         front,
         back,
         topic,
@@ -224,8 +271,9 @@ class LocalStorage {
         last_reviewed,
         synced,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(remote_id) DO UPDATE SET
+        account_id = excluded.account_id,
         front = excluded.front,
         back = excluded.back,
         topic = excluded.topic,
@@ -239,6 +287,7 @@ class LocalStorage {
 
     _database.execute(sql, [
       payload['remote_id'],
+      payload['account_id'],
       payload['front'],
       payload['back'],
       payload['topic'],
@@ -271,23 +320,38 @@ class LocalStorage {
           payload[entry.key] = entry.value;
       }
     }
-    return _update('flashcards', payload, where: 'id = ?', whereArgs: [id]);
+    return _update(
+      'flashcards',
+      payload,
+      where: 'id = ? AND account_id = ?',
+      whereArgs: [id, _currentAccountId],
+    );
   }
 
   Future<int> deleteFlashcardsByRemoteIdPrefix(String prefix) {
     return _delete(
       'flashcards',
-      where: 'remote_id LIKE ?',
-      whereArgs: ['$prefix%'],
+      where: 'account_id = ? AND remote_id LIKE ?',
+      whereArgs: [_currentAccountId, '$prefix%'],
     );
   }
 
   Future<List<Map<String, dynamic>>> listLibraryFiles() async {
     final rows = await _select(
-      'SELECT id, remote_id, data_json FROM library_files ORDER BY id DESC',
+      '''
+      SELECT id, remote_id, account_id, data_json
+      FROM library_files
+      ORDER BY id DESC
+      ''',
+      [],
     );
 
-    return rows
+    final scopedRows = rows
+        .where(
+            (row) => (row['account_id']?.toString() ?? '') == _currentAccountId)
+        .toList(growable: false);
+
+    return scopedRows
         .map((row) {
           final rawJson = row['data_json'] as String? ?? '{}';
           final decoded = jsonDecode(rawJson);
@@ -316,6 +380,7 @@ class LocalStorage {
       'library_files',
       <String, dynamic>{
         'id': id,
+        'account_id': _currentAccountId,
         'remote_id': payload['remote_id'],
         'data_json': jsonEncode(payload),
       },
@@ -324,57 +389,79 @@ class LocalStorage {
   }
 
   Future<int> deleteLibraryFile(int id) {
-    return _delete('library_files', where: 'id = ?', whereArgs: [id]);
+    return _delete(
+      'library_files',
+      where: 'id = ? AND account_id = ?',
+      whereArgs: [id, _currentAccountId],
+    );
   }
 
-  Future<String?> getCacheValue(String key) async {
+  Future<String?> getCacheValue(String key, {bool scoped = true}) async {
+    final scopedKey = _scopedCacheKey(key, scoped: scoped);
     final rows = await _select(
+      'SELECT value FROM user_cache WHERE key = ?',
+      [scopedKey],
+    );
+    if (rows.isNotEmpty) {
+      return rows.first['value'] as String?;
+    }
+    if (!scoped || scopedKey == key) {
+      return null;
+    }
+
+    final legacyRows = await _select(
       'SELECT value FROM user_cache WHERE key = ?',
       [key],
     );
-    if (rows.isEmpty) {
+    if (legacyRows.isEmpty) {
       return null;
     }
-    return rows.first['value'] as String?;
+    final legacyValue = legacyRows.first['value'] as String?;
+    if (legacyValue != null) {
+      await setCacheValue(key, legacyValue, scoped: true);
+    }
+    return legacyValue;
   }
 
-  Future<void> setCacheValue(String key, String value) async {
-    await _insert('user_cache', {'key': key, 'value': value}, replace: true);
-  }
-
-  Future<void> deleteCacheValue(String key) async {
-    await _delete('user_cache', where: 'key = ?', whereArgs: [key]);
-  }
-
-  Future<void> upsertPendingResult({
-    required String id,
-    required String endpoint,
-    required Map<String, dynamic> payload,
+  Future<void> setCacheValue(
+    String key,
+    String value, {
+    bool scoped = true,
   }) async {
+    final resolvedKey = _scopedCacheKey(key, scoped: scoped);
     await _insert(
-      'quiz_sessions',
-      {
-        'remote_id': id,
-        'data_json': jsonEncode({
-          'endpoint': endpoint,
-          'payload': payload,
-        }),
-      },
+      'user_cache',
+      {'key': resolvedKey, 'value': value},
       replace: true,
     );
+    if (scoped && resolvedKey != key) {
+      await _delete('user_cache', where: 'key = ?', whereArgs: [key]);
+    }
   }
 
-  Future<List<Map<String, dynamic>>> listPendingResults() {
-    return _select(
-        'SELECT remote_id, data_json FROM quiz_sessions ORDER BY id');
+  Future<void> deleteCacheValue(String key, {bool scoped = true}) async {
+    final resolvedKey = _scopedCacheKey(key, scoped: scoped);
+    await _delete('user_cache', where: 'key = ?', whereArgs: [resolvedKey]);
+    if (scoped && resolvedKey != key) {
+      await _delete('user_cache', where: 'key = ?', whereArgs: [key]);
+    }
   }
 
-  Future<void> deletePendingResult(String id) async {
-    await _delete(
-      'quiz_sessions',
-      where: 'remote_id = ?',
-      whereArgs: [id],
-    );
+  Future<void> clearAccountScopedData() async {
+    await transaction((txn) async {
+      for (final table in _accountScopedTables) {
+        await txn.delete(
+          table,
+          where: 'account_id = ?',
+          whereArgs: [_currentAccountId],
+        );
+      }
+      await txn.delete(
+        'user_cache',
+        where: 'key LIKE ?',
+        whereArgs: ['${buildAccountScopedStoragePrefix(_currentAccountId)}%'],
+      );
+    });
   }
 
   @visibleForTesting
@@ -506,6 +593,7 @@ class LocalStorage {
       CREATE TABLE IF NOT EXISTS flashcards (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         remote_id TEXT UNIQUE,
+        account_id TEXT NOT NULL DEFAULT '',
         front TEXT NOT NULL DEFAULT '',
         back TEXT NOT NULL DEFAULT '',
         topic TEXT NOT NULL DEFAULT '',
@@ -520,13 +608,14 @@ class LocalStorage {
     ''');
 
     db.execute('''
-      CREATE INDEX IF NOT EXISTS ix_flashcards_due_date ON flashcards (due_date)
+      CREATE INDEX IF NOT EXISTS ix_flashcards_account_due_date ON flashcards (account_id, due_date)
     ''');
 
     db.execute('''
       CREATE TABLE IF NOT EXISTS quiz_sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         remote_id TEXT UNIQUE,
+        account_id TEXT NOT NULL DEFAULT '',
         data_json TEXT NOT NULL DEFAULT '{}'
       )
     ''');
@@ -542,11 +631,43 @@ class LocalStorage {
       CREATE TABLE IF NOT EXISTS library_files (
         id INTEGER PRIMARY KEY,
         remote_id TEXT UNIQUE,
+        account_id TEXT NOT NULL DEFAULT '',
         data_json TEXT NOT NULL DEFAULT '{}'
       )
     ''');
 
     db.execute('PRAGMA user_version = $_version');
+  }
+
+  void _migrateSchema(Database db) {
+    final currentVersion =
+        (db.select('PRAGMA user_version').first.values.first as int?) ?? 0;
+    if (currentVersion >= _version) {
+      return;
+    }
+
+    if (currentVersion < 4) {
+      _ensureColumn(
+        db,
+        table: 'flashcards',
+        column: "account_id TEXT NOT NULL DEFAULT ''",
+      );
+      _ensureColumn(
+        db,
+        table: 'quiz_sessions',
+        column: "account_id TEXT NOT NULL DEFAULT ''",
+      );
+      _ensureColumn(
+        db,
+        table: 'library_files',
+        column: "account_id TEXT NOT NULL DEFAULT ''",
+      );
+      if (_tableExists(db, 'flashcards')) {
+        db.execute(
+          'CREATE INDEX IF NOT EXISTS ix_flashcards_account_due_date ON flashcards (account_id, due_date)',
+        );
+      }
+    }
   }
 
   Future<String> _resolveDatabasePath() async {
@@ -608,15 +729,7 @@ class LocalStorage {
     }
 
     try {
-      final db = _openDatabase(databasePath, encryptionKey: encryptionKey);
-      try {
-        await _secureDeleteDatabaseFiles(
-          '$databasePath$_legacyBackupSuffix',
-        );
-      } catch (error) {
-        debugPrint('Deferred legacy database cleanup: ${error.runtimeType}');
-      }
-      return db;
+      return _openDatabase(databasePath, encryptionKey: encryptionKey);
     } catch (_) {
       if (await _looksLikePlaintextSQLiteFile(databaseFile)) {
         return _migratePlaintextDatabase(
@@ -651,29 +764,23 @@ class LocalStorage {
     final backupFile = File(sourcePath);
 
     if (await backupFile.exists()) {
-      await _secureDeleteDatabaseFiles(sourcePath);
+      await backupFile.delete();
     }
     await sourceFile.rename(sourcePath);
 
     final sourceDb = sqlite3.open(sourcePath);
     final targetDb = _openDatabase(databasePath, encryptionKey: encryptionKey);
-    var sourceDisposed = false;
 
     try {
       _applyConnectionPragmas(targetDb);
       _ensureSchema(targetDb);
       _copyTrackedTables(sourceDb: sourceDb, targetDb: targetDb);
-      sourceDb.dispose();
-      sourceDisposed = true;
-      await _secureDeleteDatabaseFiles(sourcePath);
       return targetDb;
     } catch (_) {
       targetDb.dispose();
       rethrow;
     } finally {
-      if (!sourceDisposed) {
-        sourceDb.dispose();
-      }
+      sourceDb.dispose();
     }
   }
 
@@ -729,6 +836,24 @@ class LocalStorage {
     return rows.isNotEmpty;
   }
 
+  void _ensureColumn(
+    Database db, {
+    required String table,
+    required String column,
+  }) {
+    if (!_tableExists(db, table)) {
+      return;
+    }
+
+    final columnName = column.split(' ').first;
+    final existingColumns = _tableColumns(db, table);
+    if (existingColumns.contains(columnName)) {
+      return;
+    }
+
+    db.execute('ALTER TABLE $table ADD COLUMN $column');
+  }
+
   Set<String> _tableColumns(Database db, String table) {
     final rows = db.select("PRAGMA table_info('$table')");
     return rows.map((row) => row['name']).whereType<String>().toSet();
@@ -780,41 +905,6 @@ class LocalStorage {
     }
   }
 
-  Future<void> _secureDeleteDatabaseFiles(String basePath) async {
-    for (final candidate in <String>[
-      basePath,
-      '$basePath-wal',
-      '$basePath-shm',
-    ]) {
-      await _secureDeleteFile(File(candidate));
-    }
-  }
-
-  Future<void> _secureDeleteFile(File file) async {
-    if (!await file.exists()) return;
-
-    RandomAccessFile? handle;
-    try {
-      final length = await file.length();
-      handle = await file.open(mode: FileMode.writeOnly);
-      const chunkSize = 64 * 1024;
-      final zeroes = List<int>.filled(chunkSize, 0);
-      var remaining = length;
-      while (remaining > 0) {
-        final bytesToWrite = min(remaining, chunkSize);
-        await handle.writeFrom(zeroes, 0, bytesToWrite);
-        remaining -= bytesToWrite;
-      }
-      await handle.truncate(0);
-      await handle.flush();
-      await handle.close();
-      handle = null;
-      await file.delete();
-    } finally {
-      await handle?.close();
-    }
-  }
-
   static int _asInt(dynamic value, {int fallback = 0}) {
     if (value is int) {
       return value;
@@ -857,5 +947,32 @@ class LocalStorage {
       return null;
     }
     return stringValue;
+  }
+
+  String get _currentAccountId => _activeAccountId ?? '';
+
+  String _scopedCacheKey(String key, {required bool scoped}) {
+    if (!scoped || _activeAccountId == null || _activeAccountId!.isEmpty) {
+      return key;
+    }
+    return buildMaybeScopedStorageKey(
+      baseKey: key,
+      accountId: _activeAccountId,
+    );
+  }
+
+  void _claimLegacyAccountScopedData(String accountId) {
+    _database.execute(
+      "UPDATE flashcards SET account_id = ? WHERE account_id IS NULL OR account_id = ''",
+      [accountId],
+    );
+    _database.execute(
+      "UPDATE quiz_sessions SET account_id = ? WHERE account_id IS NULL OR account_id = ''",
+      [accountId],
+    );
+    _database.execute(
+      "UPDATE library_files SET account_id = ? WHERE account_id IS NULL OR account_id = ''",
+      [accountId],
+    );
   }
 }

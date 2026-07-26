@@ -45,13 +45,16 @@ abstract class ApiEndpoints {
   static const String userStats = '/user/stats';
   static const String userProfile = '/user/profile';
   static const String userUpdateProfile = '/user/profile/update';
+  static const String userLoginIdAvailability = '/user/login-id/availability';
+  static const String userUpdateLoginId = '/user/profile/login-id';
+  static const String userDeleteAccount = '/user/account';
   static const String userAiConfig = '/user/ai-config';
+  static const String adminAiKeys = '/admin/ai-keys';
+  static String adminAiKey(String id) => '$adminAiKeys/$id';
+  static String adminAiKeyTest(String id) => '${adminAiKey(id)}/test';
+  static const String adminAiAudit = '/admin/ai-audit';
   static const String userAchievements = '/user/achievements';
   static const String userAchievementsUnlock = '/user/achievements/unlock';
-  static const String userAccount = '/user/account';
-
-  // App
-  static const String appUpdate = '/app/update';
 
   // Billing
   static const String billingPlans = '/billing/plans';

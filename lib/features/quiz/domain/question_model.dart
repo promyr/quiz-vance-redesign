@@ -33,11 +33,6 @@ class Question {
     this.explanation,
     this.topic,
     this.difficulty = 'medium',
-    this.sourceDocumentId,
-    this.sourceVersion,
-    this.sourceSpan,
-    this.evidence,
-    this.qualityFlags = const [],
   });
 
   factory Question.fromJson(Map<String, dynamic> json) {
@@ -66,13 +61,6 @@ class Question {
           json['explanation']?.toString() ?? json['explicacao']?.toString(),
       topic: json['topic']?.toString() ?? json['subtema']?.toString(),
       difficulty: json['difficulty']?.toString() ?? 'medium',
-      sourceDocumentId: json['source_document_id']?.toString(),
-      sourceVersion: json['source_version']?.toString(),
-      sourceSpan: json['source_span']?.toString(),
-      evidence: json['evidence']?.toString(),
-      qualityFlags: (json['quality_flags'] as List<dynamic>? ?? const [])
-          .map((value) => value.toString())
-          .toList(growable: false),
     );
   }
 
@@ -83,11 +71,6 @@ class Question {
   final String? explanation;
   final String? topic;
   final String difficulty;
-  final String? sourceDocumentId;
-  final String? sourceVersion;
-  final String? sourceSpan;
-  final String? evidence;
-  final List<String> qualityFlags;
 
   QuizOption? get correctOption {
     for (final option in options) {
@@ -97,6 +80,16 @@ class Question {
     }
     return null;
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+        'options': options.map((e) => e.toJson()).toList(),
+        'correct_option_id': correctOptionId,
+        'explanation': explanation,
+        'topic': topic,
+        'difficulty': difficulty,
+      };
 
   String? get correctOptionLetter {
     final index = options.indexWhere((option) => option.id == correctOptionId);

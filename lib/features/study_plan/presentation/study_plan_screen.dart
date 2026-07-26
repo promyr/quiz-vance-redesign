@@ -320,7 +320,7 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
 
                     // Botão Gerar
                     AppButton(
-                      label: 'Gerar Plano com IA ✨',
+                      label: 'Criar Plano de Estudo ✨',
                       isLoading: _loading,
                       onPressed: _generatePlan,
                     ),
