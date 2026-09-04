@@ -1,0 +1,192 @@
+from datetime import date, datetime
+
+from pydantic import BaseModel, Field
+
+
+class RegisterIn(BaseModel):
+    name: str = Field(max_length=100)
+    login_id: str | None = Field(default=None, max_length=50)
+    id: str | None = Field(default=None, max_length=50)
+    email_id: str = Field(max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class LoginIn(BaseModel):
+    login_id: str | None = Field(default=None, max_length=50)
+    id: str | None = Field(default=None, max_length=50)
+    email_id: str | None = Field(default=None, max_length=254)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class AuthOut(BaseModel):
+    user_id: int
+    name: str
+    login_id: str = ""
+    email_id: str
+    role: str = "user"
+    plan_code: str
+    premium_active: bool
+    premium_until: datetime | None = None
+    access_token: str | None = None
+    refresh_token: str | None = None
+    token_type: str = "bearer"
+
+
+class PasswordResetRequestIn(BaseModel):
+    identifier: str
+
+
+class PasswordResetConfirmIn(BaseModel):
+    identifier: str
+    code: str = Field(min_length=4, max_length=12)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class ActivatePlanIn(BaseModel):
+    user_id: int
+    plan_code: str
+
+
+class CheckoutStartIn(BaseModel):
+    user_id: int
+    plan_code: str
+    provider: str = "mercadopago"
+    name: str = ""
+    email_id: str = ""
+
+
+class CheckoutConfirmIn(BaseModel):
+    user_id: int
+    checkout_id: str
+    auth_token: str
+    tx_id: str
+    provider: str = "mercadopago"
+
+
+class CheckoutReconcileIn(BaseModel):
+    user_id: int
+    checkout_id: str
+
+
+class TelegramProvisionIn(BaseModel):
+    chat_id: int | str
+    set_commands: bool = True
+    pin_messages: bool = True
+    chat_title: str = ""
+    chat_description: str = ""
+    dry_run: bool = False
+
+
+class TelegramWebhookConfigIn(BaseModel):
+    public_base_url: str
+    drop_pending_updates: bool = True
+
+
+class ConsumeUsageIn(BaseModel):
+    user_id: int
+    feature_key: str
+    limit_per_day: int
+
+
+class WebhookPaymentIn(BaseModel):
+    provider: str
+    event_id: str
+    event_type: str
+    user_id: int
+    tx_id: str
+    amount_cents: int = 0
+    currency: str = "BRL"
+    plan_code: str = "premium_30"
+
+
+class UpsertUserIn(BaseModel):
+    user_id: int
+    name: str
+    email_id: str
+    login_id: str | None = None
+
+
+class UserSettingsOut(BaseModel):
+    user_id: int
+    provider: str = "gemini"
+    model: str = "gemini-3.5-flash"
+    api_key: str | None = None
+    api_key_gemini: str | None = None
+    api_key_groq: str | None = None
+    has_api_key: bool = False
+    has_api_key_gemini: bool = False
+    has_api_key_groq: bool = False
+    economia_mode: bool = False
+    telemetry_opt_in: bool = False
+
+
+class UpsertUserSettingsIn(BaseModel):
+    user_id: int
+    provider: str = "gemini"
+    model: str = "gemini-3.5-flash"
+    api_key: str | None = None
+    api_key_gemini: str | None = None
+    api_key_groq: str | None = None
+    economia_mode: bool = False
+    telemetry_opt_in: bool = False
+
+
+class QuizStatsEventIn(BaseModel):
+    event_id: str
+    questoes_delta: int = 0
+    acertos_delta: int = 0
+    xp_delta: int = 0
+    correta: bool = False
+    occurred_at: datetime | None = None
+
+
+class QuizStatsBatchIn(BaseModel):
+    user_id: int
+    events: list[QuizStatsEventIn] = []
+
+
+class QuizStatsSummaryOut(BaseModel):
+    user_id: int
+    total_questoes: int = 0
+    total_acertos: int = 0
+    total_xp: int = 0
+    today_questoes: int = 0
+    today_acertos: int = 0
+    today_xp: int = 0
+    streak_dias: int = 0
+    last_activity_day: date | None = None
+
+
+class LeaderboardEntryOut(BaseModel):
+    user_id: int
+    name: str
+    xp: int = 0
+    total_questoes: int = 0
+    total_acertos: int = 0
+    taxa_acerto: float = 0.0
+    last_activity_day: date | None = None
+
+
+class LeaderboardOut(BaseModel):
+    period: str = "Geral"
+    total_participantes: int = 0
+    top_xp: int = 0
+    my_position: int | None = None
+    rows: list[LeaderboardEntryOut] = []
+
+
+class AppUpdateInfoOut(BaseModel):
+    ok: bool = True
+    platform: str = "android"
+    latest_version: str | None = None
+    minimum_supported_version: str | None = None
+    download_url: str | None = None
+    release_notes: str | None = None
+    published_at: datetime | None = None
+
+
+class QuizActivityPingIn(BaseModel):
+    user_id: int
+    activity_day: date | None = None
+    tz_offset_hours: float | None = None
+    streak_dias: int | None = None
