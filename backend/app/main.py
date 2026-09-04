@@ -546,14 +546,12 @@ def _notify_telegram_checkout_event(
         logger.warning("telegram_billing_notification_failed")
 
 
-@app.get(
-    "/telegram/health",
-    dependencies=[Depends(authenticate_admin)],
-    response_model=None,
-)
+@app.get("/telegram/health", response_model=None)
 def telegram_health(
+    authorization: str | None = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
 ):
+    authenticate_admin(authorization, db)
     config = _load_telegram_community_config(db)
     stored_chat_id = str(getattr(config, "chat_id", "") or "").strip()
     updates_thread_id = _resolve_telegram_topic_thread_id(config, "atualizacoes")
