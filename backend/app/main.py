@@ -16,7 +16,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import emailer, mercadopago, models, schemas, services, telegram_bot
 from .database import SessionLocal, engine, get_db
-from .deps import authenticate_access_token
+from .deps import authenticate_access_token, authenticate_admin
 from .document_worker import start_document_worker, stop_document_worker
 from .rate_limit import rate_limit
 from .routers import admin_ai as admin_ai_router
