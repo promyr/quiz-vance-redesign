@@ -37,3 +37,4 @@ void main() {
     expect(text.length, maxStudyDocumentCharacters);
   });
 }
+

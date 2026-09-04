@@ -4,20 +4,20 @@
 abstract class AppConfig {
   static const String clientAppId = 'quiz-vance-redesign';
   static const String rankingNamespace = 'quiz-vance-redesign-v2';
+  static const String defaultBackendUrl =
+      'https://quiz-vance-redesign-backend.fly.dev';
 
   static const String backendUrl = String.fromEnvironment(
     'BACKEND_URL',
-    defaultValue: 'https://quiz-vance-redesign-backend.fly.dev',
+    defaultValue: defaultBackendUrl,
   );
 
   static const Duration connectTimeout = Duration(seconds: 10);
-  static const Duration sendTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
-  static const Duration generationTimeout = Duration(minutes: 2);
 
   static const String appName = 'Quiz Vance';
   static const String appVersion = String.fromEnvironment(
     'APP_VERSION',
-    defaultValue: '2.0.9',
+    defaultValue: '1.0.0',
   );
 }

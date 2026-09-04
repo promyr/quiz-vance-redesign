@@ -107,4 +107,59 @@ void main() {
       ),
     ).called(1);
   });
+
+  test('generatePackage faz fallback quando o provider inicial falha por quota',
+      () async {
+    when(() => aiGenerationGuard.ensureReadyForGeneration())
+        .thenAnswer((_) async => 'gemini');
+    when(
+      () => aiGenerationGuard.ensureReadyForGeneration(
+        overrideProvider: 'groq',
+      ),
+    ).thenAnswer((_) async => 'groq');
+    when(
+      () => aiGenerationGuard.loadConfig(overrideProvider: any(named: 'overrideProvider')),
+    ).thenAnswer(
+      (_) async => const AiGenerationConfigState(
+        selectedProvider: 'gemini',
+        selectedProviderLabel: 'Gemini',
+        selectedProviderKey: 'g-key',
+        geminiKey: 'g-key',
+        openaiKey: '',
+        groqKey: 'groq-key',
+        syncPending: false,
+        lastSyncedProvider: 'gemini',
+      ),
+    );
+
+    when(
+      () => libraryRepository.generatePackage(
+        file: file,
+        aiProvider: 'gemini',
+      ),
+    ).thenThrow(
+      Exception('You exceeded your current quota. Rate limit exceeded.'),
+    );
+    when(
+      () => libraryRepository.generatePackage(
+        file: file,
+        aiProvider: 'groq',
+      ),
+    ).thenAnswer((_) async => package);
+
+    final generated = await coordinator.generatePackage(file);
+
+    expect(generated.titulo, equals('Biologia'));
+    verify(
+      () => aiGenerationGuard.ensureReadyForGeneration(
+        overrideProvider: 'groq',
+      ),
+    ).called(1);
+    verify(
+      () => libraryRepository.generatePackage(
+        file: file,
+        aiProvider: 'groq',
+      ),
+    ).called(1);
+  });
 }

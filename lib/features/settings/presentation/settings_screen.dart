@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/notifications/streak_notif.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
 import '../../../shared/providers/auth_provider.dart';
 import '../data/ai_generation_guard.dart';
 import '../domain/ai_provider_catalog.dart';
@@ -29,10 +28,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadProvider() async {
-    final prefs = await SharedPreferences.getInstance();
+    final selectedProvider =
+        await AccountScopedPreferences.instance.getString('ai_provider') ??
+            'gemini';
     if (!mounted) return;
     setState(() {
-      _selectedProvider = prefs.getString('ai_provider') ?? 'gemini';
+      _selectedProvider = selectedProvider;
       _isLoading = false;
     });
   }
@@ -55,8 +56,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<SyncFeedbackResult> _persistProvider() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('ai_provider', _selectedProvider);
+      await AccountScopedPreferences.instance
+          .setString('ai_provider', _selectedProvider);
       ref.invalidate(aiProviderSettingProvider);
 
       final guard = ref.read(aiGenerationGuardProvider);
@@ -68,7 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return SyncFeedbackResult(
           state: SyncFeedbackState.localOnly,
           message:
-              'Provedor salvo localmente. Falta configurar a chave do ${config.selectedProviderLabel}.',
+              'Provedor salvo so no aparelho. Falta configurar a chave do ${config.selectedProviderLabel} antes de gerar conteudo.',
         );
       }
 
@@ -77,13 +78,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (remoteSynced) {
         return const SyncFeedbackResult(
           state: SyncFeedbackState.fullSuccess,
-          message: 'Provedor salvo e sincronizado com sucesso',
+          message: 'Provedor salvo e ativado no servidor com sucesso',
         );
       }
 
       return const SyncFeedbackResult(
         state: SyncFeedbackState.localOnly,
-        message: 'Provedor salvo localmente; sincronizacao pendente',
+        message:
+            'Provedor salvo so no aparelho; o servidor ainda nao recebeu a configuracao nova',
       );
     } catch (_) {
       return const SyncFeedbackResult(
@@ -98,21 +100,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       context.go('/login');
     }
-  }
-
-  Future<void> _enableDailyReminder() async {
-    final granted = await StreakNotif.instance.requestPermissionAndSchedule();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          granted
-              ? 'Lembrete diario ativado para 20h.'
-              : 'Permissao de notificacao nao concedida.',
-        ),
-        backgroundColor: granted ? AppColors.success : AppColors.warning,
-      ),
-    );
   }
 
   @override
@@ -298,7 +285,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 10),
               GestureDetector(
-                onTap: () => context.push('/settings/api-keys'),
+                onTap: () => context.pushNamed('apiKeys'),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 15),
@@ -320,35 +307,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              GestureDetector(
-                onTap: _enableDailyReminder,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.notifications_active_outlined,
-                          color: AppColors.primaryLight),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Ativar lembrete diario das 20h',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
               GestureDetector(
                 onTap: _logout,
                 child: Container(

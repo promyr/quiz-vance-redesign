@@ -114,7 +114,7 @@ void main() {
     );
 
     expect(result.questions, equals(questions));
-    expect(result.aiProvider, equals('openai'));
+    expect(result.aiProvider, equals('groq'));
     expect(result.infiniteMode, isTrue);
     verify(
       () => repository.generate(
@@ -130,10 +130,65 @@ void main() {
         topic: selectedFile.nome,
         difficulty: 'hard',
         quantity: 5,
-        aiProvider: 'openai',
+        aiProvider: 'groq',
         conteudo: any(named: 'conteudo'),
       ),
     ).called(greaterThanOrEqualTo(1));
+  });
+
+  test('recupera tema manual com outro provedor ao receber erro de quota',
+      () async {
+    when(
+      () => aiGenerationGuard.ensureReadyForGeneration(
+        overrideProvider: any(named: 'overrideProvider'),
+      ),
+    ).thenAnswer((invocation) async {
+      return invocation.namedArguments[#overrideProvider] as String? ??
+          'gemini';
+    });
+    when(
+      () => aiGenerationGuard.loadConfig(
+        overrideProvider: any(named: 'overrideProvider'),
+      ),
+    ).thenAnswer(
+      (_) async => const AiGenerationConfigState(
+        selectedProvider: 'gemini',
+        selectedProviderLabel: 'Gemini',
+        selectedProviderKey: 'g-key',
+        geminiKey: 'g-key',
+        openaiKey: 'o-key',
+        groqKey: '',
+        syncPending: false,
+        lastSyncedProvider: 'gemini',
+      ),
+    );
+    when(
+      () => repository.generate(
+        topic: any(named: 'topic'),
+        difficulty: any(named: 'difficulty'),
+        quantity: any(named: 'quantity'),
+        aiProvider: any(named: 'aiProvider'),
+        conteudo: any(named: 'conteudo'),
+      ),
+    ).thenAnswer((invocation) async {
+      final provider = invocation.namedArguments[#aiProvider] as String?;
+      if (provider == 'gemini') {
+        throw const RemoteServiceException('Quota exceeded');
+      }
+      return questions;
+    });
+
+    final result = await coordinator.generate(
+      useLibrary: false,
+      topic: 'Direito constitucional',
+      difficulty: 'medium',
+      quantity: 10,
+      infiniteMode: false,
+      preferredProvider: 'gemini',
+    );
+
+    expect(result.aiProvider, 'groq');
+    expect(result.questions, questions);
   });
 
   test('limpa memoria a partir do topico selecionado', () async {

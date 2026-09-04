@@ -101,8 +101,6 @@ class QuizGenerationCoordinator {
         infiniteMode: infiniteMode,
       );
     } catch (firstError) {
-      if (!selection.useLibrary) rethrow;
-
       final firstMessage = userVisibleErrorMessage(firstError, fallback: '');
       if (!_isRetryableAiGenerationFailure(firstMessage)) {
         rethrow;
@@ -270,11 +268,7 @@ List<String> _buildProviderFallbackOrder({
   required String preferredProvider,
   required AiGenerationConfigState config,
 }) {
-  final providers = <String>[
-    if (config.geminiKey.trim().isNotEmpty) 'gemini',
-    if (config.openaiKey.trim().isNotEmpty) 'openai',
-    if (config.groqKey.trim().isNotEmpty) 'groq',
-  ];
+  final providers = <String>['gemini', 'groq', 'openai'];
 
   if (providers.contains(preferredProvider)) {
     providers.remove(preferredProvider);

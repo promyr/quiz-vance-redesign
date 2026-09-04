@@ -2,23 +2,26 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
 import '../domain/study_plan_model.dart';
 
 class StudyPlanRepository {
-  const StudyPlanRepository(this._client);
+  StudyPlanRepository(
+    this._client, {
+    AccountScopedPreferences? preferences,
+  }) : _preferences = preferences ?? AccountScopedPreferences.instance;
 
   final ApiClient _client;
+  final AccountScopedPreferences _preferences;
   static const _planKey = 'study_plan_active';
 
   Future<StudyPlan?> getActivePlan() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_planKey);
+    final raw = await _preferences.getString(_planKey);
     if (raw == null) return null;
 
     try {
@@ -37,8 +40,7 @@ class StudyPlanRepository {
   }
 
   Future<void> savePlan(StudyPlan plan) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
+    await _preferences.setString(
       _planKey,
       jsonEncode({
         'objetivo': plan.objetivo,

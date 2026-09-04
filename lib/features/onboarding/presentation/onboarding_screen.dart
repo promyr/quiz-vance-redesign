@@ -54,7 +54,7 @@ const _slides = [
     accentColor: AppColors.primary,
   ),
   _Slide(
-    emoji: '⚡',
+    emoji: 'âš¡',
     title: 'IA que trabalha por você',
     subtitle:
         'Gere questões sobre qualquer tema, faça simulados de concurso cronometrados e receba correções detalhadas.',
@@ -277,3 +277,4 @@ class _SlideView extends StatelessWidget {
     );
   }
 }
+

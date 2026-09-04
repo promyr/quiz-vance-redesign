@@ -38,7 +38,7 @@ abstract class AchievementToast {
     _show(
       context,
       _ToastData(
-        icon: '⚡',
+        icon: 'âš¡',
         topLabel: 'LEVEL UP!',
         mainText: 'Você alcançou o nível $level',
         bottomLabel: null,
@@ -249,3 +249,4 @@ class _ToastOverlayState extends State<_ToastOverlay>
     );
   }
 }
+

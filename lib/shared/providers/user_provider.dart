@@ -28,18 +28,18 @@ Future<Map<String, dynamic>> fetchUserStatsPayload(Ref ref) async {
     }
 
     throw const RemoteServiceException(
-      'NÃ£o foi possÃ­vel carregar as estatÃ­sticas do usuÃ¡rio.',
+      'Não foi possível carregar as estatísticas do usuário.',
     );
   }
 }
 
-/// Dados de quota diÃ¡ria de uso do produto.
+/// Dados de quota diária de uso do produto.
 ///
 /// Os campos `quizRestante`, `quizLimite`, `simuladoRestanteSemana` e
-/// `simuladoLimiteSemana` usam a convenÃ§Ã£o do backend:
-///   - `null`  â†’ campo ausente no payload (backend antigo ou nÃ£o carregado)
-///   - `-1`    â†’ ilimitado (usuÃ¡rio Premium)
-///   - `>= 0`  â†’ valor real restante ou limite do perÃ­odo
+/// `simuladoLimiteSemana` usam a convenção do backend:
+///   - `null`  -> campo ausente no payload (backend antigo ou não carregado)
+///   - `-1`    -> ilimitado (usuário Premium)
+///   - `>= 0`  -> valor real restante ou limite do período
 class UserStats {
   const UserStats({
     this.xp = 0,

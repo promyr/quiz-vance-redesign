@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -120,6 +121,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
   }
 
   Future<void> _start() async {
+    HapticFeedback.lightImpact();
     setState(() => _loading = true);
     try {
       final result = await ref.read(quizGenerationCoordinatorProvider).generate(
@@ -150,7 +152,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
       if (!mounted) return;
       final message = userVisibleErrorMessage(
         e,
-        fallback: 'NÃ£o foi possÃ­vel gerar as questÃµes. Tente novamente.',
+        fallback: 'Não foi possível gerar as questões. Tente novamente.',
       );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -315,7 +317,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:
-              Text('NÃ£o foi possÃ­vel limpar a memÃ³ria. Tente novamente.'),
+              Text('Não foi possível limpar a memória. Tente novamente.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -393,26 +395,40 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Center(
-                        child: Text(
-                          '<-',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 16,
-                          ),
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          color: AppColors.textPrimary,
+                          size: 19,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Novo Quiz',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Criar quiz com IA',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Configure seu estudo em poucos passos',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   const _QuizQuotaBadge(),
                 ],
               ),
@@ -675,12 +691,12 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? AppColors.accent.withOpacity(0.1)
+                                    ? AppColors.primary.withOpacity(0.14)
                                     : AppColors.surface2,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: isSelected
-                                      ? AppColors.accent
+                                      ? AppColors.primary
                                       : AppColors.border,
                                 ),
                               ),
@@ -689,7 +705,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
                                   p.toUpperCase(),
                                   style: TextStyle(
                                     color: isSelected
-                                        ? AppColors.accent
+                                        ? AppColors.primaryLight
                                         : AppColors.textMuted,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 12,

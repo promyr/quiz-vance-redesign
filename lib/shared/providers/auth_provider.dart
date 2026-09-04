@@ -3,18 +3,12 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_client.dart';
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/domain/auth_state.dart';
 
 class _AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
-    final apiClient = ref.watch(apiClientProvider);
-    final sessionSubscription = apiClient.sessionExpired.listen((_) {
-      state = AsyncData(AuthState.unauthenticated());
-    });
-    ref.onDispose(sessionSubscription.cancel);
     final timeout = ref.watch(authBootstrapTimeoutProvider);
     try {
       return await _restoreAuthState().timeout(timeout);
@@ -71,12 +65,17 @@ class _AuthNotifier extends AsyncNotifier<AuthState> {
   Future<void> login({
     required String loginId,
     required String password,
+    bool rememberSession = true,
   }) async {
     final nextState = await AsyncValue.guard(() async {
-      final data = await ref.read(authRepositoryProvider).login(
-            loginId: loginId,
-            password: password,
-          );
+      final repository = ref.read(authRepositoryProvider);
+      final data = rememberSession
+          ? await repository.login(loginId: loginId, password: password)
+          : await repository.login(
+              loginId: loginId,
+              password: password,
+              rememberSession: false,
+            );
       return _stateFromUser(
           (data['user'] as Map<String, dynamic>?) ?? const {});
     });
@@ -115,6 +114,38 @@ class _AuthNotifier extends AsyncNotifier<AuthState> {
           ? data['avatar_url'] as String?
           : current.avatarUrl,
     ));
+  }
+
+  Future<LoginIdAvailabilityResult> checkLoginIdAvailability(
+    String loginId,
+  ) {
+    return ref.read(authRepositoryProvider).checkLoginIdAvailability(
+          loginId: loginId,
+        );
+  }
+
+  Future<void> updateLoginId({required String loginId}) async {
+    final current = state.valueOrNull;
+    if (current == null || !current.isAuthenticated) return;
+    final data = await ref.read(authRepositoryProvider).updateLoginId(
+          loginId: loginId,
+        );
+    state = AsyncData(current.copyWith(
+      loginId: data.containsKey('login_id')
+          ? data['login_id'] as String?
+          : current.loginId,
+    ));
+  }
+
+  Future<void> deleteAccount({
+    required String currentPassword,
+    required String confirmationText,
+  }) async {
+    await ref.read(authRepositoryProvider).deleteAccount(
+          currentPassword: currentPassword,
+          confirmationText: confirmationText,
+        );
+    state = AsyncData(AuthState.unauthenticated());
   }
 
   Future<void> logout() async {

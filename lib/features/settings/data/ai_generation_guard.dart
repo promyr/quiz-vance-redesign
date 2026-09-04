@@ -1,12 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
 import '../domain/ai_provider_catalog.dart';
 import '../providers/settings_provider.dart';
 
@@ -39,20 +39,24 @@ class AiGenerationConfigState {
 }
 
 class AiGenerationGuard {
-  const AiGenerationGuard(
+  AiGenerationGuard(
     this._client, {
     FlutterSecureStorage storage = const FlutterSecureStorage(),
-  }) : _storage = storage;
+    AccountScopedPreferences? preferences,
+  })  : _storage = storage,
+        _preferences = preferences ?? AccountScopedPreferences.instance;
 
   final ApiClient _client;
   final FlutterSecureStorage _storage;
+  final AccountScopedPreferences _preferences;
 
   Future<AiGenerationConfigState> loadConfig({
     String? overrideProvider,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
     final selectedProvider =
-        (overrideProvider ?? prefs.getString(_aiProviderPrefKey) ?? 'gemini')
+        (overrideProvider ??
+                await _preferences.getString(_aiProviderPrefKey) ??
+                'gemini')
             .trim()
             .toLowerCase();
 
@@ -79,22 +83,21 @@ class AiGenerationGuard {
       geminiKey: geminiKey,
       openaiKey: openaiKey,
       groqKey: groqKey,
-      syncPending: prefs.getBool(_aiConfigSyncPendingKey) ?? false,
-      lastSyncedProvider: prefs.getString(_aiConfigSyncedProviderKey),
+      syncPending: await _preferences.getBool(_aiConfigSyncPendingKey) ?? false,
+      lastSyncedProvider:
+          await _preferences.getString(_aiConfigSyncedProviderKey),
     );
   }
 
   Future<void> markSyncPending() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_aiConfigSyncPendingKey, true);
+    await _preferences.setBool(_aiConfigSyncPendingKey, true);
   }
 
   Future<void> markSyncSucceeded({
     required String provider,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_aiConfigSyncPendingKey, false);
-    await prefs.setString(_aiConfigSyncedProviderKey, provider);
+    await _preferences.setBool(_aiConfigSyncPendingKey, false);
+    await _preferences.setString(_aiConfigSyncedProviderKey, provider);
   }
 
   Future<bool> trySyncCurrentConfig({
@@ -149,18 +152,8 @@ class AiGenerationGuard {
   }) async {
     final config = await loadConfig(overrideProvider: overrideProvider);
 
-    if (!config.hasSelectedProviderKey) {
-      throw RemoteServiceException(
-        'O provedor ${config.selectedProviderLabel} está selecionado, mas a chave dele não foi configurada. Abra Chaves de API e salve a credencial antes de gerar conteúdo.',
-      );
-    }
-
-    final needsSync = config.syncPending ||
-        config.lastSyncedProvider == null ||
-        config.lastSyncedProvider != config.selectedProvider;
-
-    if (needsSync) {
-      await syncCurrentConfig(overrideProvider: config.selectedProvider);
+    if (config.hasSelectedProviderKey) {
+      await trySyncCurrentConfig(overrideProvider: config.selectedProvider);
     }
 
     return config.selectedProvider;

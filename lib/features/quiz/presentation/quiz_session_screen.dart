@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -140,6 +141,7 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
 
   void _selectOption(String optionId) {
     if (_answered) return;
+    HapticFeedback.lightImpact();
     setState(() {
       _selectedOptionId = optionId;
       _answered = true;
@@ -231,20 +233,25 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
               child: Row(
                 children: [
                   // Back button
-                  GestureDetector(
-                    onTap: () => _showExitConfirmation(),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(10),
+                  Semantics(
+                    button: true,
+                    label: 'Voltar e fechar quiz',
+                    child: GestureDetector(
+                      onTap: () => _showExitConfirmation(),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                            child: Text('←',
+                                style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 18))),
                       ),
-                      child: const Center(
-                          child: Text('←',
-                              style: TextStyle(
-                                  color: AppColors.textPrimary, fontSize: 16))),
                     ),
                   ),
                   const SizedBox(width: 12),

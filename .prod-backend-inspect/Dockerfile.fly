@@ -1,0 +1,8 @@
+FROM registry.fly.io/quiz-vance-redesign-backend@sha256:ddf77a5f3a74121ff9ee00e35dd1c303bc0a69a713a3590f200db1d1677f056c
+
+COPY app/telegram_bot.py /app/app/telegram_bot.py
+COPY test_telegram_download_config.py /tmp/test_telegram_download_config.py
+
+RUN cd /app \
+    && PYTHONPATH=/app python /tmp/test_telegram_download_config.py \
+    && rm /tmp/test_telegram_download_config.py

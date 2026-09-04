@@ -43,9 +43,22 @@ class _ApiKeysScreenState extends ConsumerState<ApiKeysScreen> {
   }
 
   Future<void> _loadKeys() async {
-    for (final provider in aiProviderCatalog) {
-      final value = await _storage.read(key: provider.storageKey) ?? '';
-      _controllers[provider.id]!.text = value;
+    try {
+      for (final provider in aiProviderCatalog) {
+        final value = await _storage.read(key: provider.storageKey) ?? '';
+        _controllers[provider.id]!.text = value;
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Nao foi possivel carregar as chaves salvas. Voce ainda pode inserir novas chaves manualmente.',
+            ),
+            backgroundColor: AppColors.accent,
+          ),
+        );
+      }
     }
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -88,21 +101,22 @@ class _ApiKeysScreenState extends ConsumerState<ApiKeysScreen> {
         return SyncFeedbackResult(
           state: SyncFeedbackState.localOnly,
           message:
-              'Chaves salvas localmente. Falta configurar uma chave valida para ${config.selectedProviderLabel}.',
+              'Chaves salvas so no aparelho. Falta configurar uma chave valida para ${config.selectedProviderLabel} antes de gerar conteudo.',
         );
       }
 
       final remoteSynced = await guard.trySyncCurrentConfig();
       if (remoteSynced) {
-        return const SyncFeedbackResult(
-          state: SyncFeedbackState.fullSuccess,
-          message: 'Chaves salvas e sincronizadas com sucesso',
-        );
-      }
+      return const SyncFeedbackResult(
+        state: SyncFeedbackState.fullSuccess,
+        message: 'Chaves salvas e ativadas no servidor com sucesso',
+      );
+    }
 
       return const SyncFeedbackResult(
         state: SyncFeedbackState.localOnly,
-        message: 'Chaves salvas localmente; sincronizacao pendente',
+        message:
+            'Chaves salvas so no aparelho; o servidor ainda nao recebeu a configuracao nova',
       );
     } catch (_) {
       return const SyncFeedbackResult(
@@ -218,6 +232,27 @@ class _ApiKeysScreenState extends ConsumerState<ApiKeysScreen> {
                           height: 1.45,
                         ),
                       ),
+                      if (provider.id == 'gemini') ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface2,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Text(
+                            'Importante: uma chave nova do Gemini nao zera limite se ela estiver no mesmo projeto. A cota do Gemini e aplicada por projeto do Google Cloud, nao por chave.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                              height: 1.45,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: controller,

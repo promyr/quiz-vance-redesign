@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/storage/local_storage.dart';
 import '../../library/data/library_repository.dart';
 import '../../library/domain/library_model.dart';
+import '../../settings/data/ai_generation_fallback.dart';
 import '../../settings/data/ai_generation_guard.dart';
 
 typedef UpsertFlashcardRecord = Future<int> Function(Map<String, dynamic> card);
@@ -51,10 +52,14 @@ class FlashcardGenerationCoordinator {
       selectedLibraryFile: selectedLibraryFile,
     );
 
+    // Load existing flashcard fronts from local storage to avoid duplication
+    final existingFronts = await LocalStorage.instance.getAllFlashcardFronts();
+
     final provider = await _aiGenerationGuard.ensureReadyForGeneration();
-    final package = await _libraryRepository.generatePackage(
+    final package = await _generatePackageWithFallback(
       file: sourceFile,
-      aiProvider: provider,
+      preferredProvider: provider,
+      avoidFronts: existingFronts,
     );
 
     if (package.flashcards.isEmpty) {
@@ -89,6 +94,56 @@ class FlashcardGenerationCoordinator {
       createdCount: package.flashcards.length,
       packageTitle: package.titulo,
     );
+  }
+
+  Future<StudyPackage> _generatePackageWithFallback({
+    required LibraryFile file,
+    required String preferredProvider,
+    required List<String> avoidFronts,
+  }) async {
+    try {
+      return await _libraryRepository.generatePackage(
+        file: file,
+        aiProvider: preferredProvider,
+        avoidFronts: avoidFronts,
+      );
+    } catch (firstError) {
+      if (!isRetryableAiGenerationFailure(firstError)) {
+        rethrow;
+      }
+
+      final config = await _aiGenerationGuard.loadConfig(
+        overrideProvider: preferredProvider,
+      );
+      final providerCandidates = buildAiProviderFallbackOrder(
+        preferredProvider: preferredProvider,
+        config: config,
+      );
+
+      Object lastError = firstError;
+
+      for (final candidateProvider in providerCandidates) {
+        if (candidateProvider == preferredProvider) continue;
+
+        try {
+          await _aiGenerationGuard.ensureReadyForGeneration(
+            overrideProvider: candidateProvider,
+          );
+          return await _libraryRepository.generatePackage(
+            file: file,
+            aiProvider: candidateProvider,
+            avoidFronts: avoidFronts,
+          );
+        } catch (retryError) {
+          lastError = retryError;
+          if (!isRetryableAiGenerationFailure(retryError)) {
+            rethrow;
+          }
+        }
+      }
+
+      throw lastError;
+    }
   }
 
   LibraryFile _resolveSourceFile({

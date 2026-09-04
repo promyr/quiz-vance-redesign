@@ -52,3 +52,4 @@ class _StudyDocumentInput {
   final Uint8List bytes;
   final String extension;
 }
+

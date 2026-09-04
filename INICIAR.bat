@@ -50,6 +50,14 @@ if not exist "pubspec.lock" (
         pause
         exit /b 1
     )
+) else if not exist ".dart_tool\package_config.json" (
+    echo  [1/2] Recriando metadados do Flutter...
+    call "%FLUTTER_CMD%" pub get
+    if %ERRORLEVEL% NEQ 0 (
+        echo  [ERRO] flutter pub get falhou.
+        pause
+        exit /b 1
+    )
 ) else (
     echo  [1/2] Dependencias ja instaladas.
 )
@@ -73,7 +81,7 @@ if not exist "windows\" (
 echo.
 echo  Iniciando app... (Ctrl+C para parar)
 echo.
-call "%FLUTTER_CMD%" run -d windows --no-pub
+call "%FLUTTER_CMD%" run -d windows
 
 echo.
 pause

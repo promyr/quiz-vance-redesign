@@ -336,7 +336,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
   }
 }
-
 /// Card para exibir um arquivo da biblioteca.
 class _FileCard extends StatelessWidget {
   const _FileCard({

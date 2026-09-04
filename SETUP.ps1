@@ -1,5 +1,5 @@
 param(
-    [string]$BackendUrl = "https://quiz-vance-redesign-backend.fly.dev",
+    [string]$BackendUrl = "",
     [switch]$SkipFlutterInstall,
     [switch]$RunAfterSetup
 )
@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 $FlutterDir = "C:\flutter"
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$BackendConfigFile = Join-Path $ProjectDir "backend_url.txt"
 $PuroStableFlutter = Join-Path $env:USERPROFILE ".puro\envs\stable\flutter\bin\flutter.bat"
 
 function Write-Step([string]$Message) {
@@ -24,6 +25,30 @@ function Write-Warn([string]$Message) {
 function Write-Fail([string]$Message) {
     Write-Host "  [FAIL] $Message" -ForegroundColor Red
     exit 1
+}
+
+function Resolve-BackendUrl {
+    param([string]$CliValue)
+
+    if ($CliValue -and $CliValue.Trim()) {
+        return $CliValue.Trim()
+    }
+
+    if ($env:QUIZ_VANCE_BACKEND_URL -and $env:QUIZ_VANCE_BACKEND_URL.Trim()) {
+        return $env:QUIZ_VANCE_BACKEND_URL.Trim()
+    }
+
+    if (Test-Path $BackendConfigFile) {
+        $configuredUrl = Get-Content $BackendConfigFile |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -and -not $_.StartsWith("#") } |
+            Select-Object -First 1
+        if ($configuredUrl) {
+            return $configuredUrl
+        }
+    }
+
+    return "https://quiz-vance-redesign-backend.fly.dev"
 }
 
 function Resolve-FlutterCommand {
@@ -178,6 +203,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Set-Location $ProjectDir
+$BackendUrl = Resolve-BackendUrl -CliValue $BackendUrl
 Ensure-Platforms
 
 Write-Step "Instalando dependencias"

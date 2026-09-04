@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz Vance · Perfil Refinado</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(13, 19, 38, 0.9);
+      --panel-soft: rgba(19, 28, 54, 0.92);
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #eef4ff;
+      --muted: #9aa7c2;
+      --primary: #66b3ff;
+      --primary-2: #6b7cff;
+      --success: #42d392;
+      --warning: #ffc65a;
+      --danger: #ff6f7d;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(102, 179, 255, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(107, 124, 255, 0.18), transparent 32%),
+        linear-gradient(180deg, #050816 0%, #0b1020 48%, #0c1224 100%);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .phone {
+      width: 430px;
+      min-height: 880px;
+      border-radius: 42px;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(102, 179, 255, 0.18), transparent 25%),
+        radial-gradient(circle at 80% 0%, rgba(107, 124, 255, 0.2), transparent 30%);
+      pointer-events: none;
+    }
+
+    .screen {
+      position: relative;
+      z-index: 1;
+      background: linear-gradient(180deg, rgba(12, 17, 33, 0.97), rgba(9, 14, 28, 0.97));
+      border-radius: 28px;
+      padding: 22px 18px 104px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      margin-bottom: 18px;
+    }
+
+    .hero {
+      padding: 22px 18px 18px;
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(102, 179, 255, 0.12), rgba(107, 124, 255, 0.06)),
+        var(--panel);
+      border: 1px solid rgba(102, 179, 255, 0.18);
+      margin-bottom: 14px;
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .avatar {
+      width: 74px;
+      height: 74px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #71c6ff, #6476ff);
+      display: grid;
+      place-items: center;
+      font-size: 34px;
+      font-weight: 800;
+      box-shadow: 0 14px 28px rgba(102, 179, 255, 0.24);
+      position: relative;
+    }
+
+    .avatar-cam {
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: #0c1530;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 13px;
+    }
+
+    .name {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.05;
+      margin-bottom: 6px;
+    }
+
+    .identity {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .plan {
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      font-weight: 700;
+      color: #d7e5ff;
+    }
+
+    .xp {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .xp-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 198, 90, 0.14);
+      color: var(--warning);
+      font-size: 18px;
+    }
+
+    .xp-level {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .track {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.07);
+      overflow: hidden;
+    }
+
+    .fill {
+      width: 61%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+    }
+
+    .xp-count {
+      font-size: 13px;
+      color: #dce8ff;
+      font-weight: 700;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+
+    .stat {
+      padding: 14px 10px;
+      border-radius: 18px;
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 23px;
+      margin-bottom: 5px;
+    }
+
+    .stat span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .red { color: #ff7d88; }
+    .violet { color: #9b9dff; }
+    .green { color: var(--success); }
+
+    .section-label {
+      margin: 18px 2px 10px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .chip {
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255, 198, 90, 0.09);
+      color: #ffdd97;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid rgba(255, 198, 90, 0.2);
+    }
+
+    .menu {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 22px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+    }
+
+    .menu-title {
+      padding: 10px 10px 6px;
+      color: #d9e6ff;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 10px;
+      border-radius: 18px;
+    }
+
+    .row + .row {
+      margin-top: 4px;
+    }
+
+    .row:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #e5eeff;
+      font-size: 18px;
+    }
+
+    .row-head {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .row-sub {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #dce8ff;
+    }
+
+    .badge {
+      padding: 6px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-green {
+      background: rgba(66, 211, 146, 0.14);
+      color: #7ef1bb;
+    }
+
+    .badge-violet {
+      background: rgba(155, 157, 255, 0.16);
+      color: #c6c7ff;
+    }
+
+    .badge-gold {
+      background: rgba(255, 198, 90, 0.16);
+      color: #ffd88c;
+    }
+
+    .arrow {
+      color: #6f7da6;
+      font-size: 20px;
+      font-weight: 300;
+    }
+
+    .danger {
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 22px;
+      background: rgba(255, 111, 125, 0.07);
+      border: 1px solid rgba(255, 111, 125, 0.18);
+    }
+
+    .danger-label {
+      color: #ff9aa4;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .danger-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: #ffd7db;
+      font-weight: 700;
+    }
+
+    .danger-row small {
+      display: block;
+      margin-top: 4px;
+      color: #ffb7be;
+      font-weight: 500;
+    }
+
+    .danger-action {
+      color: #ff8d98;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <section class="screen">
+      <div class="eyebrow">Tela Refinada · Perfil</div>
+
+      <section class="hero">
+        <div class="hero-top">
+          <div class="avatar">
+            B
+            <div class="avatar-cam">📷</div>
+          </div>
+          <div>
+            <div class="name">Belchior</div>
+            <div class="identity">ID: promyr · jesusbelchior@outlook.com</div>
+            <div class="plan">Plano grátis</div>
+          </div>
+        </div>
+
+        <div class="xp">
+          <div class="xp-icon">🏅</div>
+          <div>
+            <div class="xp-level">Bronze (4) · Nível 4</div>
+            <div class="track"><div class="fill"></div></div>
+          </div>
+          <div class="xp-count">395 XP</div>
+        </div>
+      </section>
+
+      <section class="stats">
+        <div class="stat"><strong class="red">1d</strong><span>Streak</span></div>
+        <div class="stat"><strong class="violet">34</strong><span>Questões</span></div>
+        <div class="stat"><strong class="green">0</strong><span>Cards hoje</span></div>
+      </section>
+
+      <div class="section-label">Conquistas</div>
+      <div class="chips">
+        <div class="chip">🎯 Primeira questão</div>
+        <div class="chip">📚 Iniciante</div>
+        <div class="chip">⚡ 100 XP</div>
+        <div class="chip">🔥 Streak 7d</div>
+      </div>
+
+      <section class="menu">
+        <div class="menu-title">Conta</div>
+        <div class="row">
+          <div class="icon">🪪</div>
+          <div>
+            <div class="row-head">ID da conta</div>
+            <div class="row-sub">promyr · altere com checagem instantânea</div>
+          </div>
+          <div class="right"><span class="badge badge-green">ativo</span><span class="arrow">›</span></div>
+        </div>
+        <div class="row">
+          <div class="icon">📱</div>
+          <div>
+            <div class="row-head">Sessões ativas</div>
+            <div class="row-sub">Ver outros acessos e encerrar sessões</div>
+          </div>
+          <div class="right"><span class="badge badge-violet">2</span><span class="arrow">›</span></div>
+        </div>
+        <div class="row">
+          <div class="icon">🔒</div>
+          <div>
+            <div class="row-head">Senha e acesso</div>
+            <div class="row-sub">Troca de senha e histórico de login</div>
+          </div>
+          <div class="right"><span class="arrow">›</span></div>
+        </div>
+      </section>
+
+      <section class="menu">
+        <div class="menu-title">API Keys e IA</div>
+        <div class="row">
+          <div class="icon">🤖</div>
+          <div>
+            <div class="row-head">OpenAI principal</div>
+            <div class="row-sub">Correção, aderência e feedback configurados</div>
+          </div>
+          <div class="right"><span class="badge badge-green">conectado</span><span class="arrow">›</span></div>
+        </div>
+        <div class="row">
+          <div class="icon">🔮</div>
+          <div>
+            <div class="row-head">Gemini reserva</div>
+            <div class="row-sub">Fallback automático caso o provedor principal falhe</div>
+          </div>
+          <div class="right"><span class="badge badge-gold">standby</span><span class="arrow">›</span></div>
+        </div>
+      </section>
+
+      <section class="menu">
+        <div class="menu-title">Meu progresso</div>
+        <div class="row">
+          <div class="icon">📊</div>
+          <div>
+            <div class="row-head">Estatísticas detalhadas</div>
+            <div class="row-sub">Acerto, consistência, temas fortes e temas fracos</div>
+          </div>
+          <div class="right"><span class="arrow">›</span></div>
+        </div>
+        <div class="row">
+          <div class="icon">🏆</div>
+          <div>
+            <div class="row-head">Conquistas</div>
+            <div class="row-sub">Marcos destravados e próximos objetivos</div>
+          </div>
+          <div class="right"><span class="arrow">›</span></div>
+        </div>
+        <div class="row">
+          <div class="icon">🗓</div>
+          <div>
+            <div class="row-head">Plano de estudo</div>
+            <div class="row-sub">Revisar foco da semana e próximos passos</div>
+          </div>
+          <div class="right"><span class="arrow">›</span></div>
+        </div>
+      </section>
+
+      <section class="menu">
+        <div class="menu-title">Ranking com contexto</div>
+        <div class="row">
+          <div class="icon">🎖</div>
+          <div>
+            <div class="row-head">#18 esta semana</div>
+            <div class="row-sub">+14 posições · ganhou 5 pts em Direito Constitucional</div>
+          </div>
+          <div class="right"><span class="badge badge-green">+14</span><span class="arrow">›</span></div>
+        </div>
+      </section>
+
+      <section class="danger">
+        <div class="danger-label">Zona crítica</div>
+        <div class="danger-row">
+          <div>
+            Excluir conta
+            <small>Encerramento permanente com confirmação forte</small>
+          </div>
+          <div class="danger-action">Destruir ›</div>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>

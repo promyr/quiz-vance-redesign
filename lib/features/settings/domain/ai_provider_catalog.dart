@@ -26,7 +26,7 @@ const aiProviderCatalog = <AiProviderDefinition>[
     buyUrl: 'https://aistudio.google.com/app/apikey',
     docsUrl: 'https://ai.google.dev/gemini-api/docs/api-key',
     storageKey: 'api_key_gemini',
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-3.5-flash',
   ),
   AiProviderDefinition(
     id: 'openai',

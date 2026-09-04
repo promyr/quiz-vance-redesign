@@ -75,17 +75,6 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
         'accuracy': result.accuracy,
         'xp_earned': result.xpEarned,
         'time_taken_seconds': result.timeTaken.inSeconds,
-        'answers': result.answers
-            .map(
-              (answer) => {
-                'question_id': answer.question.id,
-                'selected_option_id': answer.selectedOptionId,
-                'is_correct': answer.isCorrect,
-                'topic': answer.question.topic,
-                'difficulty': answer.question.difficulty,
-              },
-            )
-            .toList(),
       });
       await ref.read(userStatsNotifierProvider.notifier).refresh();
       ref.invalidate(activityHistoryProvider);

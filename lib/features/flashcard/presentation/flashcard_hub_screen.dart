@@ -144,7 +144,7 @@ class _FlashcardHubScreenState extends ConsumerState<FlashcardHubScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
       body: SafeArea(
         child: Column(
           children: [

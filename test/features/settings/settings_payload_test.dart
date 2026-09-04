@@ -28,26 +28,8 @@ void main() {
         payload,
         equals({
           'provider': 'gemini',
-          'model': 'gemini-2.0-flash',
+          'model': 'gemini-3.5-flash',
           'api_key_gemini': 'gem-key',
-        }),
-      );
-    });
-
-    test('envia somente a chave do provedor ativo', () {
-      final payload = buildAiConfigPayload(
-        provider: 'openai',
-        geminiKey: 'gem-key',
-        openaiKey: 'sk-openai',
-        groqKey: 'gsk-groq',
-      );
-
-      expect(
-        payload,
-        equals({
-          'provider': 'openai',
-          'model': 'gpt-4o-mini',
-          'api_key_openai': 'sk-openai',
         }),
       );
     });

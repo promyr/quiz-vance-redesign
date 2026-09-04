@@ -67,3 +67,4 @@ class OpenGrade {
     'criterios': criterios,
   };
 }
+

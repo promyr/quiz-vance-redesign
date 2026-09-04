@@ -1,6 +1,4 @@
-/// Representa um item individual do plano de estudo semanal.
-///
-/// Modelo imutável — use [copyWith] para criar uma versão modificada.
+/// Represents one scheduled study-plan activity.
 class StudyPlanItem {
   const StudyPlanItem({
     this.id,
@@ -12,26 +10,24 @@ class StudyPlanItem {
     this.concluido = false,
   });
 
-  /// Desserializa um item do JSON.
-  factory StudyPlanItem.fromJson(Map<String, dynamic> j) => StudyPlanItem(
-        id: (j['id'] as num?)?.toInt(),
-        dia: j['dia'] as String? ?? '',
-        tema: j['tema'] as String? ?? '',
-        atividade: j['atividade'] as String? ?? '',
-        duracaoMin: (j['duracao_min'] as num?)?.toInt() ?? 30,
-        prioridade: (j['prioridade'] as num?)?.toInt() ?? 2,
-        concluido: (j['concluido'] as bool?) ?? false,
+  factory StudyPlanItem.fromJson(Map<String, dynamic> json) => StudyPlanItem(
+        id: (json['id'] as num?)?.toInt(),
+        dia: json['dia'] as String? ?? '',
+        tema: json['tema'] as String? ?? '',
+        atividade: json['atividade'] as String? ?? '',
+        duracaoMin: (json['duracao_min'] as num?)?.toInt() ?? 30,
+        prioridade: (json['prioridade'] as num?)?.toInt() ?? 2,
+        concluido: json['concluido'] as bool? ?? false,
       );
 
   final int? id;
-  final String dia; // "Segunda", "Terça", etc.
+  final String dia;
   final String tema;
   final String atividade;
   final int duracaoMin;
-  final int prioridade; // 1 = alta, 2 = normal
+  final int prioridade;
   final bool concluido;
 
-  /// Retorna uma cópia com os campos informados substituídos.
   StudyPlanItem copyWith({
     int? id,
     String? dia,
@@ -40,19 +36,17 @@ class StudyPlanItem {
     int? duracaoMin,
     int? prioridade,
     bool? concluido,
-  }) {
-    return StudyPlanItem(
-      id: id ?? this.id,
-      dia: dia ?? this.dia,
-      tema: tema ?? this.tema,
-      atividade: atividade ?? this.atividade,
-      duracaoMin: duracaoMin ?? this.duracaoMin,
-      prioridade: prioridade ?? this.prioridade,
-      concluido: concluido ?? this.concluido,
-    );
-  }
+  }) =>
+      StudyPlanItem(
+        id: id ?? this.id,
+        dia: dia ?? this.dia,
+        tema: tema ?? this.tema,
+        atividade: atividade ?? this.atividade,
+        duracaoMin: duracaoMin ?? this.duracaoMin,
+        prioridade: prioridade ?? this.prioridade,
+        concluido: concluido ?? this.concluido,
+      );
 
-  /// Serializa para JSON.
   Map<String, dynamic> toJson() => {
         'id': id,
         'dia': dia,
@@ -64,17 +58,17 @@ class StudyPlanItem {
       };
 }
 
-/// Representa o plano de estudo completo com metadados e itens.
+/// Represents a complete study plan and its metadata.
 class StudyPlan {
-  final String objetivo;
-  final String? dataProva;
-  final int tempoDiario;
-  final List<StudyPlanItem> items;
-
   StudyPlan({
     required this.objetivo,
     this.dataProva,
     required this.tempoDiario,
     required this.items,
   });
+
+  final String objetivo;
+  final String? dataProva;
+  final int tempoDiario;
+  final List<StudyPlanItem> items;
 }

@@ -334,7 +334,6 @@ class StudyPackageScreen extends ConsumerWidget {
     );
   }
 }
-
 /// Widget de botão de ação para estilo consistente.
 class _ActionButton extends StatelessWidget {
   const _ActionButton({

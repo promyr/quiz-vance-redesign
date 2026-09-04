@@ -1,0 +1,28 @@
+﻿services:
+  - type: web
+    name: quiz-vance-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: ohio
+    healthCheckPath: /health/ready
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: WEB_CONCURRENCY
+        value: 1
+      - key: ENVIRONMENT
+        value: production
+      - key: STUDY_DOCUMENT_STORAGE_ROOT
+        value: /tmp/study_documents
+      - key: APP_BACKEND_SECRET
+        generateValue: true
+      - key: SESSION_SIGNING_SECRET
+        generateValue: true
+      - key: INTERNAL_API_SECRET
+        generateValue: true
+      - key: DATA_ENCRYPTION_KEY
+        generateValue: true
+      - key: ALLOW_INSECURE_BOOT
+        value: 0

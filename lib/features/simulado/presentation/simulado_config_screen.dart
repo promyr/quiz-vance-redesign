@@ -462,3 +462,4 @@ class _SimuladoQuotaBadge extends ConsumerWidget {
     );
   }
 }
+

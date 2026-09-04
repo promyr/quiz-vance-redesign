@@ -30,6 +30,7 @@ import '../features/simulado/presentation/simulado_review_screen.dart';
 import '../features/simulado/presentation/simulado_screen.dart';
 import '../features/stats/presentation/stats_screen.dart';
 import '../features/study_plan/presentation/study_plan_screen.dart';
+import '../features/estudar/presentation/estudar_screen.dart';
 import '../shared/providers/auth_provider.dart';
 
 const _bootRoute = '/boot';
@@ -145,6 +146,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/',
         name: 'home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/estudar',
+        name: 'estudar',
+        builder: (context, state) => const EstudarScreen(),
       ),
       GoRoute(
         path: '/quiz',
@@ -268,10 +274,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: 'api-keys',
-            name: 'apiKeys',
             builder: (context, state) => const ApiKeysScreen(),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/api-keys',
+        name: 'apiKeys',
+        builder: (context, state) => const ApiKeysScreen(),
       ),
       GoRoute(
         path: '/open-quiz',

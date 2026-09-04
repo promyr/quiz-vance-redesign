@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
@@ -33,7 +34,7 @@ class BillingPlan {
   final List<String> features;
 
   String get formattedPrice {
-    if (priceCents <= 0) return 'Grátis';
+    if (priceCents <= 0) return 'Grat\u00eds';
     return 'R\$ ${(priceCents / 100).toStringAsFixed(2).replaceAll('.', ',')}';
   }
 }
@@ -93,9 +94,9 @@ class BillingRepository {
     } on DioException catch (error) {
       throw buildRemoteServiceException(
         error,
-        fallback: 'Não foi possível carregar os planos. Tente novamente.',
+        fallback: 'N\u00e3o foi poss\u00edvel carregar os planos. Tente novamente.',
         connectivityFallback:
-            'Não foi possível conectar ao servidor de planos. Verifique sua conexão e tente novamente.',
+            'N\u00e3o foi poss\u00edvel conectar ao servidor de planos. Verifique sua conex\u00e3o e tente novamente.',
       );
     }
   }
@@ -108,14 +109,17 @@ class BillingRepository {
       throw buildRemoteServiceException(
         error,
         fallback: 'Não foi possível verificar o status do plano.',
-        connectivityFallback:
-            'Não foi possível conectar ao servidor de assinatura. Verifique sua conexão e tente novamente.',
+      );
+    } catch (error) {
+      if (error is RemoteServiceException) rethrow;
+      throw const RemoteServiceException(
+        'Não foi possível verificar o status do plano.',
       );
     }
   }
 
   Future<CheckoutStartResult> startCheckout({
-    required int userId,
+    required String userId,
     required String name,
     required String email,
     String planCode = 'premium_30',
@@ -126,9 +130,12 @@ class BillingRepository {
         ApiEndpoints.billingCheckoutStart,
         data: {
           'user_id': userId,
+          if (int.tryParse(userId) != null)
+            'user_numeric_id': int.parse(userId),
           'plan_code': planCode,
           'provider': provider,
           'name': name,
+          'email': email,
           'email_id': email,
         },
       );
@@ -138,9 +145,9 @@ class BillingRepository {
     } on DioException catch (error) {
       throw buildRemoteServiceException(
         error,
-        fallback: 'Não foi possível iniciar o checkout. Tente novamente.',
+        fallback: 'N\u00e3o foi poss\u00edvel iniciar o checkout. Tente novamente.',
         connectivityFallback:
-            'Não foi possível conectar ao checkout agora. Verifique sua conexão e tente novamente.',
+            'N\u00e3o foi poss\u00edvel conectar ao checkout agora. Verifique sua conex\u00e3o e tente novamente.',
       );
     }
   }

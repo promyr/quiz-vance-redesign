@@ -88,6 +88,7 @@ void main() {
       () => libraryRepository.generatePackage(
         file: any(named: 'file'),
         aiProvider: any(named: 'aiProvider'),
+        avoidFronts: any(named: 'avoidFronts'),
       ),
     ).thenAnswer((_) async => package);
 
@@ -105,6 +106,7 @@ void main() {
       () => libraryRepository.generatePackage(
         file: captureAny(named: 'file'),
         aiProvider: 'gemini',
+        avoidFronts: any(named: 'avoidFronts'),
       ),
     ).captured.single as LibraryFile;
 
@@ -119,6 +121,7 @@ void main() {
       () => libraryRepository.generatePackage(
         file: any(named: 'file'),
         aiProvider: any(named: 'aiProvider'),
+        avoidFronts: any(named: 'avoidFronts'),
       ),
     ).thenAnswer((_) async => package);
 
@@ -132,8 +135,71 @@ void main() {
       () => libraryRepository.generatePackage(
         file: selectedFile,
         aiProvider: 'openai',
+        avoidFronts: any(named: 'avoidFronts'),
       ),
     ).called(1);
     expect(storedCards, hasLength(2));
+  });
+
+  test('faz fallback para outro provedor quando o inicial falha por quota',
+      () async {
+    when(() => aiGenerationGuard.ensureReadyForGeneration())
+        .thenAnswer((_) async => 'gemini');
+    when(
+      () => aiGenerationGuard.ensureReadyForGeneration(
+        overrideProvider: 'groq',
+      ),
+    ).thenAnswer((_) async => 'groq');
+    when(
+      () => aiGenerationGuard.loadConfig(overrideProvider: any(named: 'overrideProvider')),
+    ).thenAnswer(
+      (_) async => const AiGenerationConfigState(
+        selectedProvider: 'gemini',
+        selectedProviderLabel: 'Gemini',
+        selectedProviderKey: 'g-key',
+        geminiKey: 'g-key',
+        openaiKey: '',
+        groqKey: 'groq-key',
+        syncPending: false,
+        lastSyncedProvider: 'gemini',
+      ),
+    );
+
+    when(
+      () => libraryRepository.generatePackage(
+        file: any(named: 'file'),
+        aiProvider: 'gemini',
+        avoidFronts: any(named: 'avoidFronts'),
+      ),
+    ).thenThrow(
+      Exception('You exceeded your current quota. Rate limit exceeded.'),
+    );
+    when(
+      () => libraryRepository.generatePackage(
+        file: any(named: 'file'),
+        aiProvider: 'groq',
+        avoidFronts: any(named: 'avoidFronts'),
+      ),
+    ).thenAnswer((_) async => package);
+
+    final result = await coordinator.generateAndStore(
+      useLibrary: true,
+      topic: '',
+      selectedLibraryFile: selectedFile,
+    );
+
+    expect(result.createdCount, equals(2));
+    verify(
+      () => aiGenerationGuard.ensureReadyForGeneration(
+        overrideProvider: 'groq',
+      ),
+    ).called(1);
+    verify(
+      () => libraryRepository.generatePackage(
+        file: selectedFile,
+        aiProvider: 'groq',
+        avoidFronts: any(named: 'avoidFronts'),
+      ),
+    ).called(1);
   });
 }
