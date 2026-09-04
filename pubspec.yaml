@@ -1,7 +1,7 @@
 name: quiz_vance_flutter
 description: Quiz Vance - Plataforma de estudos com IA, SRS e gamificação.
 publish_to: none
-version: 2.0.15+11
+version: 2.0.64+63
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -11,7 +11,6 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-
   # State management
   flutter_riverpod: ^2.5.1
 
@@ -29,11 +28,12 @@ dependencies:
   sqlcipher_flutter_libs: ^0.6.6
   shared_preferences: ^2.3.1
   flutter_secure_storage: ^9.2.2
+  biometric_storage: ^5.0.1
+  cryptography: ^2.9.0
   url_launcher: ^6.3.1
 
   # UI / Animations
   flutter_animate: ^4.5.0
-  lottie: ^3.1.2
   fl_chart: ^0.68.0
 
   # File handling
@@ -48,8 +48,6 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  integration_test:
-    sdk: flutter
   flutter_lints: ^4.0.0
   mocktail: ^1.0.4
 
@@ -57,4 +55,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/quiz_vance_logo_1024.png
-    - assets/lottie/

@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/exceptions/remote_service_exception.dart';
+import '../../../core/network/api_error_message.dart';
+import '../../../core/storage/local_storage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/providers/auth_provider.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../data/auth_repository.dart';
+import '../data/login_biometric_vault.dart';
 import 'forgot_password_sheet.dart';
+
+enum AuthScreenMode {
+  sessionUnlock,
+  standardLogin,
+}
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,11 +31,136 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
+  final _passwordFocusNode = FocusNode();
 
+  bool _isInitializing = true;
   bool _isRegister = false;
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _rememberSession = true;
+  bool _canAuthenticate = false;
+  bool _enrollBiometrics = true;
+  Map<String, dynamic>? _savedUser;
+  bool _biometricReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedLoginId();
+  }
+
+  Future<void> _loadRememberedLoginId() async {
+    try {
+      final repository = ref.read(authRepositoryProvider);
+      final cached = await repository.getCachedUser();
+      final biometrics = ref.read(loginBiometricAuthCoordinatorProvider);
+      final biometricReady =
+          await biometrics.canUnlock().catchError((_) => false);
+      final canAuthenticate =
+          await biometrics.canAuthenticate().catchError((_) => false);
+      String? savedId;
+      try {
+        savedId = await LocalStorage.instance.getCacheValue(
+          'remembered_login_id',
+          scoped: false,
+        );
+      } catch (_) {
+        // O cache auxiliar não pode esconder uma sessão válida.
+      }
+
+      final loginIdToUse = (savedId != null && savedId.isNotEmpty)
+          ? savedId
+          : (cached?['login_id']?.toString() ?? cached?['id']?.toString());
+
+      if (mounted) {
+        setState(() {
+          _savedUser = cached;
+          _biometricReady = biometricReady;
+          _canAuthenticate = canAuthenticate;
+          _enrollBiometrics = canAuthenticate && !biometricReady;
+          if (loginIdToUse != null && loginIdToUse.isNotEmpty) {
+            _loginIdCtrl.text = loginIdToUse;
+          }
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _isInitializing = false);
+      }
+    }
+  }
+
+  void _focusPassword() {
+    _passwordFocusNode.requestFocus();
+  }
+
+  Future<void> _authenticateWithBiometrics() async {
+    if (_isSubmitting) return;
+    if (!_biometricReady) {
+      _focusPassword();
+      return;
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _isSubmitting = true);
+    try {
+      await ref.read(authStateNotifierProvider.notifier).loginWithBiometrics(
+            loginId: _loginIdCtrl.text.trim(),
+          );
+      if (!mounted) return;
+      final authState = ref.read(authStateNotifierProvider);
+      authState.whenOrNull(
+        error: (error, _) {
+          final message = _friendlyBiometricError(error);
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.clearSnackBars();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () => messenger.clearSnackBars(),
+              ),
+            ),
+          );
+        },
+      );
+    } catch (error) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(_friendlyBiometricError(error)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () => messenger.clearSnackBars(),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        final biometricReady = await ref
+            .read(loginBiometricAuthCoordinatorProvider)
+            .canUnlock()
+            .catchError((_) => false);
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+            _biometricReady = biometricReady;
+          });
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -32,12 +168,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _nameCtrl.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (_isSubmitting || !_formKey.currentState!.validate()) {
+    if (_isSubmitting) return;
+    if (!_formKey.currentState!.validate()) {
       return;
+    }
+
+    final loginId = _loginIdCtrl.text.trim();
+    if (loginId.isNotEmpty) {
+      try {
+        await LocalStorage.instance.setCacheValue(
+          'remembered_login_id',
+          loginId,
+          scoped: false,
+        );
+      } catch (_) {}
     }
 
     final auth = ref.read(authStateNotifierProvider.notifier);
@@ -47,34 +196,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (_isRegister) {
         await auth.register(
           name: _nameCtrl.text.trim(),
-          loginId: _loginIdCtrl.text.trim(),
+          loginId: loginId,
           email: _emailCtrl.text.trim(),
           password: _passwordCtrl.text,
         );
       } else {
         await auth.login(
-          loginId: _loginIdCtrl.text.trim(),
+          loginId: loginId,
           password: _passwordCtrl.text,
           rememberSession: _rememberSession,
+          enrollBiometrics: _enrollBiometrics || _biometricReady,
         );
       }
 
-      final state = ref.read(authStateNotifierProvider);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
+      final state = ref.read(authStateNotifierProvider);
+      final hasError =
+          state.maybeWhen(error: (_, __) => true, orElse: () => false);
+      if (!hasError) {
+        TextInput.finishAutofillContext();
+      }
       state.whenOrNull(
         error: (error, _) {
           final message = _friendlyAuthError(error);
-          ScaffoldMessenger.of(context).showSnackBar(
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.clearSnackBars();
+          messenger.showSnackBar(
             SnackBar(
               content: Text(message),
               backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () => messenger.clearSnackBars(),
+              ),
             ),
           );
         },
       );
+    } catch (error) {
+      if (mounted) {
+        final message = _friendlyAuthError(error);
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () => messenger.clearSnackBars(),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -94,7 +275,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (result == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Senha redefinida com sucesso! Insira suas novas credenciais.'),
+          content: Text(
+              'Senha redefinida com sucesso! Insira suas novas credenciais.'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -139,200 +321,237 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return null;
   }
 
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading = _isSubmitting;
 
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Column(
-                    children: [
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // ── Background Glow Elements ─────────────────────────────────
+          Positioned(
+            top: -100,
+            right: -80,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withOpacity(0.28),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -60,
+            left: -60,
+            child: Container(
+              width: 280,
+              height: 280,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.accent.withOpacity(0.18),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Content Scroll View ──────────────────────────────────────
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 12),
+                    // ── Brand & Hero Section ─────────────────────────────
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 84,
+                            height: 84,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(24),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withOpacity(0.4),
+                                  blurRadius: 28,
+                                  offset: const Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(22),
+                              child: Image.asset(
+                                'assets/quiz_vance_logo_1024.png',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          )
+                              .animate()
+                              .fadeIn(duration: 500.ms)
+                              .scale(begin: const Offset(0.85, 0.85), end: const Offset(1, 1), curve: Curves.easeOutBack),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Quiz Vance',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                          ).animate().fadeIn(delay: 150.ms),
+                          const SizedBox(height: 6),
+                          Text(
+                            _isRegister
+                                ? 'Crie sua conta com um ID de acesso'
+                                : 'Entre com seu ID ou e-mail',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ).animate().fadeIn(delay: 250.ms),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // ── Tab Switcher (Entrar / Cadastrar) ─────────────────
+                    if (!_isInitializing)
                       Container(
-                        width: 88,
-                        height: 88,
+                        margin: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.18),
-                              blurRadius: 24,
-                              offset: const Offset(0, 10),
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.border.withOpacity(0.6),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildAuthTab(
+                                label: 'Entrar',
+                                isSelected: !_isRegister,
+                                onTap: () {
+                                  if (_isRegister) {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      _isRegister = false;
+                                      _formKey.currentState?.reset();
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildAuthTab(
+                                label: 'Cadastrar-se',
+                                isSelected: _isRegister,
+                                onTap: () {
+                                  if (!_isRegister) {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      _isRegister = true;
+                                      _formKey.currentState?.reset();
+                                    });
+                                  }
+                                },
+                              ),
                             ),
                           ],
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: Image.asset(
-                            'assets/quiz_vance_logo_1024.png',
-                            fit: BoxFit.cover,
-                          ),
+                      ).animate().fadeIn(delay: 200.ms),
+
+                    if (_isInitializing)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 48),
+                        child: Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
                         ),
                       )
-                          .animate()
-                          .fadeIn(duration: 600.ms)
-                          .slideY(begin: -0.3, end: 0),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Quiz Vance',
-                        style:
-                            Theme.of(context).textTheme.displaySmall?.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                      ).animate().fadeIn(delay: 200.ms),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isRegister
-                            ? 'Crie sua conta com um ID de acesso'
-                            : 'Entre com seu ID ou e-mail',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ).animate().fadeIn(delay: 300.ms),
-                    ],
-                  ),
+                    else
+                      _buildStandardLoginForm(context, isLoading),
+                  ],
                 ),
-                const SizedBox(height: 40),
-                if (_isRegister) ...[
-                  _buildLabel('Nome'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Seu nome completo',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Informe seu nome';
-                      }
-                      return null;
-                    },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuthTab({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
-                  const SizedBox(height: 16),
-                ],
-                _buildLabel(
-                  _isRegister ? 'ID de acesso' : 'ID de acesso ou e-mail',
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _loginIdCtrl,
-                  textInputAction:
-                      _isRegister ? TextInputAction.next : TextInputAction.done,
-                  autocorrect: false,
-                  decoration: InputDecoration(
-                    hintText: _isRegister
-                        ? 'ex.: belchior.vance'
-                        : 'Digite seu ID ou e-mail',
-                    helperText: _isRegister
-                        ? 'Voce usara esse ID para entrar na sua conta'
-                        : null,
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                  ),
-                  validator: _validateLoginId,
-                ),
-                const SizedBox(height: 16),
-                if (_isRegister) ...[
-                  _buildLabel('E-mail'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      hintText: 'seu@email.com',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: _validateEmail,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                _buildLabel('Senha'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _passwordCtrl,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    hintText: '********',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe a senha';
-                    }
-                    if (value.trim().toLowerCase() == 'admin') {
-                      return null;
-                    }
-                    if (value.length < 6) {
-                      return 'Minimo 6 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-                if (!_isRegister)
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _rememberSession,
-                    onChanged: isLoading
-                        ? null
-                        : (value) => setState(
-                              () => _rememberSession = value ?? true,
-                            ),
-                    title: const Text('Lembrar meu login'),
-                    subtitle: const Text(
-                      'Mantenha sua sessao neste aparelho.',
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                const SizedBox(height: 32),
-                AppButton(
-                  label: _isRegister ? 'Criar conta' : 'Entrar',
-                  isLoading: isLoading,
-                  onPressed: _submit,
-                ),
-                if (!_isRegister) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: isLoading ? null : _openForgotPassword,
-                      child: const Text('Esqueci minha senha'),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
-                    onPressed: isLoading
-                        ? null
-                        : () => setState(() => _isRegister = !_isRegister),
-                    child: Text(
-                      _isRegister
-                          ? 'Ja tenho conta -> Entrar'
-                          : 'Nao tenho conta -> Criar conta',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ].animate(interval: 80.ms).fadeIn().slideX(begin: 0.05, end: 0),
+                ]
+              : null,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : AppColors.textMuted,
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
             ),
           ),
         ),
@@ -340,22 +559,382 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: AppColors.textSecondary,
+  Widget _buildStandardLoginForm(BuildContext context, bool isLoading) {
+    final firstName = _savedUser != null
+        ? (_savedUser!['name']?.toString().split(' ').first ??
+            _savedUser!['login_id']?.toString())
+        : null;
+
+    return AutofillGroup(
+      key: const Key('standard_login_form'),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: AppColors.surface.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.border.withOpacity(0.7),
           ),
-    );
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_biometricReady && !_isRegister) ...[
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 20),
+                child: ElevatedButton.icon(
+                  key: const Key('biometric_login_button'),
+                  onPressed: isLoading ? null : _authenticateWithBiometrics,
+                  icon: const Icon(Icons.fingerprint_rounded, size: 28, color: Colors.white),
+                  label: Text(
+                    firstName != null
+                        ? 'Entrar com digital como $firstName'
+                        : 'Entrar com digital',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 3,
+                    shadowColor: AppColors.primary.withOpacity(0.4),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: AppColors.border.withOpacity(0.6))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'ou entre com sua senha',
+                      style: TextStyle(
+                        color: AppColors.textMuted.withOpacity(0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: AppColors.border.withOpacity(0.6))),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (_isRegister) ...[
+              _buildLabel('Nome'),
+              TextFormField(
+                controller: _nameCtrl,
+                autofillHints: const [AutofillHints.name],
+                keyboardType: TextInputType.name,
+                textInputAction: TextInputAction.next,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Seu nome completo',
+                  filled: true,
+                  fillColor: AppColors.background.withOpacity(0.6),
+                  prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.textMuted),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Informe seu nome';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+            _buildLabel(
+              _isRegister ? 'ID de acesso' : 'ID de acesso ou e-mail',
+            ),
+            TextFormField(
+              key: const Key('login_id_field'),
+              controller: _loginIdCtrl,
+              autofillHints: const [
+                AutofillHints.username,
+                AutofillHints.email,
+              ],
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autocorrect: false,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: _isRegister
+                    ? 'ex.: belchior.vance'
+                    : 'Digite seu ID ou e-mail',
+                helperText: _isRegister
+                    ? 'Você usará esse ID para entrar na sua conta'
+                    : null,
+                helperStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                filled: true,
+                fillColor: AppColors.background.withOpacity(0.6),
+                prefixIcon: const Icon(Icons.badge_outlined, color: AppColors.textMuted),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+              validator: _validateLoginId,
+            ),
+            const SizedBox(height: 16),
+            if (_isRegister) ...[
+              _buildLabel('E-mail'),
+              TextFormField(
+                controller: _emailCtrl,
+                autofillHints: const [AutofillHints.email],
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'seu@email.com',
+                  filled: true,
+                  fillColor: AppColors.background.withOpacity(0.6),
+                  prefixIcon: const Icon(Icons.mail_outline_rounded, color: AppColors.textMuted),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  ),
+                ),
+                validator: _validateEmail,
+              ),
+              const SizedBox(height: 16),
+            ],
+            _buildLabel('Senha'),
+            TextFormField(
+              key: const Key('login_password_field'),
+              controller: _passwordCtrl,
+              focusNode: _passwordFocusNode,
+              obscureText: _obscurePassword,
+              autofillHints: [
+                _isRegister
+                    ? AutofillHints.newPassword
+                    : AutofillHints.password,
+              ],
+              textInputAction: TextInputAction.done,
+              keyboardType: TextInputType.visiblePassword,
+              onFieldSubmitted: (_) => _submit(),
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: '********',
+                filled: true,
+                fillColor: AppColors.background.withOpacity(0.6),
+                prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Informe a senha';
+                }
+                if (_isRegister && value.length < 6) {
+                  return 'A senha deve ter no mínimo 6 caracteres';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            if (!_isRegister) ...[
+              Row(
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _rememberSession,
+                      activeColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      side: BorderSide(color: AppColors.border.withOpacity(0.8), width: 1.5),
+                      onChanged: (value) => setState(
+                        () => _rememberSession = value ?? true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Lembrar meu login',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _openForgotPassword,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Esqueci minha senha',
+                      style: TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_canAuthenticate && !_biometricReady) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        key: const Key('enroll_biometrics_checkbox'),
+                        value: _enrollBiometrics,
+                        activeColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        side: BorderSide(color: AppColors.border.withOpacity(0.8), width: 1.5),
+                        onChanged: (value) => setState(
+                          () => _enrollBiometrics = value ?? true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Acessar com digital nos próximos logins',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 20),
+            ] else ...[
+              const SizedBox(height: 12),
+            ],
+            AppButton(
+              label: _isRegister ? 'Criar conta' : 'Entrar',
+              isLoading: isLoading,
+              onPressed: _submit,
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _isRegister ? 'Já tem uma conta?' : 'Não tem uma conta?',
+                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _isRegister = !_isRegister;
+                      _formKey.currentState?.reset();
+                    }),
+                    child: Text(
+                      _isRegister ? 'Entrar' : 'Cadastrar-se',
+                      style: const TextStyle(
+                        color: AppColors.primaryLight,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic);
   }
 
-  String _friendlyAuthError(Object error) {
-    final raw = error.toString();
-    if (raw.length <= 120 &&
-        !raw.contains('Exception') &&
-        !raw.contains('Error')) {
-      return raw;
+  String _friendlyAuthError(dynamic error) {
+    if (error == null) return 'Ocorreu um erro ao realizar a operação.';
+    if (error is RemoteServiceException) {
+      return translateApiErrorMessage(error.message);
     }
-    return 'Nao foi possivel entrar. Verifique seus dados e tente novamente.';
+    return translateApiErrorMessage(error.toString());
+  }
+
+  String _friendlyBiometricError(dynamic error) {
+    final msg = error.toString().toLowerCase();
+    if (msg.contains('not_enrolled') || msg.contains('nenhuma biometria')) {
+      return 'Nenhuma biometria cadastrada no dispositivo.';
+    }
+    if (msg.contains('locked_out') || msg.contains('bloqueado')) {
+      return 'Muitas tentativas. Use sua senha para entrar.';
+    }
+    if (msg.contains('canceled') || msg.contains('cancelado')) {
+      return 'Autenticação por biometria cancelada.';
+    }
+    return 'Não foi possível autenticar por biometria. Digite sua senha.';
   }
 }

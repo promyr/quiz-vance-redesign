@@ -17,6 +17,14 @@ const _userCacheKey = 'auth_user_cache';
 const _sessionModeCacheKey = 'auth_session_mode';
 const _sessionRememberCacheKey = 'auth_session_remember';
 
+class BiometricRefreshSessionExpired implements Exception {
+  const BiometricRefreshSessionExpired();
+
+  @override
+  String toString() =>
+      'Sua sessao por digital expirou. Entre com sua senha novamente.';
+}
+
 enum AuthSessionMode {
   none,
   jwt,
@@ -71,10 +79,6 @@ class AuthRepository {
     bool rememberSession = true,
   }) async {
     final normalizedLoginId = loginId.trim().toLowerCase();
-    final normalizedPassword = password.trim().toLowerCase();
-    final isAdminCredentials = (normalizedLoginId == 'admin' ||
-            normalizedLoginId == 'admin@quizvance.app') &&
-        normalizedPassword == 'admin';
 
     await _storage.setCacheValue(
       _sessionRememberCacheKey,
@@ -83,101 +87,37 @@ class AuthRepository {
     );
 
     try {
-      Dio? dio;
-      try {
-        dio = _client.dio;
-      } catch (_) {}
-
-      if (dio != null) {
-        final response = await dio
-            .post(
-              ApiEndpoints.login,
-              data: {
-                'login_id': normalizedLoginId,
-                'id': normalizedLoginId,
-                if (normalizedLoginId.contains('@')) 'email': normalizedLoginId,
-                if (normalizedLoginId.contains('@')) 'email_id': normalizedLoginId,
-                'password': password,
-              },
-            )
-            .timeout(
-              _authTimeout,
-              onTimeout: () => throw buildRemoteServiceException(
-                DioException(
-                  requestOptions: RequestOptions(path: ApiEndpoints.login),
-                  type: DioExceptionType.connectionTimeout,
-                ),
-                fallback: 'Nao foi possivel concluir o login agora. Tente novamente em instantes.',
-                connectivityFallback:
-                    'Nao foi possivel conectar ao servidor a tempo.',
-              ),
-            );
-        final normalized =
-            _normalizeAuthResponse(response.data as Map<String, dynamic>);
-
-        if (isAdminCredentials || normalizedLoginId == 'admin') {
-          final existingUser = (normalized['user'] as Map<String, dynamic>?) ?? {};
-          normalized['user'] = {
-            ...existingUser,
-            'plan_type': 'premium',
-            'premium_active': true,
-            'xp': 99999,
-            'level': 100,
-            'streak_days': 365,
-          };
-          await _seedAdminMaxLevelPreferences();
-        }
-
-        await _persistJwtSession(normalized);
-        _observability.trackEvent('auth.login_succeeded');
-        return normalized;
+      final response = await _client.dio.post(
+        ApiEndpoints.login,
+        data: {
+          'login_id': normalizedLoginId,
+          'id': normalizedLoginId,
+          if (normalizedLoginId.contains('@')) 'email': normalizedLoginId,
+          if (normalizedLoginId.contains('@')) 'email_id': normalizedLoginId,
+          'password': password,
+        },
+      ).timeout(
+        _authTimeout,
+        onTimeout: () => throw buildRemoteServiceException(
+          DioException(
+            requestOptions: RequestOptions(path: ApiEndpoints.login),
+            type: DioExceptionType.connectionTimeout,
+          ),
+          fallback:
+              'Nao foi possivel concluir o login agora. Tente novamente em instantes.',
+          connectivityFallback:
+              'Nao foi possivel conectar ao servidor a tempo.',
+        ),
+      );
+      final raw = response.data;
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException('resposta inesperada de /auth/login');
       }
+      final normalized = _normalizeAuthResponse(raw);
+      await _persistJwtSession(normalized);
+      _observability.trackEvent('auth.login_succeeded');
+      return normalized;
     } on DioException catch (error, stackTrace) {
-      if (isAdminCredentials &&
-          (error.response?.statusCode == 401 ||
-              error.response?.statusCode == 404)) {
-        try {
-          final regResponse = await register(
-            name: 'Administrador VIP',
-            loginId: 'admin',
-            email: 'admin@quizvance.app',
-            password: 'admin',
-          );
-          final existingUser =
-              (regResponse['user'] as Map<String, dynamic>?) ?? {};
-          regResponse['user'] = {
-            ...existingUser,
-            'plan_type': 'premium',
-            'premium_active': true,
-            'xp': 99999,
-            'level': 100,
-            'streak_days': 365,
-          };
-          await _seedAdminMaxLevelPreferences();
-          await _persistJwtSession(regResponse);
-          _observability.trackEvent('auth.admin_auto_registered_and_logged_in');
-          return regResponse;
-        } catch (_) {
-          // Se o registro automatico no backend falhar, cria a sessao com fallback VIP
-          final adminUser = _normalizeAuthResponse({
-            'id': 'admin',
-            'login_id': 'admin',
-            'email': 'admin@quizvance.app',
-            'name': 'Administrador VIP',
-            'plan_type': 'premium',
-            'premium_active': true,
-            'xp': 99999,
-            'level': 100,
-            'streak_days': 365,
-            'access_token': 'admin_vip_token',
-            'refresh_token': 'admin_vip_refresh_token',
-          });
-          await _seedAdminMaxLevelPreferences();
-          await _persistJwtSession(adminUser);
-          return adminUser;
-        }
-      }
-
       _observability.reportError(
         'auth.login_failed',
         error,
@@ -185,29 +125,12 @@ class AuthRepository {
       );
       throw buildRemoteServiceException(
         error,
-        fallback: 'Nao foi possivel concluir o login agora. Tente novamente em instantes.',
-        connectivityFallback:
-            'Nao foi possivel conectar ao servidor a tempo.',
+        fallback:
+            'Nao foi possivel concluir o login agora. Tente novamente em instantes.',
+        connectivityFallback: 'Nao foi possivel conectar ao servidor a tempo.',
+        exposeAuthenticationDetail: true,
       );
     } catch (error, stackTrace) {
-      if (isAdminCredentials) {
-        final adminUser = _normalizeAuthResponse({
-          'id': 'admin',
-          'login_id': 'admin',
-          'email': 'admin@quizvance.app',
-          'name': 'Administrador VIP',
-          'plan_type': 'premium',
-          'premium_active': true,
-          'xp': 99999,
-          'level': 100,
-          'streak_days': 365,
-          'access_token': 'admin_vip_token',
-          'refresh_token': 'admin_vip_refresh_token',
-        });
-        await _seedAdminMaxLevelPreferences();
-        await _persistJwtSession(adminUser);
-        return adminUser;
-      }
       _observability.reportError(
         'auth.login_failed',
         error,
@@ -215,27 +138,58 @@ class AuthRepository {
       );
       rethrow;
     }
+  }
 
-    if (isAdminCredentials) {
-      final adminUser = _normalizeAuthResponse({
-        'id': 'admin',
-        'login_id': 'admin',
-        'email': 'admin@quizvance.app',
-        'name': 'Administrador VIP',
-        'plan_type': 'premium',
-        'premium_active': true,
-        'xp': 99999,
-        'level': 100,
-        'streak_days': 365,
-        'access_token': 'admin_vip_token',
-        'refresh_token': 'admin_vip_refresh_token',
-      });
-      await _seedAdminMaxLevelPreferences();
-      await _persistJwtSession(adminUser);
-      return adminUser;
+  Future<Map<String, dynamic>> loginWithRefreshToken(
+    String refreshToken,
+  ) async {
+    final token = refreshToken.trim();
+    if (token.isEmpty) {
+      throw const FormatException('Token de renovacao ausente');
     }
-
-    throw StateError('Nao foi possivel realizar o login.');
+    try {
+      final response = await _client.dio
+          .post(
+            ApiEndpoints.refreshToken,
+            options: Options(
+              headers: {'Authorization': 'Bearer $token'},
+              extra: {'skipAuth': true},
+            ),
+          )
+          .timeout(_authTimeout);
+      final raw = response.data;
+      if (raw is! Map<String, dynamic>) {
+        throw const FormatException('resposta inesperada de /auth/refresh');
+      }
+      final accessToken = raw['access_token']?.toString().trim() ?? '';
+      if (accessToken.isEmpty) {
+        throw const FormatException('resposta de auth sem access_token valido');
+      }
+      final nextRefreshToken = raw['refresh_token']?.toString().trim() ?? token;
+      await _client.saveTokens(
+        accessToken: accessToken,
+        refreshToken: nextRefreshToken,
+      );
+      await _writeSessionMode(AuthSessionMode.jwt);
+      final user = await getMe();
+      return {
+        'access_token': accessToken,
+        'refresh_token': nextRefreshToken,
+        'user': user,
+      };
+    } on DioException catch (error) {
+      final status = error.response?.statusCode;
+      if (status == 401 || status == 403) {
+        throw const BiometricRefreshSessionExpired();
+      }
+      throw buildRemoteServiceException(
+        error,
+        fallback:
+            'Sua sessao por digital expirou. Entre com sua senha novamente.',
+        connectivityFallback:
+            'Nao foi possivel conectar ao servidor para entrar com a digital.',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> register({
@@ -274,10 +228,6 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>> getMe() async {
-    final cached = await getCachedUser();
-    if (cached != null && (cached['login_id'] == 'admin' || cached['id'] == 'admin')) {
-      return cached;
-    }
     try {
       final response = await _client.dio.get(ApiEndpoints.me);
       final raw = response.data;
@@ -300,18 +250,16 @@ class AuthRepository {
               e.type == DioExceptionType.sendTimeout ||
               e.type == DioExceptionType.unknown);
 
-      if (!isOffline) {
-        rethrow;
-      }
-
-      final cached = await getCachedUser();
-      if (cached != null) {
+      // Cache só mantém uso offline; 401/403 sempre encerram a confiança.
+      final cachedFallback = isOffline ? await getCachedUser() : null;
+      if (cachedFallback != null) {
         _observability.trackEvent(
           'auth.me_cache_fallback',
           level: AppEventLevel.warning,
         );
-        return cached;
+        return cachedFallback;
       }
+
       rethrow;
     } catch (e) {
       _debugLog('[AuthRepository.getMe] falhou: $e');
@@ -320,8 +268,15 @@ class AuthRepository {
   }
 
   Future<PersistedAuthSession> restorePersistedSession() async {
-    final rawMode = await _storage.getCacheValue(_sessionModeCacheKey, scoped: false);
+    final rawMode =
+        await _storage.getCacheValue(_sessionModeCacheKey, scoped: false);
     final mode = _parseSessionMode(rawMode);
+    final rememberSession =
+        await _storage.getCacheValue(_sessionRememberCacheKey, scoped: false);
+    if (rememberSession == 'false') {
+      await clearSession();
+      return const PersistedAuthSession.none();
+    }
     final cachedUser = await getCachedUser();
     final token = await _client.getAccessToken();
 
@@ -352,7 +307,8 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>?> getCachedUser() async {
-    return _decodeCachedUser(await _storage.getCacheValue(_userCacheKey, scoped: false));
+    return _decodeCachedUser(
+        await _storage.getCacheValue(_userCacheKey, scoped: false));
   }
 
   Future<Map<String, dynamic>> updateProfile({
@@ -407,12 +363,14 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> updateLoginId({
     required String loginId,
+    required String currentPassword,
   }) async {
     try {
       final response = await _client.dio.post(
         ApiEndpoints.userUpdateLoginId,
         data: {
           'login_id': loginId.trim(),
+          'current_password': currentPassword,
         },
       );
       final raw = response.data;
@@ -514,9 +472,12 @@ class AuthRepository {
     await Future.wait([
       _client.clearTokens(),
       _storage.deleteCacheValue(_userCacheKey, scoped: false),
+      _storage.deleteCacheValue('auth_user', scoped: false),
       _storage.deleteCacheValue(_sessionModeCacheKey, scoped: false),
     ]);
   }
+
+  Future<String?> getRefreshToken() => _client.getRefreshToken();
 
   Future<void> _persistJwtSession(Map<String, dynamic> normalized) async {
     final accessToken = (normalized['access_token'] as String? ?? '').trim();
@@ -537,14 +498,17 @@ class AuthRepository {
 
   Future<void> _cacheUser(Map<String, dynamic> user) async {
     if (user.isEmpty) return;
-    final userId = user['id']?.toString() ??
+    final newUserId = user['id']?.toString() ??
         user['user_id']?.toString() ??
         user['login_id']?.toString();
-    if (userId != null && userId.isNotEmpty) {
-      AccountScopedPreferences.instance.setActiveAccountId(userId);
-      _storage.setActiveAccountId(userId);
+
+    if (newUserId != null && newUserId.isNotEmpty) {
+      AccountScopedPreferences.instance.setActiveAccountId(newUserId);
+      _storage.setActiveAccountId(newUserId);
     }
-    await _storage.setCacheValue(_userCacheKey, jsonEncode(user), scoped: false);
+    await _storage.setCacheValue(_userCacheKey, jsonEncode(user),
+        scoped: false);
+    await _storage.setCacheValue('auth_user', jsonEncode(user), scoped: false);
   }
 
   AuthSessionMode _parseSessionMode(String? raw) {
@@ -594,44 +558,36 @@ class AuthRepository {
   Map<String, dynamic> _extractUser(Map<String, dynamic> raw) {
     final nested = raw['user'];
     final source = nested is Map<String, dynamic> ? nested : raw;
+    final loginId = (source['login_id'] as String? ?? '').trim();
+    final rawRole = (source['role'] as String? ?? 'user').trim().toLowerCase();
+    final isAdmin = rawRole == 'admin';
+    final role = isAdmin ? 'admin' : rawRole;
+    final isPremium = isAdmin ||
+        source['is_premium'] == true ||
+        source['premium_active'] == true ||
+        source['plan_type'] == 'premium' ||
+        source['plan_type'] == 'vip_plus';
+
     return {
       'id': source['id']?.toString() ?? source['user_id']?.toString() ?? '',
       'name': source['name'] as String? ?? 'Usuario',
-      'login_id': source['login_id'] as String? ?? '',
+      'login_id': loginId,
       'email':
           source['email'] as String? ?? source['email_id'] as String? ?? '',
       'avatar_url': source['avatar_url'] as String?,
-      'plan_type': source['plan_type'] as String? ??
-          source['plan_code'] as String? ??
-          'free',
-      'premium_active': source['premium_active'] as bool? ?? false,
+      'plan_type': isPremium
+          ? 'premium'
+          : (source['plan_type'] as String? ??
+              source['plan_code'] as String? ??
+              'free'),
+      'premium_active': isPremium,
+      'is_premium': isPremium,
       'xp': (source['xp'] as num?)?.toInt() ?? 0,
       'level': source['level'],
       'streak_days': (source['streak_days'] as num?)?.toInt() ?? 0,
+      'role': role,
+      'is_admin': isAdmin,
     };
-  }
-
-  Future<void> _seedAdminMaxLevelPreferences() async {
-    final prefs = AccountScopedPreferences.instance;
-    prefs.setActiveAccountId('admin');
-    await prefs.setInt('gamif_xp', 99999);
-    await prefs.setInt('gamif_level', 100);
-    await prefs.setInt('gamif_streak', 365);
-    await prefs.setInt('gamif_longest_streak', 365);
-    await prefs.setInt('gamif_total_quizzes', 500);
-    const allAchievements = <String>[
-      '🎯 Primeira Questão',
-      '📚 Iniciante',
-      '🎓 Estudante',
-      '🏆 Dedicado',
-      '🔥 Consistente',
-      '⚡ Comprometido',
-      '⭐ Nível 5',
-      '👑 Mestre Supremo',
-      '💫 100 XP',
-      '💎 500 XP',
-    ];
-    await prefs.setStringList('gamif_achievements', allAchievements);
   }
 }
 
