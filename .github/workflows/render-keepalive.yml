@@ -1,0 +1,35 @@
+name: Render Backend Keepalive
+
+on:
+  schedule:
+    # Maior intervalo: 25 minutos. O Render gratuito pode dormir apos 15.
+    - cron: '*/25 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-backend-keepalive
+  cancel-in-progress: true
+
+env:
+  BACKEND_URL: ${{ vars.BACKEND_URL || 'https://quiz-vance-redesign-1.onrender.com' }}
+
+jobs:
+  wake-backend:
+    name: Wake Render backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call readiness endpoint
+        run: >-
+          curl
+          --fail
+          --silent
+          --show-error
+          --max-time 110
+          --retry 1
+          --retry-delay 5
+          --retry-all-errors
+          "${BACKEND_URL%/}/health/ready"
