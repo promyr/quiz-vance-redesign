@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import os
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
