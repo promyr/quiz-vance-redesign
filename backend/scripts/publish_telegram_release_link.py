@@ -151,20 +151,13 @@ def _release_caption(*, version: str, size: int, digest: str) -> str:
             f"Tamanho: {size:,} bytes".replace(",", "."),
             f"SHA-256: {digest}",
             "",
+            "Correção da integração Groq e seleção automática de modelo disponível.",
+            "Chaves de IA do painel administrativo reconhecidas durante a geração.",
             (
-                "Nova Central de Editais: o PDF fica salvo de forma privada, "
-                "é processado em segundo plano e você pode retomar sem reenvio."
+                "Recuperação da biometria administrativa quando a credencial do "
+                "Android Keystore expirar ou for invalidada."
             ),
-            (
-                "A análise divide segmentos grandes, retoma checkpoints e alterna "
-                "entre provedores em limite temporário."
-            ),
-            "A extração percorre todas as páginas e usa OCR seletivo quando necessário.",
-            "A Biblioteca também usa o mesmo pipeline confiável de PDF.",
-            (
-                "Biometria de login corrigida: a digital só aparece quando o cofre "
-                "biométrico estiver realmente configurado."
-            ),
+            "Mensagens de erro administrativas mais curtas e legíveis.",
             "Toque no arquivo acima para baixar e instalar.",
         ]
     )
