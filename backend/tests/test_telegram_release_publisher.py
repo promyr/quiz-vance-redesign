@@ -81,3 +81,11 @@ def test_failed_send_is_not_repeated_automatically():
     assert calls == [True]
     assert release_publication.publication_status(manifest=manifest, session_factory=sessions)['status'] == 'failed'
     engine.dispose()
+
+
+def test_verified_external_delivery_receipt_is_reported_without_resending():
+    from app import release_publication
+    manifest = {'app_version': '2.0.70+69', 'apk_sha256': 'A' * 64,
+        'telegram_publication_receipt': {'version': '2.0.70+69', 'status': 'sent', 'message_id': 868, 'sha256': 'A' * 64}}
+    assert release_publication.publication_status(manifest=manifest) == {'version': '2.0.70+69', 'status': 'sent', 'message_id': 868}
+    release_publication.publish_requested_release(manifest=manifest, publish=lambda: (_ for _ in ()).throw(AssertionError('must not resend')))

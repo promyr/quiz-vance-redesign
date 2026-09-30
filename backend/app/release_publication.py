@@ -22,9 +22,23 @@ def _release_key(manifest):
     return day, 'apk:' + version
 
 
+def _confirmed_receipt(manifest):
+    receipt = manifest.get('telegram_publication_receipt')
+    if not isinstance(receipt, dict):
+        return None
+    message_id = receipt.get('message_id')
+    if (receipt.get('status') == 'sent'
+        and receipt.get('version') == manifest.get('app_version')
+        and type(message_id) is int and message_id > 0
+        and manifest.get('apk_sha256')
+        and receipt.get('sha256') == manifest.get('apk_sha256')):
+        return {'version': receipt['version'], 'status': 'sent', 'message_id': message_id}
+    return None
+
+
 def publish_requested_release(*, manifest=None, session_factory=None, publish=None):
     manifest = _android_release_manifest() if manifest is None else manifest
-    if manifest.get('telegram_publish_requested') is not True:
+    if _confirmed_receipt(manifest) or manifest.get('telegram_publish_requested') is not True:
         return
     if publish is None and not telegram_bot.telegram_enabled():
         logger.warning('telegram_release_not_configured')
@@ -76,6 +90,9 @@ def publish_requested_release(*, manifest=None, session_factory=None, publish=No
 
 def publication_status(*, manifest=None, session_factory=None):
     manifest = _android_release_manifest() if manifest is None else manifest
+    receipt = _confirmed_receipt(manifest)
+    if receipt:
+        return receipt
     version = manifest.get('app_version')
     result = {'version': version, 'status': 'not_requested', 'message_id': None}
     if manifest.get('telegram_publish_requested') is not True:
