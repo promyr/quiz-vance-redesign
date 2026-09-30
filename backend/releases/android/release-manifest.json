@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "app_version": "2.0.68+67",
-  "artifact": "quiz-vance-2.0.68+67-universal.apk",
-  "size_bytes": 40389106,
-  "apk_sha256": "D5FAEEFCBFB973BEBE12159DCF063B562540B5687060445A4CE5D80BE6DE7B7A",
+  "app_version": "2.0.69+68",
+  "artifact": "quiz-vance-2.0.69+68-universal.apk",
+  "size_bytes": 40391010,
+  "apk_sha256": "8A60247F8D40462953BD7E63F792FAB4A22188C5D40AE667174DA0FA5D6DE395",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
   "commit": "e74a574d34ca3d8b4436e2999d9be6826c9f87f6",
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "release_notes": "Revisao manual de editais e correcoes de layout na tela inicial e nas justificativas das respostas.",
-  "published_at": "2026-09-30T20:36:26.851213+00:00"
+  "release_notes": "Correcao das estatisticas: preserva questoes respondidas ao sair, prioriza sincronizacao e evita dados antigos por falhas de cache.",
+  "published_at": "2026-09-30T21:01:01.084050+00:00"
 }
