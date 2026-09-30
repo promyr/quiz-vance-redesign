@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -11,19 +12,31 @@ from urllib.parse import urlparse
 import httpx
 from sqlalchemy import text
 
-sys.path.insert(0, "/app")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import telegram_bot
 from app.database import SessionLocal
 
-EXPECTED_HOST = "quiz-vance-redesign-backend.fly.dev"
-APK_PATH = Path("/app/releases/android/quiz-vance.apk")
+EXPECTED_HOST = "quiz-vance-redesign-1.onrender.com"
+APK_PATH = Path(__file__).resolve().parents[1] / "releases" / "android" / "quiz-vance.apk"
+
+
+def _release_manifest() -> dict:
+    manifest_path = APK_PATH.with_name("release-manifest.json")
+    if not manifest_path.is_file():
+        return {}
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise TypeError("release manifest must be an object")
+    return manifest
 
 
 def _release_version() -> str:
-    version = str(os.getenv("RELEASE_VERSION") or "").strip()
-    if not version:
-        raise RuntimeError("RELEASE_VERSION must be configured for Telegram publication")
+    version = str(
+        _release_manifest().get("app_version") or os.getenv("RELEASE_VERSION") or ""
+    ).strip()
+    if not re.fullmatch(r"[0-9A-Za-z._+-]+", version):
+        raise RuntimeError("a valid release version must be configured")
     return version
 
 
@@ -144,6 +157,7 @@ def _validate_uploaded_apk(
 
 
 def _release_caption(*, version: str, size: int, digest: str) -> str:
+    notes = str(_release_manifest().get("release_notes") or "").strip()
     return "\n".join(
         [
             f"Quiz Vance {version} — APK oficial para teste",
@@ -151,19 +165,14 @@ def _release_caption(*, version: str, size: int, digest: str) -> str:
             f"Tamanho: {size:,} bytes".replace(",", "."),
             f"SHA-256: {digest}",
             "",
-            "Correção da integração Groq e seleção automática de modelo disponível.",
-            "Chaves de IA do painel administrativo reconhecidas durante a geração.",
-            (
-                "Recuperação da biometria administrativa quando a credencial do "
-                "Android Keystore expirar ou for invalidada."
-            ),
-            "Mensagens de erro administrativas mais curtas e legíveis.",
+            notes[:600] or "Atualizacao do Quiz Vance.",
+            "",
             "Toque no arquivo acima para baixar e instalar.",
         ]
     )
 
 
-def main() -> None:
+def publish_release() -> dict:
     version = _release_version()
     chat_id, thread_id = _community_target()
     download_url, size, digest = _release_metadata(version)
@@ -195,21 +204,20 @@ def main() -> None:
         expected_thread_id=thread_id,
     )
 
-    print(
-        json.dumps(
-            {
-                "ok": True,
-                "mode": "apk_attached",
-                "chat_id": chat_id,
-                "message_thread_id": thread_id,
-                "message_id": uploaded.get("message_id"),
-                "download_url": download_url,
-                "apk_size": size,
-                "sha256": digest,
-            },
-            ensure_ascii=True,
-        )
-    )
+    return {
+        "ok": True,
+        "mode": "apk_attached",
+        "chat_id": chat_id,
+        "message_thread_id": thread_id,
+        "message_id": uploaded.get("message_id"),
+        "download_url": download_url,
+        "apk_size": size,
+        "sha256": digest,
+    }
+
+
+def main() -> None:
+    print(json.dumps(publish_release(), ensure_ascii=True))
 
 
 if __name__ == "__main__":

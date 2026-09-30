@@ -195,3 +195,10 @@ def app_update_info(
         release_notes=_android_release_notes() or None,
         published_at=_android_published_at(),
     )
+
+
+@router.get("/app/release-publication")
+def release_publication_status():
+    # This read-only receipt contains no credentials or private destination data.
+    from ..release_publication import publication_status
+    return publication_status()

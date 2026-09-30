@@ -9,5 +9,6 @@
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
   "release_notes": "Estatisticas corrigidas, revisao manual de editais, ajustes de layout e Plano de estudos apenas no menu da Biblioteca. Inclui as correcoes anteriores de integracao e chaves administrativas.",
-  "published_at": "2026-09-30T21:35:42.050556+00:00"
+  "published_at": "2026-09-30T21:35:42.050556+00:00",
+  "telegram_publish_requested": true
 }
