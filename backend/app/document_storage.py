@@ -39,7 +39,12 @@ class DocumentStorage:
         return cls(root)
 
     def _resolve(self, storage_key: str) -> Path:
-        clean_key = str(storage_key or "").replace("\\", "/").lstrip("/")
+        clean_key = str(storage_key or "").replace("\\", "/")
+        if (
+            not clean_key or clean_key.startswith("/") or ":" in clean_key
+            or any(part in {"", ".", ".."} for part in clean_key.split("/"))
+        ):
+            raise DocumentStorageError("Chave de armazenamento invalida.")
         candidate = (self.root / clean_key).resolve()
         try:
             candidate.relative_to(self.root)
@@ -65,12 +70,12 @@ class DocumentStorage:
             raise DocumentStorageError("Somente PDF e aceito.")
 
         incoming_dir = self.root / ".incoming"
-        incoming_dir.mkdir(parents=True, exist_ok=True)
         partial_path = incoming_dir / f"{uuid.uuid4().hex}.part"
         digest = hashlib.sha256()
         prefix = bytearray()
         received = 0
         try:
+            incoming_dir.mkdir(parents=True, exist_ok=True)
             with partial_path.open("xb") as target:
                 while True:
                     chunk = await read(1024 * 1024)
@@ -106,13 +111,21 @@ class DocumentStorage:
                 size_bytes=received,
                 sha256=digest.hexdigest(),
             )
-        except Exception:
-            partial_path.unlink(missing_ok=True)
+        except OSError as exc:
+            raise DocumentStorageError(
+                "Armazenamento de PDFs temporariamente indisponivel.",
+                status_code=503,
+            ) from exc
+        finally:
+            # Cleanup also runs on cancellation; it must not hide the original error.
+            try:
+                partial_path.unlink(missing_ok=True)
+            except OSError:
+                pass
             try:
                 incoming_dir.rmdir()
             except OSError:
                 pass
-            raise
 
     def read(self, storage_key: str) -> bytes:
         path = self._resolve(storage_key)
@@ -121,6 +134,11 @@ class DocumentStorage:
         except FileNotFoundError as exc:
             raise DocumentStorageError(
                 "O PDF privado nao foi encontrado no armazenamento."
+            ) from exc
+        except OSError as exc:
+            raise DocumentStorageError(
+                "Armazenamento de PDFs temporariamente indisponivel.",
+                status_code=503,
             ) from exc
 
     def delete(self, storage_key: str | None) -> None:

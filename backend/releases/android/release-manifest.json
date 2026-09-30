@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "app_version": "2.0.67+66",
-  "artifact": "quiz-vance-2.0.67+66-universal.apk",
-  "size_bytes": 40373914,
-  "apk_sha256": "5C0DD7D29EF619394B5C795A6443EB3D9A6C2011033EAFDCA4A69AE781B30DB5",
+  "app_version": "2.0.68+67",
+  "artifact": "quiz-vance-2.0.68+67-universal.apk",
+  "size_bytes": 40389106,
+  "apk_sha256": "D5FAEEFCBFB973BEBE12159DCF063B562540B5687060445A4CE5D80BE6DE7B7A",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
   "commit": "e74a574d34ca3d8b4436e2999d9be6826c9f87f6",
   "clean_tree": false,
