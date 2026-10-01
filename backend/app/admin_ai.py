@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
+import httpx
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -289,8 +290,10 @@ def classify_provider_error(exc: Exception) -> str:
         return "permission_denied"
     if status >= 500:
         return "provider_unavailable"
-    if isinstance(exc, TimeoutError):
+    if isinstance(exc, (TimeoutError, httpx.TimeoutException)):
         return "timeout"
+    if isinstance(exc, (httpx.NetworkError, httpx.RemoteProtocolError)):
+        return "provider_unavailable"
     return "provider_error"
 
 
