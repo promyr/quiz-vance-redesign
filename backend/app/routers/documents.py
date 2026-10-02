@@ -258,13 +258,20 @@ def select_document_cargo(
     )
     if cargo is None and payload.cargo_id == "manual" and payload.cargo_title:
         title = payload.cargo_title.strip()
-        has_pages = db.query(models.StudyDocumentPage.id).filter(
-            models.StudyDocumentPage.document_id == document.id
-        ).first() is not None
-        if (document.status == "needs_review" and not document.cargos
-                and has_pages and title):
+        has_pages = (
+            db.query(models.StudyDocumentPage.id)
+            .filter(models.StudyDocumentPage.document_id == document.id)
+            .first()
+            is not None
+        )
+        if has_pages and title:
             cargo = {"id": "manual", "title": title, "page_number": None}
-            document.cargos = [cargo]
+            current_cargos = [
+                c for c in list(document.cargos or [])
+                if str(c.get("id") or "") != "manual"
+            ]
+            current_cargos.append(cargo)
+            document.cargos = current_cargos
     if cargo is None:
         raise HTTPException(
             status_code=422,

@@ -91,7 +91,8 @@ def _now() -> datetime:
 def _plain(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", str(value or ""))
     ascii_text = "".join(ch for ch in normalized if not unicodedata.combining(ch))
-    return re.sub(r"\s+", " ", ascii_text).strip().lower()
+    cleaned = re.sub(r"[^a-zA-Z0-9\s]", " ", ascii_text)
+    return re.sub(r"\s+", " ", cleaned).strip().lower()
 
 
 def validate_pdf_upload(
@@ -317,9 +318,16 @@ def build_analysis_windows(
 
     generic_markers = (
         "conteudo programatico",
-        "conhecimentos especificos",
+        "conteudos programaticos",
+        "conhecimentos basicos",
         "conhecimentos gerais",
+        "conhecimentos complementares",
+        "conhecimentos especificos",
+        "objetos de conhecimento",
         "programa da prova",
+        "programa das provas",
+        "anexo",
+        "disciplinas",
     )
     cargo_indexes: set[int] = set()
     generic_indexes: set[int] = set()

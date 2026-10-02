@@ -92,7 +92,7 @@ def test_default_analyzer_prioritizes_gemini_and_limits_response_tokens(
 
     assert result == {"disciplinas": []}
     assert requested == ["gemini"]
-    assert output_limits == [1500]
+    assert output_limits == [4096]
 
 
 def test_default_analyzer_rejects_malformed_schema_for_segment_split(

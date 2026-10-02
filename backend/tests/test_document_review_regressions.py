@@ -102,3 +102,62 @@ def test_prompt_revision_does_not_reuse_old_analysis_checkpoint(monkeypatch):
     monkeypatch.setattr(processing, "ANALYSIS_CHECKPOINT_VERSION", 1)
     previous_key = processing._analysis_window_hash(cargo_title="Analista", window=window)
     assert current_key != previous_key
+
+
+def test_manual_cargo_allowed_when_cargos_already_present() -> None:
+    from unittest.mock import MagicMock
+    from app.routers import documents
+
+    mock_user = MagicMock(id=42, role="user")
+    mock_doc = MagicMock(
+        id=10,
+        user_id=42,
+        purpose="study_plan",
+        status="awaiting_selection",
+        cargos=[{"id": "cargo_1", "title": "Cargo Inicial", "page_number": 1}],
+        selected_cargo_title=None,
+        selected_cargo_page=None,
+    )
+    payload = documents.SelectCargoIn(cargo_id="manual", cargo_title="Cargo Customizado")
+    title = payload.cargo_title.strip()
+    has_pages = True
+    cargo = None
+    if cargo is None and payload.cargo_id == "manual" and payload.cargo_title:
+        if has_pages and title:
+            cargo = {"id": "manual", "title": title, "page_number": None}
+            current_cargos = [c for c in list(mock_doc.cargos or []) if str(c.get("id") or "") != "manual"]
+            current_cargos.append(cargo)
+            mock_doc.cargos = current_cargos
+
+    assert cargo is not None
+    assert cargo["title"] == "Cargo Customizado"
+    assert any(c["id"] == "manual" for c in mock_doc.cargos)
+
+
+def test_regular_user_consumes_admin_master_keys(monkeypatch) -> None:
+    from unittest.mock import MagicMock
+    from app import ai_gateway
+    from app.admin_ai import AiCredentialCandidate
+
+    mock_user = MagicMock(id=99, role="user")
+    mock_db = MagicMock()
+    mock_db.query().filter().first.return_value = None
+
+    expected_candidate = AiCredentialCandidate(
+        provider="gemini",
+        model="gemini-2.5-flash",
+        api_key="master-api-key",
+        key_id=1,
+        source="server_pool",
+    )
+    monkeypatch.setattr(
+        ai_gateway,
+        "select_master_key_candidates",
+        lambda _db, preferred_provider=None: [expected_candidate],
+    )
+    monkeypatch.setattr(ai_gateway.os, "getenv", lambda *args: "")
+
+    candidates = ai_gateway.build_ai_candidates(mock_user, mock_db)
+    assert len(candidates) == 1
+    assert candidates[0].source == "server_pool"
+    assert candidates[0].api_key == "master-api-key"

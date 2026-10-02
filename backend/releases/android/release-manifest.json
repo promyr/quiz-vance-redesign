@@ -1,20 +1,14 @@
 {
   "schema_version": 1,
-  "app_version": "2.0.71+70",
-  "artifact": "quiz-vance-2.0.71+70.apk",
-  "size_bytes": 40429502,
-  "apk_sha256": "C5A68F4E9E7AC0AF9F8A4E47934EE755574065AC34CA4C30EDC48DF643228D9A",
+  "app_version": "2.0.72+71",
+  "artifact": "quiz-vance-2.0.72+71.apk",
+  "size_bytes": 40429606,
+  "apk_sha256": "7A080287B4A78827D2F66493B96CF6EFE176453E084F4ADD992932773FDFB7E4",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
-  "commit": "e74a574d34ca3d8b4436e2999d9be6826c9f87f6",
+  "commit": "db44a926fff459cde664924c23730309a2abce9b",
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "release_notes": "Home adaptada para telas estreitas e fontes maiores. Corrige a análise do conteúdo programático após informar o cargo e a retomada após falhas temporárias de conexão. Inclui as correções anteriores de estatísticas e chaves administrativas.",
-  "published_at": "2026-10-01T00:24:32.814869+00:00",
-  "telegram_publish_requested": false,
-  "telegram_publication_receipt": {
-    "version": "2.0.71+70",
-    "status": "sent",
-    "message_id": 870,
-    "sha256": "C5A68F4E9E7AC0AF9F8A4E47934EE755574065AC34CA4C30EDC48DF643228D9A"
-  }
+  "release_notes": "Correções críticas: seleção manual de cargo no edital mesmo com extração prévia, suporte a conhecimentos básicos e generic markers ampliados, limite de tokens de análise aumentado para 4096, layout responsivo na Home para Streak/Quotas em telas de 320-390px, substituição de emojis unicode por ícones nativos e refinamento no gabarito comentado.",
+  "published_at": "2026-10-02T13:00:00+00:00",
+  "telegram_publish_requested": true
 }
