@@ -131,14 +131,26 @@ def _call_groq(
     max_output_tokens: int | None = None,
 ) -> str:
     model_id = model or "llama-3.3-70b-versatile"
-    return _call_chat_completion_api(
-        api_key,
-        model_id,
-        system,
-        user,
-        base_url="https://api.groq.com/openai/v1",
-        max_output_tokens=max_output_tokens,
-    )
+    try:
+        return _call_chat_completion_api(
+            api_key,
+            model_id,
+            system,
+            user,
+            base_url="https://api.groq.com/openai/v1",
+            max_output_tokens=max_output_tokens,
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404 and model_id != "openai/gpt-oss-20b":
+            return _call_chat_completion_api(
+                api_key,
+                "openai/gpt-oss-20b",
+                system,
+                user,
+                base_url="https://api.groq.com/openai/v1",
+                max_output_tokens=max_output_tokens,
+            )
+        raise
 
 
 def call_ai(
@@ -332,6 +344,8 @@ Guia de dificuldade: {nivel_instrucao}
 
 {_grounding_rules_block()}
 Regras pedagogicas:
+- Antes de escrever qualquer questao, enumere mentalmente pelo menos 6 subtemas distintos de "{topic}" e distribua as {quantity} questoes entre eles. Nao coloque mais de 2 questoes no mesmo subtema.
+- Varie o tipo cognitivo de cada questao: definicao, mecanismo, comparacao, aplicacao pratica, excecao ou caso-limite, causa-efeito, critica e exemplo concreto. Nao repita o mesmo tipo cognitivo mais de 2 vezes.
 - Produza exatamente {quantity} questoes.
 - Cubra subtemas diferentes e evite perguntas redundantes.
 - Priorize conceitos, mecanismos, comparacoes, aplicacoes, excecoes e cenarios curtos.

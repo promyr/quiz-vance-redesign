@@ -4,6 +4,7 @@ import 'package:quiz_vance_flutter/features/settings/data/ai_generation_guard.da
 import 'package:quiz_vance_flutter/features/study_plan/application/study_plan_coordinator.dart';
 import 'package:quiz_vance_flutter/features/study_plan/data/study_plan_repository.dart';
 import 'package:quiz_vance_flutter/features/study_plan/domain/study_plan_model.dart';
+import 'package:quiz_vance_flutter/features/study_plan/domain/study_plan_notice_analysis.dart';
 
 class _MockStudyPlanRepository extends Mock implements StudyPlanRepository {}
 
@@ -78,6 +79,81 @@ void main() {
         dataProva: '01/12/2026',
         tempoDiario: 60,
         topicos: ['Direito Constitucional', 'Raciocinio Logico'],
+        aiProvider: 'gemini',
+      ),
+    ).called(1);
+  });
+
+  test('analisa edital usando cargo, texto extraido e provedor ativo',
+      () async {
+    const analysis = StudyPlanNoticeAnalysis(
+      jobTitle: 'Analista',
+      subjects: [
+        StudyPlanNoticeSubject(
+          name: 'Português',
+          topics: ['Interpretação de texto'],
+          evidence: 'Língua Portuguesa: interpretação de textos.',
+          peso: null,
+          numQuestoes: null,
+        ),
+      ],
+      concursoInfo: null,
+      cronograma: null,
+      cargosPopup: [],
+    );
+    when(() => aiGenerationGuard.ensureReadyForGeneration())
+        .thenAnswer((_) async => 'gemini');
+    when(
+      () => repository.analyzeNotice(
+        jobTitle: any(named: 'jobTitle'),
+        selectedCargo: any(named: 'selectedCargo'),
+        noticeText: any(named: 'noticeText'),
+        aiProvider: any(named: 'aiProvider'),
+      ),
+    ).thenAnswer((_) async => analysis);
+
+    final result = await coordinator.analyzeNotice(
+      jobTitle: ' Analista ',
+      noticeText: ' texto extraído do PDF ',
+    );
+
+    expect(result, same(analysis));
+    verify(
+      () => repository.analyzeNotice(
+        jobTitle: 'Analista',
+        selectedCargo: null,
+        noticeText: 'texto extraído do PDF',
+        aiProvider: 'gemini',
+      ),
+    ).called(1);
+  });
+
+  test('mantem topicos revisados sem separar virgulas internas', () async {
+    when(() => aiGenerationGuard.ensureReadyForGeneration())
+        .thenAnswer((_) async => 'gemini');
+    when(
+      () => repository.generatePlan(
+        objetivo: any(named: 'objetivo'),
+        dataProva: any(named: 'dataProva'),
+        tempoDiario: any(named: 'tempoDiario'),
+        topicos: any(named: 'topicos'),
+        aiProvider: any(named: 'aiProvider'),
+      ),
+    ).thenAnswer((_) async => plan);
+
+    await coordinator.generatePlan(
+      objective: 'Analista',
+      tempoDiario: 60,
+      rawTopics: '',
+      reviewedTopics: ['Português: sintaxe, semântica'],
+    );
+
+    verify(
+      () => repository.generatePlan(
+        objetivo: 'Analista',
+        dataProva: null,
+        tempoDiario: 60,
+        topicos: ['Português: sintaxe, semântica'],
         aiProvider: 'gemini',
       ),
     ).called(1);

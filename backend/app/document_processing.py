@@ -25,7 +25,7 @@ from .document_analysis import (
     split_analysis_window,
 )
 from .document_analysis import (
-    analysis_window_hash as _analysis_window_hash,
+    analysis_window_hash,
 )
 from .document_analysis import (
     consolidate_analysis as _consolidate_analysis,
@@ -47,7 +47,15 @@ ANALYSIS_MAX_WINDOW_CHARS = max(
 ANALYSIS_MIN_SPLIT_CHARS = max(
     500, int(os.getenv("STUDY_DOCUMENT_ANALYSIS_MIN_SPLIT_CHARS", "1000"))
 )
-ANALYSIS_CHECKPOINT_VERSION = 1
+ANALYSIS_CHECKPOINT_VERSION = 2
+
+
+def _analysis_window_hash(*, cargo_title: str, window: AnalysisWindow) -> str:
+    return analysis_window_hash(
+        cargo_title=cargo_title,
+        window=window,
+        checkpoint_version=ANALYSIS_CHECKPOINT_VERSION,
+    )
 
 
 class DocumentValidationError(ValueError):
@@ -83,7 +91,8 @@ def _now() -> datetime:
 def _plain(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", str(value or ""))
     ascii_text = "".join(ch for ch in normalized if not unicodedata.combining(ch))
-    return re.sub(r"\s+", " ", ascii_text).strip().lower()
+    cleaned = re.sub(r"[^a-zA-Z0-9\s]", " ", ascii_text)
+    return re.sub(r"\s+", " ", cleaned).strip().lower()
 
 
 def validate_pdf_upload(
@@ -309,9 +318,16 @@ def build_analysis_windows(
 
     generic_markers = (
         "conteudo programatico",
-        "conhecimentos especificos",
+        "conteudos programaticos",
+        "conhecimentos basicos",
         "conhecimentos gerais",
+        "conhecimentos complementares",
+        "conhecimentos especificos",
+        "objetos de conhecimento",
         "programa da prova",
+        "programa das provas",
+        "anexo",
+        "disciplinas",
     )
     cargo_indexes: set[int] = set()
     generic_indexes: set[int] = set()
@@ -328,7 +344,15 @@ def build_analysis_windows(
                 for item in range(max(0, index - 1), min(len(normalized_pages), index + 3))
             )
 
-    candidate_indexes = cargo_indexes or generic_indexes
+    # A vacancy table can name the cargo long before the syllabus annex.
+    # Keep both sets: page selection is recall-oriented; the analyzer must
+    # still establish applicability to the selected cargo from the text.
+    candidate_indexes = cargo_indexes | generic_indexes
+    if generic_indexes:
+        # Syllabi often continue across many pages without repeating a header.
+        # Keep the remaining annex instead of silently dropping its tail. The
+        # bounded segments/checkpoints control request size, not page omission.
+        candidate_indexes.update(range(min(generic_indexes), len(normalized_pages)))
     if not candidate_indexes:
         candidate_indexes.update(range(len(normalized_pages)))
 

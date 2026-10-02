@@ -7,11 +7,15 @@ const ignoredDirectories = new Set([
   '.dart_tool',
   '.git',
   '.gradle',
+  '.tooling',
+  '.pytest_cache',
+  '.ruff_cache',
   '.venv',
   'audit',
   'build',
   'node_modules',
   'output_apk',
+  '__pycache__',
 ]);
 const ignoredExtensions = new Set([
   '.apk',
@@ -41,7 +45,10 @@ function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      return ignoredDirectories.has(entry.name) ? [] : walk(absolutePath);
+      return ignoredDirectories.has(entry.name) ||
+        entry.name.startsWith('.pytest')
+        ? []
+        : walk(absolutePath);
     }
     return [absolutePath];
   });

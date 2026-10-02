@@ -5,6 +5,24 @@ import 'package:path/path.dart' as path;
 import 'package:quiz_vance_flutter/core/storage/local_storage.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+class _UnavailableKeyStore implements LocalStorageKeyStore {
+  var writes = 0;
+  var deletes = 0;
+
+  @override
+  Future<String?> read(String key) => throw StateError('keystore unavailable');
+
+  @override
+  Future<void> write(String key, String value) async {
+    writes++;
+  }
+
+  @override
+  Future<void> delete(String key) async {
+    deletes++;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -31,6 +49,18 @@ void main() {
 
   test('singleton retorna sempre a mesma instancia', () {
     expect(LocalStorage.instance, same(LocalStorage.instance));
+  });
+
+  test('keystore indisponivel falha fechado sem substituir a chave', () async {
+    final unavailable = _UnavailableKeyStore();
+    await LocalStorage.instance.configureForTesting(
+      databasePath: databasePath,
+      keyStore: unavailable,
+    );
+
+    await expectLater(LocalStorage.instance.init(), throwsStateError);
+    expect(unavailable.writes, 0);
+    expect(unavailable.deletes, 0);
   });
 
   test('init cria schema cifrado e indice em due_date', () async {

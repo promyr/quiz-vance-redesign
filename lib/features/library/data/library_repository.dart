@@ -10,8 +10,10 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
 import '../../../core/storage/local_storage.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
 import '../domain/library_model.dart';
 import '../domain/study_package_filter.dart';
+import '../../study_plan/domain/study_document.dart';
 
 class LibraryRepository {
   const LibraryRepository(this._client);
@@ -56,10 +58,66 @@ class LibraryRepository {
     return file;
   }
 
-  Future<void> deleteFile(int id) async {
+  Future<void> importProcessedDocument({
+    required StudyDocument document,
+    required String content,
+  }) async {
+    final accountId = AccountScopedPreferences.instance.activeAccountId;
+    final deletionKey = _documentDeletionKey(document.id);
     await _migrateLegacyIfNeeded();
+    final normalizedContent = content.trim();
+    if (document.purpose != StudyDocumentPurpose.library ||
+        document.status != StudyDocumentStatus.ready ||
+        normalizedContent.isEmpty) {
+      return;
+    }
+    final preferences = await SharedPreferences.getInstance();
+    // Recheck immediately before upsert: recovery may have downloaded the text
+    // while the user deleted the item or switched to another account.
+    if (preferences.getBool(deletionKey) == true ||
+        AccountScopedPreferences.instance.activeAccountId != accountId) {
+      return;
+    }
+    final normalizedName = document.fileName
+        .replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '')
+        .trim();
+    final file = LibraryFile(
+      id: -document.id.abs(),
+      nome: normalizedName.isEmpty ? 'Material em PDF' : normalizedName,
+      categoria: 'Geral',
+      conteudo: normalizedContent,
+      criadoEm: DateTime.now(),
+    );
+    await LocalStorage.instance.upsertLibraryFile(file.toJson());
+  }
+
+  Future<void> deleteFile(int id) async {
+    final accountId = AccountScopedPreferences.instance.activeAccountId;
+    final deletionKey = _documentDeletionKey(id.abs());
+    await _migrateLegacyIfNeeded();
+    if (id < 0) {
+      final preferences = await SharedPreferences.getInstance();
+      final saved = await preferences.setBool(deletionKey, true);
+      if (!saved) {
+        throw StateError('Não foi possível salvar a exclusão do material.');
+      }
+    }
+    if (AccountScopedPreferences.instance.activeAccountId != accountId) return;
     await LocalStorage.instance.deleteLibraryFile(id);
   }
+
+  /// Exclusion is local to this account and installation, including offline.
+  /// Uploading the PDF again creates a new server ID and permits a new import.
+  Future<bool> isDocumentDeleted(int documentId) async {
+    final key = _documentDeletionKey(documentId);
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getBool(key) == true;
+  }
+
+  String _documentDeletionKey(int documentId) =>
+      AccountScopedPreferences.instance.scopedKey(
+        'library_deleted_document:$documentId',
+      );
 
   Future<void> _migrateLegacyIfNeeded() async {
     final prefs = await SharedPreferences.getInstance();

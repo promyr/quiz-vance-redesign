@@ -3,7 +3,10 @@ import path from 'node:path';
 import { TextDecoder } from 'node:util';
 
 const projectRoot = path.resolve(import.meta.dirname, '..');
-const libRoot = path.join(projectRoot, 'lib');
+const sourceRoots = [
+  { root: path.join(projectRoot, 'lib'), extension: '.dart' },
+  { root: path.join(projectRoot, 'backend', 'app'), extension: '.py' },
+];
 const checkOnly = process.argv.includes('--check');
 const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
 
@@ -24,6 +27,7 @@ const suspiciousPatterns = [
   '\u00e2\u2020',
   '\u00e2\u0153',
   '\u00e2\u201d',
+  '\u00e2\u0161',
   '\u00f0\u0178',
   '\u00ef\u00b8',
   '\ufffd',
@@ -52,20 +56,24 @@ function encodeWindows1252(value) {
   return Uint8Array.from(bytes);
 }
 
-function dartFiles(directory) {
+function sourceFiles(directory, extension) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      return dartFiles(fullPath);
+      return sourceFiles(fullPath, extension);
     }
-    return entry.isFile() && entry.name.endsWith('.dart') ? [fullPath] : [];
+    return entry.isFile() && entry.name.endsWith(extension) ? [fullPath] : [];
   });
 }
 
 let changedFiles = 0;
 let changedLines = 0;
 
-for (const filePath of dartFiles(libRoot)) {
+const files = sourceRoots.flatMap(({ root, extension }) => {
+  return fs.existsSync(root) ? sourceFiles(root, extension) : [];
+});
+
+for (const filePath of files) {
   const content = fs.readFileSync(filePath, 'utf8');
   let fileChanged = false;
   const repaired = content

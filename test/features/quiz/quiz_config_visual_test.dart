@@ -42,8 +42,8 @@ void main() {
     );
     await tester.pump(const Duration(seconds: 2));
 
-    expect(find.text('Criar quiz com IA'), findsOneWidget);
-    expect(find.text('Configure seu estudo em poucos passos'), findsOneWidget);
+    expect(find.text('Novo Desafio'), findsOneWidget);
+    expect(find.text('Qual assunto você quer dominar hoje?'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
     expect(find.text('Novo Quiz'), findsNothing);
 

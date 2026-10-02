@@ -38,11 +38,13 @@ void main() {
     final observability = AppObservability();
     var reportedName = '';
 
-    observability.registerRemoteReporter((name, error, stackTrace, attributes) async {
+    observability
+        .registerRemoteReporter((name, error, stackTrace, attributes) async {
       reportedName = name;
     });
 
-    observability.reportError('remote.crash', Exception('test'), StackTrace.current);
+    observability.reportError(
+        'remote.crash', Exception('test'), StackTrace.current);
 
     expect(reportedName, equals('remote.crash'));
   });

@@ -51,7 +51,8 @@ void main() {
     );
 
     expect(result.activeCards, isEmpty);
-    expect(result.nextCycleCards.map((card) => card.id).toList(), equals([1, 2]));
+    expect(
+        result.nextCycleCards.map((card) => card.id).toList(), equals([1, 2]));
     expect(result.reviewedCount, equals(2));
     expect(result.waitingForNextCycle, isTrue);
   });

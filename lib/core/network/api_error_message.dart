@@ -45,9 +45,11 @@ String translateApiErrorMessage(String rawMessage) {
     return 'Cota de geração excedida no provedor de IA. Tente novamente mais tarde ou verifique suas Chaves de API.';
   }
   if (lower.contains('invalid credentials') ||
+      lower.contains('credenciais invalidas') ||
+      lower.contains('credenciais inválidas') ||
       lower.contains('invalid email or password') ||
       lower.contains('user not found')) {
-    return 'Credenciais inválidas. Verifique seu ID/e-mail ou senha e tente novamente.';
+    return 'Credenciais invalidas. Verifique seu ID/e-mail ou senha.';
   }
   if (lower.contains('code is invalid') ||
       lower.contains('invalid code') ||
@@ -60,13 +62,18 @@ String translateApiErrorMessage(String rawMessage) {
       lower.contains('already in use')) {
     return 'Este e-mail ou ID de acesso já está em uso por outra conta.';
   }
-  if (lower.contains('field required') || lower.contains('missing required field')) {
+  if (lower.contains('field required') ||
+      lower.contains('missing required field')) {
     return 'Preencha todos os campos obrigatórios para continuar.';
   }
   if (lower.contains('internal server error')) {
     return 'Ocorreu um erro temporário no servidor. Tente novamente em alguns instantes.';
   }
-  if (lower.contains('unauthorized') || lower.contains('could not validate credentials')) {
+  if (lower.contains('unauthorized') ||
+      lower.contains('could not validate credentials') ||
+      lower.contains('token invalido') ||
+      lower.contains('token inválido') ||
+      lower.contains('token expirado')) {
     return 'Sessão expirada. Faça login novamente para continuar.';
   }
   if (lower.contains('network error') || lower.contains('failed to connect')) {
@@ -116,7 +123,16 @@ RemoteServiceException buildRemoteServiceException(
   DioException error, {
   required String fallback,
   String? connectivityFallback,
+  bool exposeAuthenticationDetail = false,
 }) {
+  final statusCode = error.response?.statusCode ?? 0;
+
+  // Para 401/403 em requisicoes de funcionalidades (nao de auth),
+  // usa o fallback direto sem traduzir como "Sessao expirada"
+  if ((statusCode == 401 || statusCode == 403) && !exposeAuthenticationDetail) {
+    return RemoteServiceException(fallback);
+  }
+
   final detail = extractApiErrorMessage(error.response?.data);
   if (detail != null) {
     return RemoteServiceException(translateApiErrorMessage(detail));

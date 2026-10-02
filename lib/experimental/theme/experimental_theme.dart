@@ -69,7 +69,7 @@ ThemeData buildExperimentalTheme({required String variant}) {
         color: palette.text,
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: palette.card,
       shadowColor: Colors.black54,
       surfaceTintColor: Colors.transparent,

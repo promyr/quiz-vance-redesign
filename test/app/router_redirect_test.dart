@@ -38,6 +38,44 @@ void main() {
   });
 
   group('resolveAppRedirect', () {
+    test('bloqueia rotas de chave pessoal para usuario autenticado', () {
+      for (final location in ['/api-keys', '/settings/api-keys']) {
+        expect(
+          resolveAppRedirect(
+            authLoading: false,
+            isAuthenticated: true,
+            shouldShowOnboardingFlag: false,
+            location: location,
+          ),
+          '/settings',
+        );
+      }
+    });
+
+    test('blocks admin route for an authenticated regular user', () {
+      final redirect = resolveAppRedirect(
+        authLoading: false,
+        isAuthenticated: true,
+        isAdmin: false,
+        shouldShowOnboardingFlag: false,
+        location: '/admin/keys',
+      );
+
+      expect(redirect, '/');
+    });
+
+    test('allows admin route when role came from the backend', () {
+      final redirect = resolveAppRedirect(
+        authLoading: false,
+        isAuthenticated: true,
+        isAdmin: true,
+        shouldShowOnboardingFlag: false,
+        location: '/admin/keys',
+      );
+
+      expect(redirect, isNull);
+    });
+
     test('envia para boot enquanto auth esta carregando', () {
       final redirect = resolveAppRedirect(
         authLoading: true,

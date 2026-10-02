@@ -227,7 +227,10 @@ class LocalStorage {
         ''',
         [_currentAccountId],
       );
-      return rows.map((row) => (row['front'] as String?)?.trim() ?? '').where((f) => f.isNotEmpty).toList();
+      return rows
+          .map((row) => (row['front'] as String?)?.trim() ?? '')
+          .where((f) => f.isNotEmpty)
+          .toList();
     } catch (_) {
       return [];
     }
@@ -333,6 +336,59 @@ class LocalStorage {
     );
   }
 
+  /// Salva o estado atômico de uma sessão de quiz/simulado em andamento no SQLite.
+  Future<void> saveActiveQuizSession({
+    required String sessionId,
+    required Map<String, dynamic> sessionData,
+  }) async {
+    final payload = {
+      'remote_id': sessionId.trim(),
+      'account_id': _currentAccountId,
+      'data_json': jsonEncode(sessionData),
+    };
+
+    final existing = await _select(
+      'SELECT id FROM quiz_sessions WHERE remote_id = ? AND account_id = ?',
+      [sessionId.trim(), _currentAccountId],
+    );
+
+    if (existing.isNotEmpty) {
+      await _update(
+        'quiz_sessions',
+        {'data_json': payload['data_json']},
+        where: 'remote_id = ? AND account_id = ?',
+        whereArgs: [sessionId.trim(), _currentAccountId],
+      );
+    } else {
+      await _insert('quiz_sessions', payload);
+    }
+  }
+
+  /// Recupera o estado de uma sessão de quiz/simulado ativa salva no SQLite.
+  Future<Map<String, dynamic>?> getActiveQuizSession(String sessionId) async {
+    try {
+      final rows = await _select(
+        'SELECT data_json FROM quiz_sessions WHERE remote_id = ? AND account_id = ?',
+        [sessionId.trim(), _currentAccountId],
+      );
+      if (rows.isEmpty) return null;
+      final raw = rows.first['data_json'] as String?;
+      if (raw == null || raw.isEmpty) return null;
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Limpa uma sessão de quiz/simulado após sua finalização ou descarte.
+  Future<void> clearActiveQuizSession(String sessionId) async {
+    await _delete(
+      'quiz_sessions',
+      where: 'remote_id = ? AND account_id = ?',
+      whereArgs: [sessionId.trim(), _currentAccountId],
+    );
+  }
+
   Future<List<Map<String, dynamic>>> listLibraryFiles() async {
     final rows = await _select(
       '''
@@ -344,7 +400,8 @@ class LocalStorage {
     );
 
     final scopedRows = rows
-        .where((row) => (row['account_id']?.toString() ?? '') == _currentAccountId)
+        .where(
+            (row) => (row['account_id']?.toString() ?? '') == _currentAccountId)
         .toList(growable: false);
 
     return scopedRows
@@ -355,7 +412,8 @@ class LocalStorage {
 
           final file = Map<String, dynamic>.from(decoded);
           file['id'] = _asInt(file['id'] ?? row['id']);
-          final remoteId = _trimmedString(file['remote_id'] ?? row['remote_id']);
+          final remoteId =
+              _trimmedString(file['remote_id'] ?? row['remote_id']);
           if (remoteId != null) {
             file['remote_id'] = remoteId;
           }
@@ -680,27 +738,18 @@ class LocalStorage {
   }
 
   Future<String> _loadOrCreateEncryptionKey() async {
-    try {
-      final existingKey = await _keyStore.read(_databaseKeyStorageKey);
-      if (existingKey != null && existingKey.isNotEmpty) {
-        return existingKey;
-      }
-    } catch (_) {
-      try {
-        await _keyStore.delete(_databaseKeyStorageKey);
-      } catch (_) {}
+    final existingKey = await _keyStore.read(_databaseKeyStorageKey);
+    if (existingKey != null && existingKey.isNotEmpty) {
+      return existingKey;
     }
 
     final keyBytes = List<int>.generate(
       32,
       (_) => Random.secure().nextInt(256),
     );
-    final keyHex = keyBytes
-        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-        .join();
-    try {
-      await _keyStore.write(_databaseKeyStorageKey, keyHex);
-    } catch (_) {}
+    final keyHex =
+        keyBytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    await _keyStore.write(_databaseKeyStorageKey, keyHex);
     return keyHex;
   }
 
@@ -860,10 +909,7 @@ class LocalStorage {
 
   Set<String> _tableColumns(Database db, String table) {
     final rows = db.select("PRAGMA table_info('$table')");
-    return rows
-        .map((row) => row['name'])
-        .whereType<String>()
-        .toSet();
+    return rows.map((row) => row['name']).whereType<String>().toSet();
   }
 
   bool _isCipherAvailable() {

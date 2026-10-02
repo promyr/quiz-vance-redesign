@@ -302,7 +302,7 @@ def _store_seen_questions(
     """Persiste fingerprints das questões recém-geradas; remove excesso se necessário."""
     try:
         for q in questions:
-            text = (q.get("pergunta") or "").strip()
+            text = (q.get("text") or q.get("pergunta") or "").strip()
             if not text:
                 continue
             fp = _q_fingerprint(text)

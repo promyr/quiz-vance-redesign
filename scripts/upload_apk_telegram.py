@@ -10,7 +10,7 @@ from __future__ import annotations
 def main() -> None:
     raise SystemExit(
         "Deprecated insecure publisher. Use "
-        "backend/scripts/publish_telegram_apk_attachment.py on the Fly backend."
+        "backend/scripts/publish_telegram_release_link.py on the Fly backend."
     )
 
 

@@ -1,18 +1,18 @@
 """
 smart_cache_service.py — Semantic Question Pool & Fast AI Response Caching.
 
-Reduz custos de tokens em até 80% e entrega questões em < 100ms
-ao reutilizar perguntas de alta qualidade já geradas para tópicos idênticos.
+Reduz custos de tokens ao reutilizar perguntas de alta qualidade já geradas
+para tópicos idênticos.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import re
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from . import models
@@ -27,7 +27,7 @@ def compute_semantic_key(topic: str, difficulty: str = "intermediario", context:
     ctx_hash = ""
     if context:
         ctx_hash = hashlib.sha256(context.strip().encode("utf-8")).hexdigest()[:12]
-    
+
     raw = f"{norm_topic}|{norm_diff}|{ctx_hash}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
 
@@ -44,37 +44,45 @@ class SmartQuestionCache:
         quantity: int = 10,
         context: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Busca questões já validadas no banco de dados que o usuário ainda não viu."""
-        try:
-            from .routers.quiz import _load_seen_questions, _topic_key
-            topic_k = _topic_key(topic)
-            seen_texts = set(_load_seen_questions(db, user_id, topic_k))
+        """Pool compartilhado de questões completas desativado enquanto não houver persistência de alternativas.
+        
+        QuizSeenQuestion armazena apenas fingerprints e texto para deduplicação (avoid list),
+        não contendo alternativas (options) nem justificativas. Retorna [] para garantir geração
+        completa via IA com todas as alternativas.
+        """
+        return []
 
-            # Busca no histórico público/geral de questões salvas desse tópico
-            rows = (
-                db.query(models.QuizSeenQuestion)
-                .filter(models.QuizSeenQuestion.topic_key == topic_k)
-                .order_by(models.QuizSeenQuestion.created_at.desc())
-                .limit(60)
-                .all()
-            )
+    @staticmethod
+    def get_candidate_questions(
+        db: Session,
+        topic: str,
+        difficulty: str = "intermediario",
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Retorna [] para delegar a geração integral à IA com todas as alternativas e explicações.
+        
+        Evita servir objetos parciais sem opções que quebrariam a interface do aplicativo.
+        """
+        return []
 
-            valid_candidates = []
-            for row in rows:
-                if row.question_text not in seen_texts:
-                    valid_candidates.append(row)
+    @staticmethod
+    def store_questions(
+        db: Session,
+        topic: str,
+        difficulty: str,
+        questions: list[dict],
+    ) -> None:
+        """Registra evento de armazenamento no pool compartilhado.
 
-            # Se houver questões suficientes não vistas
-            if len(valid_candidates) >= quantity:
-                logger.info(
-                    "smart_cache: Servindo %d questoes do pool local para topico '%s' (0 tokens consumidos)",
-                    quantity,
-                    topic,
-                )
-            return []
-        except Exception as exc:
-            logger.warning("smart_cache lookup failed (continuing to LLM): %s", exc)
-            return []
+        A persistência real das questões é feita por _store_seen_questions em quiz.py.
+        Este método existe para completar a interface e logar o evento sem duplicar
+        a lógica de upsert.
+        """
+        logger.debug(
+            "smart_cache: %d questoes disponíveis para futura reutilização no tópico '%s'",
+            len(questions),
+            topic,
+        )
 
 
 smart_question_cache = SmartQuestionCache()

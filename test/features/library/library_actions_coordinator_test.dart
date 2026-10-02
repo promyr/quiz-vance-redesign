@@ -108,30 +108,9 @@ void main() {
     ).called(1);
   });
 
-  test('generatePackage faz fallback quando o provider inicial falha por quota',
-      () async {
+  test('generatePackage delega fallback ao gateway do servidor', () async {
     when(() => aiGenerationGuard.ensureReadyForGeneration())
         .thenAnswer((_) async => 'gemini');
-    when(
-      () => aiGenerationGuard.ensureReadyForGeneration(
-        overrideProvider: 'groq',
-      ),
-    ).thenAnswer((_) async => 'groq');
-    when(
-      () => aiGenerationGuard.loadConfig(overrideProvider: any(named: 'overrideProvider')),
-    ).thenAnswer(
-      (_) async => const AiGenerationConfigState(
-        selectedProvider: 'gemini',
-        selectedProviderLabel: 'Gemini',
-        selectedProviderKey: 'g-key',
-        geminiKey: 'g-key',
-        openaiKey: '',
-        groqKey: 'groq-key',
-        syncPending: false,
-        lastSyncedProvider: 'gemini',
-      ),
-    );
-
     when(
       () => libraryRepository.generatePackage(
         file: file,
@@ -147,19 +126,16 @@ void main() {
       ),
     ).thenAnswer((_) async => package);
 
-    final generated = await coordinator.generatePackage(file);
+    await expectLater(
+      coordinator.generatePackage(file),
+      throwsA(isA<Exception>()),
+    );
 
-    expect(generated.titulo, equals('Biologia'));
-    verify(
-      () => aiGenerationGuard.ensureReadyForGeneration(
-        overrideProvider: 'groq',
-      ),
-    ).called(1);
-    verify(
+    verifyNever(
       () => libraryRepository.generatePackage(
         file: file,
         aiProvider: 'groq',
       ),
-    ).called(1);
+    );
   });
 }

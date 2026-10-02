@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,9 +81,44 @@ void main() {
     );
   });
 
-  testWidgets(
-      'remembered account pre-fills login ID and stays on standard login form',
+  testWidgets('login demorado informa que o servidor esta conectando',
       (tester) async {
+    final response = Completer<Map<String, dynamic>>();
+    when(
+      () => authRepository.login(
+        loginId: any(named: 'loginId'),
+        password: any(named: 'password'),
+      ),
+    ).thenAnswer((_) => response.future);
+
+    await pumpLoginScreen(tester);
+    await tester.enterText(
+      find.byKey(const Key('login_id_field')),
+      'promyr',
+    );
+    await tester.enterText(
+      find.byKey(const Key('login_password_field')),
+      'test-password',
+    );
+    await tester.ensureVisible(find.text('Entrar').last);
+    await tester.tap(find.text('Entrar').last);
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Conectando ao servidor...'), findsOneWidget);
+
+    response.complete({
+      'access_token': 'access-token',
+      'refresh_token': 'refresh-token',
+      'user': {
+        'id': '7',
+        'login_id': 'promyr',
+        'name': 'Belchior',
+      },
+    });
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('remembered account shows only its unlock form', (tester) async {
     when(() => authRepository.getCachedUser()).thenAnswer(
       (_) async => {
         'id': '7',
@@ -93,19 +130,20 @@ void main() {
 
     await pumpLoginScreen(tester);
 
-    expect(find.byKey(const Key('standard_login_form')), findsOneWidget);
-    expect(find.byKey(const Key('session_unlock_panel')), findsNothing);
-    expect(find.text('ID de acesso ou e-mail'), findsOneWidget);
-    expect(find.text('Lembrar meu login'), findsOneWidget);
+    expect(find.byKey(const Key('standard_login_form')), findsNothing);
+    expect(find.byKey(const Key('session_unlock_panel')), findsOneWidget);
+    expect(find.text('ID de acesso ou e-mail'), findsNothing);
+    expect(find.text('Continuar como Belchior'), findsOneWidget);
+    expect(find.text('Usar outra conta'), findsOneWidget);
     expect(find.text('Esqueci minha senha'), findsOneWidget);
 
-    final loginIdField = tester.widget<TextFormField>(
-      find.byKey(const Key('login_id_field')),
-    );
-    expect(loginIdField.controller?.text, 'promyr');
+    final password = tester
+        .widget<TextFormField>(find.byKey(const Key('login_password_field')));
+    expect(password.controller?.text, isEmpty);
   });
 
-  testWidgets('when biometrics is ready, displays quick biometric access button',
+  testWidgets(
+      'when biometrics is ready, displays quick biometric access button',
       (tester) async {
     when(() => authRepository.getCachedUser()).thenAnswer(
       (_) async => {
@@ -122,9 +160,9 @@ void main() {
     await pumpLoginScreen(tester);
 
     expect(find.byKey(const Key('biometric_login_button')), findsOneWidget);
-    expect(find.text('Entrar com digital como Belchior'), findsOneWidget);
-    expect(find.text('ou entre com sua senha'), findsOneWidget);
-    expect(find.byKey(const Key('standard_login_form')), findsOneWidget);
+    expect(find.text('Continuar como Belchior'), findsOneWidget);
+    expect(find.byKey(const Key('standard_login_form')), findsNothing);
+    expect(find.text('ID de acesso ou e-mail'), findsNothing);
   });
 
   testWidgets('tapping biometric login button triggers unlock coordinator',
@@ -151,6 +189,45 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     verify(() => biometricCoordinator.unlock()).called(1);
+  });
+
+  testWidgets(
+      'another account and device back clear passwords and keep exclusive forms',
+      (tester) async {
+    when(() => authRepository.getCachedUser()).thenAnswer((_) async => {
+          'id': '7',
+          'login_id': 'promyr',
+          'name': 'Belchior',
+        });
+    await pumpLoginScreen(tester);
+    await tester.enterText(
+        find.byKey(const Key('login_password_field')), 'not-saved');
+    final another = find.byKey(const Key('use_another_account'));
+    await tester.ensureVisible(another);
+    await tester.tap(another);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('session_unlock_panel')), findsNothing);
+    expect(find.byKey(const Key('standard_login_form')), findsOneWidget);
+    expect(
+        tester
+            .widget<TextFormField>(
+                find.byKey(const Key('login_password_field')))
+            .controller!
+            .text,
+        isEmpty);
+    await tester.enterText(
+        find.byKey(const Key('login_password_field')), 'another-password');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('session_unlock_panel')), findsOneWidget);
+    expect(find.byKey(const Key('standard_login_form')), findsNothing);
+    expect(
+        tester
+            .widget<TextFormField>(
+                find.byKey(const Key('login_password_field')))
+            .controller!
+            .text,
+        isEmpty);
   });
 
   testWidgets(

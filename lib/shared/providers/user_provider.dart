@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../application/user_stats_cache_service.dart';
-import '../../core/exceptions/remote_service_exception.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../features/conquistas/domain/achievement_catalog.dart';
+import '../application/user_stats_cache_service.dart';
+import 'account_session_epoch_provider.dart';
+import 'auth_provider.dart';
 
 Future<Map<String, dynamic>> fetchUserStatsPayload(Ref ref) async {
   final client = ref.read(apiClientProvider);
@@ -13,7 +14,11 @@ Future<Map<String, dynamic>> fetchUserStatsPayload(Ref ref) async {
   try {
     final response = await client.dio.get(ApiEndpoints.userStats);
     final data = response.data as Map<String, dynamic>;
-    await cache.saveRemoteStatsPayload(data);
+    try {
+      await cache.saveRemoteStatsPayload(data);
+    } catch (_) {
+      // O cache e auxiliar; sua falha nao invalida dados recebidos do servidor.
+    }
     return data;
   } catch (_) {
     try {
@@ -21,15 +26,19 @@ Future<Map<String, dynamic>> fetchUserStatsPayload(Ref ref) async {
       if (cached != null) {
         return cached;
       }
-    } on FormatException {
-      throw const RemoteServiceException(
-        'O cache local de estatisticas esta corrompido.',
-      );
-    }
+    } catch (_) {}
 
-    throw const RemoteServiceException(
-      'Não foi possível carregar as estatísticas do usuário.',
-    );
+    return <String, dynamic>{
+      'xp': 0,
+      'level': 1,
+      'streak': 0,
+      'total_quizzes': 0,
+      'today_quizzes': 0,
+      'today_correct': 0,
+      'today_xp': 0,
+      'accuracy_rate': 0.0,
+      'is_premium': false,
+    };
   }
 }
 
@@ -69,36 +78,56 @@ class UserStats {
     final level = numericLevel ?? ((xp ~/ 100) + 1);
     final achievements = _readStringList(data, 'achievements');
 
+    final role = (data['role'] as String? ?? '').trim().toLowerCase();
+    final isAdmin = role == 'admin';
+
+    final isPremium = isAdmin ||
+        data['is_premium'] == true ||
+        data['premium_active'] == true ||
+        data['plan_type'] == 'premium' ||
+        data['plan_type'] == 'vip_plus';
+
+    final finalXp = xp;
+    final finalLevel = level;
+    final finalStreak = _effectiveStreak(
+      _readInt(data, ['streak', 'streak_days', 'streak_dias']),
+      data['last_activity_day'],
+    );
+
     return UserStats(
-      xp: xp,
-      level: level,
+      xp: finalXp,
+      level: finalLevel,
       levelLabel: _readStringOrNull(data, ['level_name', 'level']),
-      streak: _readInt(data, ['streak', 'streak_days', 'streak_dias']),
+      streak: finalStreak,
       totalQuizzes: _readInt(data, ['total_quizzes', 'total_questoes']),
       todayQuizzes: _readInt(data, ['today_quizzes', 'today_questoes']),
       todayCorrect: _readInt(data, ['today_correct', 'today_acertos']),
       todayXp: _readInt(data, ['today_xp']),
       flashcardsToday: _readInt(data, ['flashcards_due', 'flashcards_today']),
       xpToNextLevel: _readIntOrNull(data, ['xp_to_next_level']) ??
-          _computeXpToNextLevel(xp),
+          _computeXpToNextLevel(finalXp),
       achievements: achievements.isNotEmpty
           ? achievements
           : unlockedAchievementNames(
               totalQuizzes: _readInt(data, ['total_quizzes', 'total_questoes']),
-              streak: _readInt(data, ['streak', 'streak_days', 'streak_dias']),
-              level: level,
-              xp: xp,
+              streak: finalStreak,
+              level: finalLevel,
+              xp: finalXp,
             ),
       taxaAcerto:
           _readDoubleOrNull(data, ['accuracy_rate', 'accuracy', 'taxa_acerto']),
-      isPremium: data['is_premium'] == true,
-      quizRestante: _readIntOrNull(data, ['quiz_remaining_today']),
-      quizLimite: _readIntOrNull(data, ['quiz_limit_today']),
-      simuladoRestanteSemana: _readIntOrNull(data, ['simulado_remaining_week']),
-      simuladoLimiteSemana: _readIntOrNull(data, ['simulado_limit_week']),
+      isPremium: isPremium,
+      quizRestante:
+          isPremium ? -1 : _readIntOrNull(data, ['quiz_remaining_today']),
+      quizLimite: isPremium ? -1 : _readIntOrNull(data, ['quiz_limit_today']),
+      simuladoRestanteSemana:
+          isPremium ? -1 : _readIntOrNull(data, ['simulado_remaining_week']),
+      simuladoLimiteSemana:
+          isPremium ? -1 : _readIntOrNull(data, ['simulado_limit_week']),
       openQuizRestanteSemana:
-          _readIntOrNull(data, ['open_quiz_remaining_week']),
-      openQuizLimiteSemana: _readIntOrNull(data, ['open_quiz_limit_week']),
+          isPremium ? -1 : _readIntOrNull(data, ['open_quiz_remaining_week']),
+      openQuizLimiteSemana:
+          isPremium ? -1 : _readIntOrNull(data, ['open_quiz_limit_week']),
     );
   }
 
@@ -172,11 +201,31 @@ class UserStats {
 
 class UserStatsNotifier extends AsyncNotifier<UserStats> {
   @override
-  Future<UserStats> build() => _fetch();
+  Future<UserStats> build() {
+    ref.watch(accountSessionEpochProvider);
+    return _fetch();
+  }
 
   Future<UserStats> _fetch() async {
     final payload = await fetchUserStatsPayload(ref);
-    return _mergeLocalFlashcards(UserStats.fromJson(payload));
+    final authState = ref.read(authStateNotifierProvider).valueOrNull;
+    final isAdmin = authState?.isAdmin == true;
+
+    final mutablePayload = Map<String, dynamic>.from(payload);
+    final parsed = UserStats.fromJson(mutablePayload);
+    final finalStats = (isAdmin || parsed.isPremium)
+        ? parsed.copyWith(
+            isPremium: true,
+            quizRestante: -1,
+            quizLimite: -1,
+            simuladoRestanteSemana: -1,
+            simuladoLimiteSemana: -1,
+            openQuizRestanteSemana: -1,
+            openQuizLimiteSemana: -1,
+          )
+        : parsed;
+
+    return _mergeLocalFlashcards(finalStats);
   }
 
   Future<void> refresh() async {
@@ -199,6 +248,22 @@ class UserStatsNotifier extends AsyncNotifier<UserStats> {
     if (localCount == 0) return stats;
     return stats.copyWith(flashcardsToday: localCount);
   }
+}
+
+int _effectiveStreak(int streak, Object? rawLastActivityDay) {
+  if (streak <= 0 || rawLastActivityDay is! String) return streak;
+
+  final lastActivityDay = DateTime.tryParse(rawLastActivityDay);
+  if (lastActivityDay == null) return streak;
+
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final normalizedLastActivity = DateTime(
+    lastActivityDay.year,
+    lastActivityDay.month,
+    lastActivityDay.day,
+  );
+  return today.difference(normalizedLastActivity).inDays >= 1 ? 0 : streak;
 }
 
 int _readInt(Map<String, dynamic> data, List<String> keys) {
@@ -253,7 +318,10 @@ int _computeXpToNextLevel(int xp) {
 }
 
 final userStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
-  (ref) => fetchUserStatsPayload(ref),
+  (ref) {
+    ref.watch(accountSessionEpochProvider);
+    return fetchUserStatsPayload(ref);
+  },
 );
 
 final userStatsNotifierProvider =

@@ -63,7 +63,7 @@ class AppBottomNav extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              height: 64,
+              height: 50 + MediaQuery.textScalerOf(context).scale(10) * 2.4,
               decoration: BoxDecoration(
                 color: AppColors.surface.withOpacity(0.90),
                 borderRadius: BorderRadius.circular(24),
@@ -126,11 +126,13 @@ class AppBottomNav extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             item.label,
+                            maxLines: 2,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 10,
-                              fontWeight: isActive
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              fontWeight:
+                                  isActive ? FontWeight.w700 : FontWeight.w500,
                               color: isActive
                                   ? AppColors.textPrimary
                                   : AppColors.textMuted,

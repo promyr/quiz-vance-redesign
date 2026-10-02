@@ -1,6 +1,5 @@
-import 'dart:io';
+import 'dart:async';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,9 +10,15 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/app_bottom_nav.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
 import '../application/library_actions_coordinator.dart';
-import '../application/study_document_import.dart';
+import '../application/library_document_recovery.dart';
+import '../application/study_document_picker.dart';
+import '../application/study_document_upload_source.dart';
 import '../data/library_repository.dart';
 import '../domain/library_model.dart';
+import '../../study_plan/data/study_plan_repository.dart';
+import '../../study_plan/domain/study_document.dart';
+
+part 'library_document_cards.dart';
 
 /// Tela principal da biblioteca de materiais de estudo.
 ///
@@ -31,6 +36,69 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   bool _showAddDialog = false;
+  bool _recoveringDocuments = false;
+  List<StudyDocument> _libraryDocuments = const [];
+  Timer? _documentPollTimer;
+  int _pollIntervalSeconds = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_resumeLibraryDocuments());
+  }
+
+  @override
+  void dispose() {
+    _documentPollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _resumeLibraryDocuments() async {
+    if (_recoveringDocuments) return;
+    _recoveringDocuments = true;
+    try {
+      final result = await LibraryDocumentRecovery(
+        libraryRepository: ref.read(libraryRepositoryProvider),
+        documentRepository: ref.read(studyPlanRepositoryProvider),
+      ).resume();
+      if (!mounted) return;
+      setState(() => _libraryDocuments = result.documents);
+      if (result.importedCount > 0) {
+        ref.invalidate(libraryFilesProvider);
+      }
+      _documentPollTimer?.cancel();
+      if (result.hasPending) {
+        _documentPollTimer = Timer(
+          Duration(seconds: _pollIntervalSeconds),
+          () {
+            if (!mounted) return;
+            // Backoff exponencial para poupar bateria: 3s -> 6s -> 12s -> máx 24s
+            _pollIntervalSeconds = (_pollIntervalSeconds * 2).clamp(3, 24);
+            unawaited(_resumeLibraryDocuments());
+          },
+        );
+      } else {
+        _pollIntervalSeconds = 3;
+      }
+    } catch (_) {
+      // Mantem os cards atuais e tenta novamente no proximo ciclo.
+    } finally {
+      _recoveringDocuments = false;
+    }
+  }
+
+  Future<void> _onLibraryUploadQueued(StudyDocument document) async {
+    if (!mounted) return;
+    _pollIntervalSeconds = 3;
+    setState(() {
+      _showAddDialog = false;
+      _libraryDocuments = [
+        document,
+        ..._libraryDocuments.where((item) => item.id != document.id),
+      ];
+    });
+    await _resumeLibraryDocuments();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +106,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: AppBottomNav(currentIndex: 3),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
       body: Stack(
         children: [
           SafeArea(
@@ -79,6 +147,34 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           fontWeight: FontWeight.w900,
                         ),
                       ),
+                      const Spacer(),
+                      PopupMenuButton<String>(
+                        tooltip: 'Menu da Biblioteca',
+                        icon: const Icon(Icons.more_vert_rounded,
+                            color: AppColors.textPrimary),
+                        color: AppColors.surface,
+                        onSelected: (value) {
+                          if (value == 'studyPlan') {
+                            context.push('/study-plan');
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'studyPlan',
+                            child: Row(
+                              children: [
+                                Icon(Icons.calendar_month_rounded,
+                                    color: AppColors.primary, size: 20),
+                                SizedBox(width: 12),
+                                Expanded(
+                                    child: Text('Plano de estudos',
+                                        style: TextStyle(
+                                            color: AppColors.textPrimary))),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -97,10 +193,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       ),
                     ),
                     data: (files) {
-                      if (files.isEmpty) {
+                      final visibleDocuments = _libraryDocuments
+                          .where(
+                            (document) =>
+                                document.status != StudyDocumentStatus.ready &&
+                                document.status != StudyDocumentStatus.deleted,
+                          )
+                          .toList(growable: false);
+                      if (files.isEmpty && visibleDocuments.isEmpty) {
                         return _buildEmptyState();
                       }
-                      return _buildFilesList(files);
+                      return _buildFilesList(files, visibleDocuments);
                     },
                   ),
                 ),
@@ -109,6 +212,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: GestureDetector(
+                    key: const Key('libraryAddMaterialButton'),
                     onTap: () => setState(() => _showAddDialog = true),
                     child: Container(
                       height: 52,
@@ -159,6 +263,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       child: GestureDetector(
                         onTap: () {}, // impede fechar ao tocar no form
                         child: _AddFileForm(
+                          documentRepository:
+                              ref.read(studyPlanRepositoryProvider),
+                          onUploadQueued: _onLibraryUploadQueued,
                           onSave: (nome, categoria, conteudo) async {
                             try {
                               await ref
@@ -212,28 +319,36 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         title: 'Biblioteca vazia',
         subtitle:
             'Adicione seu primeiro material de estudo para gerar quizzes e flashcards personalizados.',
-        ctaLabel: '+ Adicionar material',
-        onCtaTap: () => setState(() => _showAddDialog = true),
       ),
     );
   }
 
   /// Lista de arquivos com cards.
-  Widget _buildFilesList(List<LibraryFile> files) {
+  Widget _buildFilesList(
+    List<LibraryFile> files,
+    List<StudyDocument> documents,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Column(
-        children: List.generate(
-          files.length,
-          (index) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _FileCard(
-              file: files[index],
-              onDelete: () => _deleteFile(files[index].id),
-              onGeneratePackage: () => _generatePackage(files[index]),
+        children: [
+          for (final document in documents)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _DocumentProcessingCard(document: document),
+            ),
+          ...List.generate(
+            files.length,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _FileCard(
+                file: files[index],
+                onDelete: () => _deleteFile(files[index].id),
+                onGeneratePackage: () => _generatePackage(files[index]),
+              ),
             ),
           ),
-        ).animate(interval: 60.ms).fadeIn().slideY(begin: 0.05, end: 0),
+        ].animate(interval: 60.ms).fadeIn().slideY(begin: 0.05, end: 0),
       ),
     );
   }
@@ -310,15 +425,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           extra: {'package': package, 'file': file},
         );
       }
-    } on StudyDocumentTooLargeException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('O arquivo deve ter no maximo 10 MB.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
@@ -336,145 +442,27 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
   }
 }
-/// Card para exibir um arquivo da biblioteca.
-class _FileCard extends StatelessWidget {
-  const _FileCard({
-    required this.file,
-    required this.onDelete,
-    required this.onGeneratePackage,
-  });
 
-  final LibraryFile file;
-  final VoidCallback onDelete;
-  final VoidCallback onGeneratePackage;
-
-  @override
-  Widget build(BuildContext context) {
-    final formattedDate =
-        '${file.criadoEm.day}/${file.criadoEm.month}/${file.criadoEm.year}';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface2,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Nome e categoria
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      file.nome,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${file.categoria ?? 'Geral'} • $formattedDate',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: onDelete,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text('🗑️', style: TextStyle(fontSize: 18)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Preview do conteúdo
-          Text(
-            file.conteudo.length > 80
-                ? '${file.conteudo.substring(0, 80)}...'
-                : file.conteudo,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              height: 1.4,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 12),
-
-          // Botão Gerar Pacote
-          GestureDetector(
-            onTap: onGeneratePackage,
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primary),
-              ),
-              child: const Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '🧠 Gerar Pacote',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Modos de entrada de conteúdo no formulário.
 enum _InputMode { text, file }
 
 /// Formulário para adicionar novo arquivo.
 ///
 /// Suporta dois modos:
 /// - [_InputMode.text]: digitar/colar conteúdo manualmente
-/// - [_InputMode.file]: importar PDF ou TXT com extração de texto automática
+/// - [_InputMode.file]: importar PDF com extração de texto automática
 class _AddFileForm extends StatefulWidget {
   const _AddFileForm({
     required this.onSave,
     required this.onCancel,
+    required this.onUploadQueued,
+    required this.documentRepository,
   });
 
   final Future<void> Function(String nome, String? categoria, String conteudo)
       onSave;
   final VoidCallback onCancel;
+  final Future<void> Function(StudyDocument document) onUploadQueued;
+  final StudyPlanRepository documentRepository;
 
   @override
   State<_AddFileForm> createState() => _AddFileFormState();
@@ -488,6 +476,7 @@ class _AddFileFormState extends State<_AddFileForm> {
   _InputMode _mode = _InputMode.text;
   bool _loading = false;
   bool _extracting = false;
+  int _extractionProgress = 0;
   String? _pickedFileName;
 
   @override
@@ -506,81 +495,73 @@ class _AddFileFormState extends State<_AddFileForm> {
     super.dispose();
   }
 
-  /// Abre o seletor de arquivos e extrai texto do PDF ou TXT.
+  /// Abre o seletor de arquivos e extrai texto de um PDF.
+
   Future<void> _pickFile() async {
-    setState(() => _extracting = true);
+    setState(() {
+      _extracting = true;
+      _extractionProgress = 0;
+    });
+    PickedStudyDocument? pickedDocument;
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'txt', 'md'],
-        withData: false,
+      pickedDocument = await pickStudyDocumentPdf();
+      if (pickedDocument == null) return;
+      final source = pickedDocument.source;
+      final uploaded = await widget.documentRepository.uploadDocument(
+        purpose: StudyDocumentPurpose.library,
+        fileName: source.fileName,
+        length: source.length,
+        openRead: source.openRead,
+        onProgress: (sent, total) {
+          if (!mounted || total <= 0) return;
+          setState(() {
+            _extractionProgress = (sent * 40 / total).round().clamp(0, 40);
+          });
+        },
       );
-
-      if (result == null || result.files.isEmpty) return;
-
-      final picked = result.files.first;
-      if (picked.size > maxStudyDocumentBytes) {
-        throw const StudyDocumentTooLargeException();
-      }
-      final path = picked.path;
-      if (path == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível ler o arquivo')),
-          );
-        }
-        return;
-      }
-
-      final bytes = await File(path).readAsBytes();
-      final text = await extractStudyDocumentText(
-        bytes: bytes,
-        extension: picked.extension ?? '',
+      if (!mounted) return;
+      setState(() => _extractionProgress = 40);
+      await widget.onUploadQueued(uploaded);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '"${pickedDocument.displayName}" foi enviado e continuara em segundo plano.',
+          ),
+          backgroundColor: AppColors.primary,
+        ),
       );
-      /* Legacy inline extraction replaced by the isolated importer.
-      String legacyText;
-      final ext = picked.extension?.toLowerCase() ?? '';
-
-      if (ext == 'pdf') {
-        final doc = PdfDocument(inputBytes: bytes);
-        legacyText = PdfTextExtractor(doc).extractText();
-        doc.dispose();
-      } else {
-        // TXT ou MD — leitura direta como UTF-8
-        legacyText = utf8.decode(bytes, allowMalformed: true);
-      }
-
-      // Normaliza espaçamento excessivo
-      legacyText = legacyText
-          .replaceAll(RegExp(r'[ \t]{3,}'), ' ')
-          .replaceAll(RegExp(r'\n{4,}'), '\n\n')
-          .trim();
-      */
-
-      if (mounted) {
-        setState(() {
-          _pickedFileName = picked.name;
-          _conteudoCtrl.text = text;
-          // Auto-preenche nome somente se ainda vazio
-          if (_nomeCtrl.text.trim().isEmpty) {
-            final nameWithoutExt =
-                picked.name.replaceAll(RegExp(r'\.[^.]+$'), '');
-            _nomeCtrl.text = nameWithoutExt;
-          }
-        });
-      }
-    } catch (e) {
+    } on StudyDocumentUploadException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-                'Não foi possível processar o arquivo. Tente novamente.'),
+            content: Text(error.message),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              userVisibleErrorMessage(
+                error,
+                fallback: 'Nao foi possivel importar o PDF.',
+              ),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
       }
     } finally {
-      if (mounted) setState(() => _extracting = false);
+      await pickedDocument?.dispose();
+      if (mounted) {
+        setState(() {
+          _extracting = false;
+          if (_extractionProgress < 100) _extractionProgress = 0;
+        });
+      }
     }
   }
 
@@ -634,7 +615,7 @@ class _AddFileFormState extends State<_AddFileForm> {
             Row(
               children: [
                 _ModeTab(
-                  label: '✍️  Digitar texto',
+                  label: 'Texto manual',
                   selected: _mode == _InputMode.text,
                   onTap: () => setState(() {
                     _mode = _InputMode.text;
@@ -643,7 +624,7 @@ class _AddFileFormState extends State<_AddFileForm> {
                 ),
                 const SizedBox(width: 8),
                 _ModeTab(
-                  label: '📎  Importar arquivo',
+                  label: 'PDF',
                   selected: _mode == _InputMode.file,
                   onTap: () => setState(() => _mode = _InputMode.file),
                 ),
@@ -651,48 +632,50 @@ class _AddFileFormState extends State<_AddFileForm> {
             ),
             const SizedBox(height: 20),
 
-            // ── Nome ─────────────────────────────────────────────────
-            const Text(
-              'Nome/Título',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            if (_mode == _InputMode.text) ...[
+              // ── Nome ───────────────────────────────────────────────
+              const Text(
+                'Nome/Título',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _nomeCtrl,
-              decoration: const InputDecoration(
-                hintText: 'Ex: Anotações de Química Orgânica',
-                prefixIcon: Icon(Icons.title_rounded),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _nomeCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'Ex: Anotações de Química Orgânica',
+                  prefixIcon: Icon(Icons.title_rounded),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // ── Categoria ─────────────────────────────────────────────
-            const Text(
-              'Categoria (opcional)',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+              // ── Categoria ─────────────────────────────────────────
+              const Text(
+                'Categoria (opcional)',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _categoriaCtrl,
-              decoration: const InputDecoration(
-                hintText: 'Ex: Química, Biologia, História…',
-                prefixIcon: Icon(Icons.label_outline),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _categoriaCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'Ex: Química, Biologia, História…',
+                  prefixIcon: Icon(Icons.label_outline),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
 
             // ── Conteúdo: texto ou arquivo ────────────────────────────
-            const Text(
-              'Conteúdo',
-              style: TextStyle(
+            Text(
+              _mode == _InputMode.text ? 'Conteúdo' : 'Arquivo PDF',
+              style: const TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -729,10 +712,10 @@ class _AddFileFormState extends State<_AddFileForm> {
                   ),
                   child: Center(
                     child: _extracting
-                        ? const Row(
+                        ? Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              SizedBox(
+                              const SizedBox(
                                 width: 16,
                                 height: 16,
                                 child: CircularProgressIndicator(
@@ -740,10 +723,10 @@ class _AddFileFormState extends State<_AddFileForm> {
                                   color: AppColors.primary,
                                 ),
                               ),
-                              SizedBox(width: 10),
+                              const SizedBox(width: 10),
                               Text(
-                                'Extraindo texto…',
-                                style: TextStyle(
+                                'Processando PDF ($_extractionProgress%)',
+                                style: const TextStyle(
                                   color: AppColors.primary,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -765,7 +748,7 @@ class _AddFileFormState extends State<_AddFileForm> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                _pickedFileName ?? 'Selecionar PDF ou TXT',
+                                _pickedFileName ?? 'Selecionar PDF',
                                 style: TextStyle(
                                   color: _pickedFileName != null
                                       ? AppColors.success
@@ -781,6 +764,22 @@ class _AddFileFormState extends State<_AddFileForm> {
                   ),
                 ),
               ),
+              if (_extracting) ...[
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: _extractionProgress / 100,
+                  backgroundColor: AppColors.surface2,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Upload, extracao por paginas e OCR seletivo no servidor.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
 
               // Preview do texto extraído
               if (_conteudoCtrl.text.isNotEmpty) ...[
@@ -861,38 +860,40 @@ class _AddFileFormState extends State<_AddFileForm> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _loading ? null : _save,
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Center(
-                        child: _loading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                if (_mode == _InputMode.text) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _loading ? null : _save,
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Salvar',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              )
-                            : const Text(
-                                'Salvar',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ],

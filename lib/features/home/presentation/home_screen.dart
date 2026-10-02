@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,11 +7,21 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/providers/auth_provider.dart';
 import '../../../shared/providers/user_provider.dart';
+import '../../../shared/widgets/active_plan_card.dart';
+import '../../../shared/widgets/adaptive_hero_card.dart';
 import '../../../shared/widgets/app_bottom_nav.dart';
 import '../../../shared/widgets/app_shimmer.dart';
+import '../../../shared/widgets/bento_tile.dart';
+import '../../../shared/widgets/neo_glass_card.dart';
 import '../../../shared/widgets/offline_banner.dart';
+import '../../../shared/widgets/streak_badge.dart';
+import '../../error_notebook/providers/error_notebook_provider.dart';
 import '../../profile/data/billing_repository.dart';
 import '../../profile/presentation/premium_upsell_dialog.dart';
+import '../../quiz/providers/quiz_do_dia_provider.dart';
+
+part 'home_action_sections.dart';
+part 'home_progress_sections.dart';
 
 class PremiumUpsellDecision {
   const PremiumUpsellDecision._(this.shouldShow);
@@ -125,6 +136,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final statsAsync = ref.watch(userStatsNotifierProvider);
     final firstName = authState?.name?.split(' ').first ?? 'Estudante';
     final initials = _initials(authState?.name);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final gridColumns = screenWidth < 360 || textScale > 1.3 ? 1 : 2;
+    final gridHeight = 110 + 76 * textScale;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -189,7 +204,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       constraints: const BoxConstraints(),
                     ),
                   ],
-                ).animate().fadeIn(duration: 400.ms),
+                ),
               ),
             ),
 
@@ -201,28 +216,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // Compact stats row
             SliverToBoxAdapter(
               child: statsAsync.when(
-                data: (stats) => Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                  child: Row(
-                    children: [
-                      // Card 1: Streak
-                      Expanded(
-                        flex: 1,
-                        child: _StreakCard(streak: stats.streak),
-                      ),
-                      const SizedBox(width: 12),
-                      // Card 2: Quota banner
-                      Expanded(
-                        flex: 2,
-                        child: _QuotaBanner(
-                          quizRestante: stats.quizRestante ?? 0,
-                          quizLimite: stats.quizLimite ?? 0,
-                          isPremium: stats.isPremium,
+                data: (stats) {
+                  final bool stackCards = screenWidth < 390 || textScale > 1.15;
+                  final double card1Width = stackCards
+                      ? screenWidth - 40
+                      : (screenWidth - 52) * 0.38;
+                  final double card2Width = stackCards
+                      ? screenWidth - 40
+                      : (screenWidth - 52) * 0.62;
+
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        // Card 1: Streak
+                        SizedBox(
+                          width: card1Width,
+                          child: _StreakCard(
+                            streak: stats.streak,
+                            compact: screenWidth < 420 || textScale > 1.15,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
+                        // Card 2: Quota banner
+                        SizedBox(
+                          width: card2Width,
+                          child: _QuotaBanner(
+                            quizRestante: stats.quizRestante ?? 0,
+                            quizLimite: stats.quizLimite ?? 0,
+                            isPremium: (ref
+                                        .watch(authStateNotifierProvider)
+                                        .valueOrNull
+                                        ?.isAdmin ==
+                                    true ||
+                                ref
+                                        .watch(authStateNotifierProvider)
+                                        .valueOrNull
+                                        ?.isPremium ==
+                                    true ||
+                                stats.isPremium ||
+                                ref
+                                        .watch(billingStatusProvider)
+                                        .valueOrNull
+                                        ?.isPremium ==
+                                    true),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
                 loading: () => const Padding(
                   padding: EdgeInsets.fromLTRB(20, 12, 20, 12),
                   child: AppShimmerCard(height: 74),
@@ -239,17 +283,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(),
             ),
 
-            // Priority Action Card
+            // Card de Destaque: Continuar Plano de Estudos
+            const SliverToBoxAdapter(
+              child: ActivePlanCard(),
+            ),
+
+            // Streak Danger Banner (se não estudou hoje e tem streak ativo)
             SliverToBoxAdapter(
               child: statsAsync.whenOrNull(
-                    data: (stats) => Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                      child: _PriorityActionCard(
-                        firstName: firstName,
-                        xp: stats.xp,
-                        xpToNextLevel: stats.xpToNextLevel,
-                        level: stats.level,
-                      ),
+                    data: (stats) {
+                      if (stats.streak > 0 &&
+                          stats.quizRestante != null &&
+                          stats.quizLimite != null &&
+                          stats.quizRestante == stats.quizLimite) {
+                        return _StreakDangerBanner(streak: stats.streak);
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ) ??
+                  const SizedBox.shrink(),
+            ),
+
+            // Adaptive Hero Card (Missão do Turno)
+            SliverToBoxAdapter(
+              child: statsAsync.whenOrNull(
+                    data: (stats) => AdaptiveHeroCard(
+                      firstName: firstName,
+                      streak: stats.streak,
                     ),
                   ) ??
                   const SizedBox(),
@@ -308,6 +368,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(),
             ),
 
+            // Quiz do Dia (Desafio Coletivo Diário)
+            const SliverToBoxAdapter(
+              child: _QuizDoDiaBanner(),
+            ),
+
+            // Caderno de Erros (Revisão Inteligente de Erros)
+            const SliverToBoxAdapter(
+              child: _ErrorNotebookBanner(),
+            ),
+
             // Section label: MODOS DE ESTUDO & GERAÇÃO DE PERGUNTAS
             const SliverToBoxAdapter(
               child: Padding(
@@ -324,57 +394,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // Grid com todos os modos de estudo
+            // Bento Grid com os modos rápidos de estudo
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               sliver: SliverGrid.count(
-                crossAxisCount: 2,
+                crossAxisCount: gridColumns,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.1,
+                childAspectRatio: ((screenWidth - 40 - 12 * (gridColumns - 1)) /
+                        gridColumns) /
+                    gridHeight,
                 children: [
-                  _HomeModeCard(
+                  BentoTile(
                     icon: Icons.auto_awesome_rounded,
-                    title: 'Gerar Quiz IA',
-                    subtitle: 'Múltipla escolha adaptativa',
-                    badge: 'Popular',
-                    color: AppColors.primary,
+                    title: 'Quiz IA Turbo',
+                    subtitle: 'Gerado sob medida',
+                    badgeText: 'POPULAR',
+                    iconColor: AppColors.primaryLight,
                     onTap: () => context.go('/quiz'),
                   ),
-                  _HomeModeCard(
+                  BentoTile(
                     icon: Icons.edit_note_rounded,
                     title: 'Dissertativo',
-                    subtitle: 'Questões abertas com IA',
-                    badge: 'Novo',
-                    color: AppColors.accent,
+                    subtitle: 'Correção por IA',
+                    badgeText: 'NOVO',
+                    iconColor: AppColors.accent,
                     onTap: () => context.push('/open-quiz'),
                   ),
-                  _HomeModeCard(
+                  BentoTile(
                     icon: Icons.assignment_rounded,
-                    title: 'Simulado',
-                    subtitle: 'Exame cronometrado',
-                    badge: '45 min',
-                    color: AppColors.xpGold,
+                    title: 'Simulado Oficial',
+                    subtitle: 'Cronômetro real',
+                    badgeText: 'RANKEADO',
+                    iconColor: AppColors.xpGold,
                     onTap: () => context.go('/simulado'),
                   ),
-                  _HomeModeCard(
+                  BentoTile(
                     icon: Icons.style_rounded,
-                    title: 'Flashcards',
-                    subtitle: 'Repetição espaçada SRS',
-                    badge: 'SRS',
-                    color: AppColors.success,
+                    title: 'Flashcards SRS',
+                    subtitle: 'Repetição espaçada',
+                    badgeText: 'MEMÓRIA',
+                    iconColor: AppColors.success,
                     onTap: () => context.go('/flashcards'),
                   ),
                 ],
               ),
             ),
 
-            // Section label: FILA INTELIGENTE
+            // Section label: SUA TRILHA DE HOJE
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(20, 28, 20, 16),
                 child: Text(
-                  'FILA INTELIGENTE',
+                  'SUA TRILHA DE HOJE',
                   style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 10,
@@ -396,7 +468,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             number: 1,
                             title: 'Quiz IA disponível',
                             subtitle:
-                                'Questões adaptativas · ${stats.quizRestante ?? 0} restantes hoje',
+                                'Personalizado para você · ${stats.quizRestante ?? 0} restantes hoje',
                             badgeLabel: 'Quiz',
                             badgeColor: AppColors.primary,
                             onTap: () => context.go('/quiz'),
@@ -404,20 +476,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(height: 12),
                           _SmartQueueItem(
                             number: 2,
-                            title: 'Flashcards SRS',
+                            title: 'Flashcards de Revisão',
                             subtitle: 'Revise cards pendentes do seu deck',
                             badgeLabel: 'Cards',
                             badgeColor: AppColors.success,
                             onTap: () => context.go('/flashcards'),
-                          ),
-                          const SizedBox(height: 12),
-                          _SmartQueueItem(
-                            number: 3,
-                            title: 'Plano de Estudo',
-                            subtitle: 'Acompanhe seu progresso semanal',
-                            badgeLabel: 'Plano',
-                            badgeColor: AppColors.xpGold,
-                            onTap: () => context.push('/study-plan'),
                           ),
                         ],
                       ),
@@ -427,613 +490,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
 
             const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StreakCard extends StatelessWidget {
-  const _StreakCard({required this.streak});
-  final int streak;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFFF6B6B).withOpacity(0.15),
-            const Color(0xFFFF9F43).withOpacity(0.10),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '🔥',
-            style: TextStyle(fontSize: 20),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '$streak',
-            style: const TextStyle(
-              color: AppColors.accent,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const Text(
-            'dias seguidos',
-            style: TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuotaBanner extends StatelessWidget {
-  const _QuotaBanner({
-    required this.quizRestante,
-    required this.quizLimite,
-    required this.isPremium,
-  });
-
-  final int quizRestante;
-  final int quizLimite;
-  final bool isPremium;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isPremium) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.xpGold.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.xpGold.withOpacity(0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'Premium ativo',
-              style: TextStyle(
-                color: AppColors.xpGold,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              '∞',
-              style: TextStyle(
-                color: AppColors.xpGold,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.xpGold.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.xpGold.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$quizRestante de $quizLimite quizzes gratuitos',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Seja Premium →',
-                  style: TextStyle(
-                    color: AppColors.xpGold,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _XPBar extends StatelessWidget {
-  const _XPBar({required this.stats});
-  final dynamic stats;
-
-  @override
-  Widget build(BuildContext context) {
-    final level = stats.level ?? 1;
-    final xp = stats.xp ?? 0;
-    final xpToNextLevel = stats.xpToNextLevel ?? 100;
-    final progress = xpToNextLevel > 0 ? (xp % 100) / 100.0 : 1.0;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '⚡ Nível $level · Bronze',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  '+$xp XP',
-                  style: const TextStyle(
-                    color: AppColors.xpGold,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(100),
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: AppColors.border,
-                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-                minHeight: 6,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PriorityActionCard extends StatelessWidget {
-  const _PriorityActionCard({
-    required this.firstName,
-    required this.xp,
-    required this.xpToNextLevel,
-    required this.level,
-  });
-
-  final String firstName;
-  final int xp;
-  final int xpToNextLevel;
-  final int level;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = xpToNextLevel > 0 ? (xp % 100) / 100.0 : 1.0;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.35),
-          width: 1.5,
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Background gradient
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1e1e35), Color(0xFF252245)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          // Top accent line
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 2,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(14),
-                  topRight: Radius.circular(14),
-                ),
-                gradient: LinearGradient(
-                  colors: const [
-                    AppColors.primary,
-                    AppColors.primaryLight,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '▶ PRÓXIMA AÇÃO',
-                  style: TextStyle(
-                    color: AppColors.primaryLight,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Continuar estudando',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Estude hoje para manter seu progresso',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Progress bar row
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${(progress * 100).toStringAsFixed(0)}%',
-                          style: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          '${(xp % 100).toInt()}/100 XP',
-                          style: const TextStyle(
-                            color: AppColors.xpGold,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(100),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        backgroundColor: AppColors.border,
-                        valueColor:
-                            const AlwaysStoppedAnimation(AppColors.primary),
-                        minHeight: 4,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                // CTA Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => context.go('/estudar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      '✦ Iniciar agora',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WeeklyStat extends StatelessWidget {
-  const _WeeklyStat({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  final String value;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HomeModeCard extends StatelessWidget {
-  const _HomeModeCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.badge,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String badge;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    badge,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 10,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SmartQueueItem extends StatelessWidget {
-  const _SmartQueueItem({
-    required this.number,
-    required this.title,
-    required this.subtitle,
-    required this.badgeLabel,
-    required this.badgeColor,
-    required this.onTap,
-  });
-
-  final int number;
-  final String title;
-  final String subtitle;
-  final String badgeLabel;
-  final Color badgeColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            // Number circle
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  '$number',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Title + subtitle
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: badgeColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: badgeColor.withOpacity(0.4)),
-              ),
-              child: Text(
-                badgeLabel,
-                style: TextStyle(
-                  color: badgeColor,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
           ],
         ),
       ),

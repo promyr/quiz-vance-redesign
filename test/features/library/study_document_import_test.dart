@@ -3,38 +3,77 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_vance_flutter/features/library/application/study_document_import.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('normalizes imported text', () async {
+  test('extracts text from a valid PDF', () async {
+    final document = PdfDocument();
+    document.pages.add().graphics.drawString(
+          'Titulo teste Texto',
+          PdfStandardFont(PdfFontFamily.helvetica, 12),
+        );
+    final bytes = Uint8List.fromList(await document.save());
+    document.dispose();
+
     final text = await extractStudyDocumentText(
-      bytes: Uint8List.fromList(utf8.encode('Titulo    teste\n\n\n\nTexto')),
-      extension: 'txt',
+      bytes: bytes,
+      extension: 'pdf',
+      mimeType: 'application/pdf',
     );
 
-    expect(text, 'Titulo teste\n\nTexto');
+    expect(text, contains('Titulo teste'));
   });
 
-  test('rejects a document above the safe byte limit', () {
+  test('accepts a PDF header with a provider prefix', () async {
+    final document = PdfDocument();
+    document.pages.add().graphics.drawString(
+          'PDF com prefixo',
+          PdfStandardFont(PdfFontFamily.helvetica, 12),
+        );
+    final original = Uint8List.fromList(await document.save());
+    document.dispose();
+
+    final bytes = Uint8List.fromList(<int>[0, 1, 2, ...original]);
+    final text = await extractStudyDocumentText(
+      bytes: bytes,
+      extension: '',
+      mimeType: 'application/pdf',
+    );
+
+    expect(text, contains('PDF com prefixo'));
+  });
+
+  test('rejects text files because the library accepts PDF only', () {
     expect(
       () => extractStudyDocumentText(
-        bytes: Uint8List(maxStudyDocumentBytes + 1),
+        bytes: Uint8List.fromList(utf8.encode('texto')),
         extension: 'txt',
       ),
-      throwsA(isA<StudyDocumentTooLargeException>()),
+      throwsA(isA<StudyDocumentTypeException>()),
     );
   });
 
-  test('caps extracted text kept in memory', () async {
-    final text = await extractStudyDocumentText(
-      bytes: Uint8List.fromList(
-        utf8.encode('a' * (maxStudyDocumentCharacters + 20)),
+  test('rejects a file renamed to pdf without a PDF signature', () {
+    expect(
+      () => extractStudyDocumentText(
+        bytes: Uint8List.fromList(utf8.encode('not really a pdf')),
+        extension: 'pdf',
+        mimeType: 'application/pdf',
       ),
-      extension: 'md',
+      throwsA(isA<StudyDocumentTypeException>()),
     );
+  });
 
-    expect(text.length, maxStudyDocumentCharacters);
+  test('rejects binary content renamed to txt', () {
+    expect(
+      () => extractStudyDocumentText(
+        bytes: Uint8List.fromList([0, 1, 2, 3, 0, 255]),
+        extension: 'txt',
+        mimeType: 'text/plain',
+      ),
+      throwsA(isA<StudyDocumentTypeException>()),
+    );
   });
 }
-

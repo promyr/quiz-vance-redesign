@@ -302,7 +302,7 @@ class _FlashcardHubScreenState extends ConsumerState<FlashcardHubScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    'Gerar Flashcards com IA',
+                                    'Gerar Flashcards',
                                     style: TextStyle(
                                       color: AppColors.textPrimary,
                                       fontSize: 14,

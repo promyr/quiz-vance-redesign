@@ -29,7 +29,8 @@ class StatsScreen extends ConsumerWidget {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => context.canPop() ? context.pop() : context.go('/'),
+                    onTap: () =>
+                        context.canPop() ? context.pop() : context.go('/'),
                     child: Container(
                       width: 34,
                       height: 34,
@@ -64,7 +65,8 @@ class StatsScreen extends ConsumerWidget {
                   child: CircularProgressIndicator(color: AppColors.primary),
                 ),
                 error: (_, __) => _StatsError(
-                  onRetry: () => ref.read(userStatsNotifierProvider.notifier).refresh(),
+                  onRetry: () =>
+                      ref.read(userStatsNotifierProvider.notifier).refresh(),
                 ),
                 data: (stats) {
                   final dailyProgress =
@@ -72,7 +74,8 @@ class StatsScreen extends ConsumerWidget {
 
                   return RefreshIndicator(
                     color: AppColors.primary,
-                    onRefresh: () => ref.read(userStatsNotifierProvider.notifier).refresh(),
+                    onRefresh: () =>
+                        ref.read(userStatsNotifierProvider.notifier).refresh(),
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
                       children: [
@@ -127,7 +130,8 @@ class StatsScreen extends ConsumerWidget {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Progresso do dia',
@@ -154,14 +158,16 @@ class StatsScreen extends ConsumerWidget {
                                   value: dailyProgress,
                                   minHeight: 8,
                                   backgroundColor: AppColors.surface2,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
                                     AppColors.primary,
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 12),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   _InfoPill(
                                     label: 'Acertos hoje',
@@ -189,7 +195,8 @@ class StatsScreen extends ConsumerWidget {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Taxa de acerto',
@@ -217,7 +224,8 @@ class StatsScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 14),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Flashcards hoje',
@@ -516,6 +524,9 @@ class _MetricCard extends StatelessWidget {
           ),
         ],
       ),
-    ).animate(delay: (index * 80).ms).fadeIn(duration: 300.ms).slideY(begin: 0.05);
+    )
+        .animate(delay: (index * 80).ms)
+        .fadeIn(duration: 300.ms)
+        .slideY(begin: 0.05);
   }
 }

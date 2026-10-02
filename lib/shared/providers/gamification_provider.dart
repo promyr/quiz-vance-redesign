@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/conquistas/data/achievement_repository.dart';
 import '../../features/conquistas/domain/achievement_catalog.dart';
 import '../application/account_scoped_preferences.dart';
+import 'account_session_epoch_provider.dart';
 
 class GamificationState {
   const GamificationState({
@@ -76,13 +77,15 @@ const _lastStreakDateKey = 'gamif_last_streak_date';
 
 class GamificationNotifier extends AsyncNotifier<GamificationState> {
   Timer? _transientFlagTimer;
-  final AccountScopedPreferences _preferences = AccountScopedPreferences.instance;
+  final AccountScopedPreferences _preferences =
+      AccountScopedPreferences.instance;
 
   AchievementRepository get _achievementRepo =>
       ref.read(achievementRepositoryProvider);
 
   @override
   Future<GamificationState> build() async {
+    ref.watch(accountSessionEpochProvider);
     ref.onDispose(() => _transientFlagTimer?.cancel());
 
     final localAchievements =
@@ -289,8 +292,10 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
 
     if (lastStreakDateStr != null && lastStreakDateStr.isNotEmpty) {
       final now = DateTime.now();
-      final yesterdayStr =
-          now.subtract(const Duration(days: 1)).toIso8601String().substring(0, 10);
+      final yesterdayStr = now
+          .subtract(const Duration(days: 1))
+          .toIso8601String()
+          .substring(0, 10);
       if (lastStreakDateStr != yesterdayStr) {
         // Passou mais de 1 dia desde a última prática: resetar streak para 1
         await _preferences.setInt(_streakKey, 1);

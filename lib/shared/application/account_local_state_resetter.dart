@@ -31,7 +31,8 @@ class AccountLocalStateResetter {
 
   Future<void> clearAccountState() async {
     await _storage.clearAccountScopedData();
-    await _storage.deleteCacheValue(userStatsCacheKey);
+    await _storage.deleteCacheValue(userStatsCacheKey, scoped: true);
+    await _storage.deleteCacheValue(userStatsCacheKey, scoped: false);
     await _preferences.removeMany(
       _accountScopedPreferenceKeys,
       removeLegacyFallback: true,

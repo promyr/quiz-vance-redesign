@@ -23,7 +23,8 @@ void main() {
     );
   });
 
-  test('preparePackageForOffline saves file to repository and sets flag', () async {
+  test('preparePackageForOffline saves file to repository and sets flag',
+      () async {
     final file = LibraryFile(
       id: 101,
       nome: 'Direito Constitucional',

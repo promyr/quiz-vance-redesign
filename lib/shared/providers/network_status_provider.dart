@@ -16,7 +16,8 @@ class NetworkStatusNotifier extends StateNotifier<bool> {
 
   void _initCheck() {
     checkConnection();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) => checkConnection());
+    _timer =
+        Timer.periodic(const Duration(seconds: 15), (_) => checkConnection());
   }
 
   Future<void> checkConnection() async {

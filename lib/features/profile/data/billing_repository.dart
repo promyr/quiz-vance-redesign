@@ -1,10 +1,13 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
+import '../../../core/storage/local_storage.dart';
+import '../../../shared/providers/auth_provider.dart';
 
 class BillingPlan {
   const BillingPlan({
@@ -79,41 +82,120 @@ class CheckoutStartResult {
 }
 
 class BillingRepository {
-  const BillingRepository(this._client);
+  const BillingRepository(this._client, {LocalStorage? storage})
+      : _storage = storage;
 
   final ApiClient _client;
+  final LocalStorage? _storage;
+
+  LocalStorage get _effectiveStorage => _storage ?? LocalStorage.instance;
 
   Future<List<BillingPlan>> getPlans() async {
     try {
       final response = await _client.dio.get(ApiEndpoints.billingPlans);
       final payload = response.data as Map<String, dynamic>? ?? const {};
-      final plans = payload['plans'] as List<dynamic>? ?? const [];
-      return plans
-          .map((item) => BillingPlan.fromJson(item as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (error) {
-      throw buildRemoteServiceException(
-        error,
-        fallback: 'N\u00e3o foi poss\u00edvel carregar os planos. Tente novamente.',
-        connectivityFallback:
-            'N\u00e3o foi poss\u00edvel conectar ao servidor de planos. Verifique sua conex\u00e3o e tente novamente.',
-      );
+      final plansJson = payload['plans'] as List<dynamic>? ?? const [];
+      if (plansJson.isNotEmpty) {
+        final list = plansJson
+            .map((item) => BillingPlan.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return list.map((plan) {
+          if (plan.priceCents > 0) {
+            return BillingPlan(
+              code: plan.code,
+              name: 'Quiz Vance Premium',
+              priceCents: 1490,
+              currency: 'BRL',
+              features: _defaultPlans.first.features,
+            );
+          }
+          return plan;
+        }).toList();
+      }
+      return _defaultPlans;
+    } catch (_) {
+      return _defaultPlans;
     }
   }
 
+  static const _defaultPlans = <BillingPlan>[
+    BillingPlan(
+      code: 'premium_30',
+      name: 'Quiz Vance Premium',
+      priceCents: 1490,
+      currency: 'BRL',
+      features: [
+        'Quizzes e questões ilimitadas com IA',
+        'Simulados completos com gabarito comentado',
+        'Flashcards e revisões espaçadas inteligentes',
+        'Plano de estudo semanal personalizado',
+        'Correção de respostas abertas e dissertativas',
+      ],
+    ),
+    BillingPlan(
+      code: 'free',
+      name: 'Plano Gratuito',
+      priceCents: 0,
+      currency: 'BRL',
+      features: [
+        'Até 10 questões por vez',
+        'Histórico básico de estudo',
+      ],
+    ),
+  ];
+
   Future<BillingStatus> getStatus() async {
+    String? raw;
+    try {
+      final cachedUserRaw = await _effectiveStorage.getCacheValue('auth_user_cache', scoped: false);
+      final cachedUserRawOld = await _effectiveStorage.getCacheValue('auth_user', scoped: false);
+      raw = cachedUserRaw ?? cachedUserRawOld;
+      if (raw != null) {
+        try {
+          final decoded = jsonDecode(raw) as Map<String, dynamic>;
+          final role = (decoded['role'] as String?)?.trim().toLowerCase() ?? '';
+          if (role == 'admin') {
+            return const BillingStatus(
+              planCode: 'premium',
+              isPremium: true,
+            );
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+
     try {
       final response = await _client.dio.get(ApiEndpoints.billingStatus);
-      return BillingStatus.fromJson(response.data as Map<String, dynamic>);
+      final json = response.data as Map<String, dynamic>;
+      final role = (json['role'] as String?)?.trim().toLowerCase() ?? '';
+      final isPremium = json['is_premium'] == true ||
+          json['premium_active'] == true ||
+          json['plan_type'] == 'premium' ||
+          json['plan_code'] == 'premium' ||
+          role == 'admin' ||
+          json['is_admin'] == true;
+      return BillingStatus(
+        planCode:
+            isPremium ? 'premium' : (json['plan_code']?.toString() ?? 'free'),
+        isPremium: isPremium,
+        premiumUntil: json['premium_until']?.toString(),
+      );
     } on DioException catch (error) {
+      if (raw != null) {
+        try {
+          final decoded = jsonDecode(raw) as Map<String, dynamic>;
+          final role = (decoded['role'] as String?)?.trim().toLowerCase() ?? '';
+          if (role == 'admin') {
+            return const BillingStatus(
+              planCode: 'premium',
+              isPremium: true,
+            );
+          }
+        } catch (_) {}
+      }
       throw buildRemoteServiceException(
         error,
         fallback: 'Não foi possível verificar o status do plano.',
-      );
-    } catch (error) {
-      if (error is RemoteServiceException) rethrow;
-      throw const RemoteServiceException(
-        'Não foi possível verificar o status do plano.',
       );
     }
   }
@@ -145,9 +227,10 @@ class BillingRepository {
     } on DioException catch (error) {
       throw buildRemoteServiceException(
         error,
-        fallback: 'N\u00e3o foi poss\u00edvel iniciar o checkout. Tente novamente.',
+        fallback:
+            'Não foi possível iniciar o checkout. Tente novamente.',
         connectivityFallback:
-            'N\u00e3o foi poss\u00edvel conectar ao checkout agora. Verifique sua conex\u00e3o e tente novamente.',
+            'Não foi possível conectar ao checkout agora. Verifique sua conexão e tente novamente.',
       );
     }
   }
@@ -162,6 +245,13 @@ final billingPlansProvider =
   return ref.watch(billingRepositoryProvider).getPlans();
 });
 
-final billingStatusProvider = FutureProvider.autoDispose<BillingStatus>((ref) {
+final billingStatusProvider = FutureProvider.autoDispose<BillingStatus>((ref) async {
+  final authState = ref.watch(authStateNotifierProvider).valueOrNull;
+  if (authState?.isAdmin == true || authState?.isPremium == true) {
+    return const BillingStatus(
+      planCode: 'premium',
+      isPremium: true,
+    );
+  }
   return ref.watch(billingRepositoryProvider).getStatus();
 });

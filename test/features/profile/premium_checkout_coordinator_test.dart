@@ -14,7 +14,7 @@ void main() {
   const monthlyPlan = BillingPlan(
     code: 'premium_30',
     name: 'Premium Mensal',
-    priceCents: 1190,
+    priceCents: 1490,
     currency: 'BRL',
     features: [],
   );

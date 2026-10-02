@@ -59,7 +59,7 @@ void main() {
 
   test('gera simulado e retorna duracao em segundos', () async {
     when(() => aiGenerationGuard.ensureReadyForGeneration())
-        .thenAnswer((_) async => 'openai');
+        .thenAnswer((_) async => 'gemini');
     when(
       () => repository.generateExam(
         quantity: any(named: 'quantity'),
@@ -87,7 +87,7 @@ void main() {
         difficulty: 'mixed',
         topic: 'Matematica',
         conteudo: any(named: 'conteudo'),
-        aiProvider: 'openai',
+        aiProvider: 'gemini',
       ),
     ).called(1);
   });

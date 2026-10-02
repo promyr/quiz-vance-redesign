@@ -35,7 +35,8 @@ void main() {
       'ai_config_synced_provider': 'groq',
     });
 
-    tempDir = await Directory.systemTemp.createTemp('quiz_vance_account_reset_');
+    tempDir =
+        await Directory.systemTemp.createTemp('quiz_vance_account_reset_');
     databasePath = path.join(tempDir.path, 'quiz_vance.db');
     keyStore = MemoryLocalStorageKeyStore();
 
@@ -80,7 +81,8 @@ void main() {
       "INSERT INTO quiz_sessions (remote_id, account_id, data_json) VALUES (?, ?, ?)",
       ['sess-1', 'user-1', '{"score":10}'],
     );
-    await preferences.setString('study_plan_active', '{"objetivo":"Concurso A"}');
+    await preferences.setString(
+        'study_plan_active', '{"objetivo":"Concurso A"}');
     await preferences.setInt('gamif_xp', 150);
     await preferences.setString('ai_provider', 'groq');
 
@@ -104,9 +106,10 @@ void main() {
       "INSERT INTO quiz_sessions (remote_id, account_id, data_json) VALUES (?, ?, ?)",
       ['sess-2', 'user-2', '{"score":20}'],
     );
-    await preferences.setString('study_plan_active', '{"objetivo":"Concurso B"}');
+    await preferences.setString(
+        'study_plan_active', '{"objetivo":"Concurso B"}');
     await preferences.setInt('gamif_xp', 999);
-    await preferences.setString('ai_provider', 'openai');
+    await preferences.setString('ai_provider', 'gemini');
 
     storage.setActiveAccountId('user-1');
     preferences.setActiveAccountId('user-1');
@@ -142,6 +145,6 @@ void main() {
       '{"objetivo":"Concurso B"}',
     );
     expect(await preferences.getInt('gamif_xp'), 999);
-    expect(await preferences.getString('ai_provider'), 'openai');
+    expect(await preferences.getString('ai_provider'), 'gemini');
   });
 }

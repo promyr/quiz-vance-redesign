@@ -11,6 +11,7 @@ void main() {
         email: 'user@example.com',
         name: 'John Doe',
         avatarUrl: 'https://cdn.quizvance.app/avatar.png',
+        role: 'admin',
       );
 
       expect(state.isAuthenticated, isTrue);
@@ -18,6 +19,8 @@ void main() {
       expect(state.loginId, equals('john.doe'));
       expect(state.email, equals('user@example.com'));
       expect(state.name, equals('John Doe'));
+      expect(state.role, equals('admin'));
+      expect(state.isAdmin, isTrue);
       expect(
         state.avatarUrl,
         equals('https://cdn.quizvance.app/avatar.png'),
@@ -33,6 +36,8 @@ void main() {
       expect(state.email, isNull);
       expect(state.name, isNull);
       expect(state.avatarUrl, isNull);
+      expect(state.role, equals('user'));
+      expect(state.isAdmin, isFalse);
     });
 
     test('copyWith updates isAuthenticated', () {

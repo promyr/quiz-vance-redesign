@@ -89,7 +89,7 @@ void main() {
     expect(captured['user_numeric_id'], equals(42));
   });
 
-  test('propaga detail do backend ao carregar planos', () async {
+  test('mantem planos basicos disponiveis quando o backend oscila', () async {
     when(() => dio.get(ApiEndpoints.billingPlans)).thenThrow(
       _dioException(
         path: ApiEndpoints.billingPlans,
@@ -99,16 +99,9 @@ void main() {
 
     final repository = BillingRepository(apiClient);
 
-    await expectLater(
-      repository.getPlans(),
-      throwsA(
-        isA<RemoteServiceException>().having(
-          (error) => error.message,
-          'message',
-          'Billing indisponivel agora',
-        ),
-      ),
-    );
+    final plans = await repository.getPlans();
+
+    expect(plans.map((plan) => plan.code), containsAll(['premium_30', 'free']));
   });
 
   test('usa fallback amigavel quando status falha sem detail', () async {
@@ -123,14 +116,14 @@ void main() {
 
     await expectLater(
       repository.getStatus(),
-        throwsA(
-          isA<RemoteServiceException>().having(
-            (error) => error.message,
-            'message',
-            'Não foi possível verificar o status do plano.',
-          ),
+      throwsA(
+        isA<RemoteServiceException>().having(
+          (error) => error.message,
+          'message',
+          'Não foi possível verificar o status do plano.',
         ),
-      );
+      ),
+    );
   });
 
   test('propaga erros de validacao do checkout', () async {
@@ -186,4 +179,3 @@ DioException _dioException({
     ),
   );
 }
-

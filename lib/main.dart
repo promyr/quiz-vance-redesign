@@ -9,12 +9,15 @@ import 'package:sqlite3/open.dart';
 
 import 'app/app.dart';
 import 'core/notifications/streak_notif.dart';
+import 'core/network/backend_warmup.dart';
 import 'core/observability/app_observability.dart';
 import 'core/storage/local_storage.dart';
+import 'core/storage/storage_recovery_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final observability = AppObservability.instance;
+  unawaited(BackendWarmup.instance.warmUp());
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return Material(
@@ -78,7 +81,10 @@ Future<void> main() async {
       error,
       stackTrace,
     );
-    return false;
+    // O erro ja foi capturado pelo observability. Informar ao engine que ele
+    // foi tratado evita que excecoes assincronas recuperaveis sejam repassadas
+    // ao embedder como falha fatal do processo.
+    return true;
   };
 
   try {
@@ -89,6 +95,13 @@ Future<void> main() async {
     observability.trackEvent('app.storage_initialized');
   } catch (error, stackTrace) {
     observability.reportError('app.storage_init_failed', error, stackTrace);
+    runApp(
+      StorageRecoveryApp(
+        onRetry: LocalStorage.instance.init,
+        onRecovered: () async => main(),
+      ),
+    );
+    return;
   }
 
   try {

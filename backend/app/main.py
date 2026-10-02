@@ -141,24 +141,41 @@ _LOGIN_LOCK = threading.Lock()
 
 
 def _promote_configured_admin() -> None:
-    """Promove somente uma conta existente indicada pela configuracao segura."""
+    """Garante que somente a conta configurada mantenha a funcao administrativa."""
     if not ADMIN_LOGIN_ID:
         logger.warning("ADMIN_LOGIN_ID ausente; nenhuma conta sera promovida")
         return
     db = SessionLocal()
     try:
         user = (
-            db.query(models.User).filter(models.User.login_id == ADMIN_LOGIN_ID).first()
+            db.query(models.User)
+            .filter(func.lower(models.User.login_id) == ADMIN_LOGIN_ID)
+            .first()
         )
         if user is None:
             logger.error("Conta administrativa configurada nao existe")
             return
-        if str(getattr(user, "role", "user") or "user") != "admin":
+
+        changed_users: list[models.User] = []
+        for current_admin in (
+            db.query(models.User).filter(models.User.role == "admin").all()
+        ):
+            if current_admin.id != user.id:
+                current_admin.role = "user"
+                changed_users.append(current_admin)
+
+        if str(getattr(user, "role", "user") or "user").lower() != "admin":
             user.role = "admin"
-            user.auth_version = services.current_auth_version(user) + 1
+            changed_users.append(user)
+
+        if changed_users:
+            for changed_user in changed_users:
+                changed_user.auth_version = (
+                    services.current_auth_version(changed_user) + 1
+                )
             db.commit()
             logger.info(
-                "Conta administrativa promovida com sessoes anteriores revogadas"
+                "Conta administrativa exclusiva aplicada com sessoes anteriores revogadas"
             )
     except Exception:
         db.rollback()

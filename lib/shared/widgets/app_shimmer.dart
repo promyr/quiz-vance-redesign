@@ -23,9 +23,7 @@ class AppShimmer extends StatelessWidget {
         color: AppColors.surface2,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
-    )
-        .animate(onPlay: (controller) => controller.repeat())
-        .shimmer(
+    ).animate(onPlay: (controller) => controller.repeat()).shimmer(
           duration: 1200.ms,
           color: AppColors.border.withOpacity(0.5),
         );
@@ -47,7 +45,7 @@ class AppShimmerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: height,
+      height: height < 88 ? 88 : height,
       padding: padding,
       decoration: BoxDecoration(
         color: AppColors.surface,

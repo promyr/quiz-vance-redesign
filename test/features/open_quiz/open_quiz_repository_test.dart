@@ -111,7 +111,7 @@ void main() {
 
     await repository.generateQuestion(
       tema: 'Historia',
-      aiProvider: 'openai',
+      aiProvider: 'gemini',
     );
 
     final captured = verify(
@@ -121,7 +121,7 @@ void main() {
       ),
     ).captured.last as Map<String, dynamic>;
 
-    expect(captured['provider'], 'openai');
+    expect(captured['provider'], 'gemini');
   });
 
   test('generateQuestion maps 429 to premium limit exception', () async {

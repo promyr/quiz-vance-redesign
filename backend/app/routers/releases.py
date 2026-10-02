@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from datetime import datetime
@@ -16,10 +17,31 @@ router = APIRouter(tags=["releases"])
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _android_release_manifest() -> dict:
+    try:
+        directory = _BACKEND_ROOT / "releases" / "android"
+        manifest = json.loads((directory / "release-manifest.json").read_text())
+        version = str(manifest.get("app_version") or "").strip()
+        if not re.fullmatch(r"[0-9A-Za-z._+-]+", version):
+            return {}
+        size = int(manifest["size_bytes"])
+        if size <= 0 or (directory / "quiz-vance.apk").stat().st_size != size:
+            return {}
+        if (directory / f"quiz-vance-{version}.apk").stat().st_size != size:
+            return {}
+        return manifest
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return {}
+
+
 def _android_latest_version() -> str:
-    return str(
+    configured = str(
         os.getenv("ANDROID_APP_LATEST_VERSION") or os.getenv("APP_LATEST_VERSION") or ""
     ).strip()
+    bundled = str(_android_release_manifest().get("app_version") or "")
+    if bundled and (not configured or _is_version_newer(bundled, configured)):
+        return bundled
+    return configured
 
 
 def _android_minimum_supported_version() -> str:
@@ -63,13 +85,23 @@ def _android_backend_download_url(request: Request | None = None) -> str:
 
 
 def _android_release_notes() -> str:
+    manifest = _android_release_manifest()
+    if manifest.get("app_version") == _android_latest_version() and manifest.get("release_notes"):
+        return str(manifest["release_notes"])
     return str(
         os.getenv("ANDROID_APP_RELEASE_NOTES") or os.getenv("APP_RELEASE_NOTES") or ""
     ).strip()
 
 
 def _android_published_at() -> datetime | None:
+    manifest = _android_release_manifest()
+    bundled_date = (
+        manifest.get("published_at")
+        if manifest.get("app_version") == _android_latest_version()
+        else None
+    )
     raw = str(
+        bundled_date or
         os.getenv("ANDROID_APP_PUBLISHED_AT") or os.getenv("APP_PUBLISHED_AT") or ""
     ).strip()
     if not raw:
@@ -163,3 +195,10 @@ def app_update_info(
         release_notes=_android_release_notes() or None,
         published_at=_android_published_at(),
     )
+
+
+@router.get("/app/release-publication")
+def release_publication_status():
+    # This read-only receipt contains no credentials or private destination data.
+    from ..release_publication import publication_status
+    return publication_status()

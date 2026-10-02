@@ -104,7 +104,8 @@ Lideres moldam normas, incentivos e colaboracao entre equipes.
       expect(sanitized.topicosPrincipais, ['Tipicidade']);
     });
 
-    test('preserves non-metadata flashcards when strict relevance drops all', () {
+    test('preserves non-metadata flashcards when strict relevance drops all',
+        () {
       final package = StudyPackage(
         titulo: 'Comportamento Organizacional',
         resumoCurto: 'Resumo valido.',

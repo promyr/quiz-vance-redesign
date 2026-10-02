@@ -8,6 +8,7 @@ import 'package:quiz_vance_flutter/shared/application/offline_sync_queue.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockApiClient extends Mock implements ApiClient {}
+
 class _MockDio extends Mock implements Dio {}
 
 void main() {
@@ -41,7 +42,7 @@ void main() {
     expect(pending.first.payload['score'], 90);
   });
 
-  test('flushQueue sends items to backend API and clears queue', () async {
+  test('flushQueue sends quiz result to its submission endpoint', () async {
     await queue.enqueueItem(
       type: 'quiz_result',
       payload: {'score': 100},
@@ -49,12 +50,13 @@ void main() {
 
     when(
       () => dio.post(
-        ApiEndpoints.userStats,
+        ApiEndpoints.quizSubmit,
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenAnswer(
       (_) async => Response(
-        requestOptions: RequestOptions(path: ApiEndpoints.userStats),
+        requestOptions: RequestOptions(path: ApiEndpoints.quizSubmit),
         data: {'ok': true},
       ),
     );
@@ -64,5 +66,75 @@ void main() {
 
     final remaining = await queue.getPendingItems();
     expect(remaining, isEmpty);
+  });
+
+  test('flushQueue sends simulado result to its submission endpoint', () async {
+    await queue.enqueueItem(
+      type: 'simulado_result',
+      payload: {'score': 75},
+      idempotencyKey: 'simulado-session-1',
+    );
+
+    when(
+      () => dio.post(
+        ApiEndpoints.simuladoSubmit,
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: ApiEndpoints.simuladoSubmit),
+        data: {'ok': true},
+      ),
+    );
+
+    expect(await queue.flushQueue(), 1);
+    expect(await queue.getPendingItems(), isEmpty);
+  });
+
+  test('enqueue is idempotent for the same key', () async {
+    await queue.enqueueItem(
+      type: 'quiz_result',
+      payload: {'score': 80},
+      idempotencyKey: 'quiz-session-1',
+    );
+    await queue.enqueueItem(
+      type: 'quiz_result',
+      payload: {'score': 80},
+      idempotencyKey: 'quiz-session-1',
+    );
+
+    expect(await queue.getPendingItems(), hasLength(1));
+  });
+
+  test('moves poison item to dead-letter instead of silently dropping it',
+      () async {
+    await queue.enqueueItem(
+      type: 'quiz_result',
+      payload: {'score': 80},
+      idempotencyKey: 'quiz-session-dead',
+    );
+    when(
+      () => dio.post(
+        ApiEndpoints.quizSubmit,
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: ApiEndpoints.quizSubmit),
+        type: DioExceptionType.connectionError,
+      ),
+    );
+
+    for (var attempt = 0; attempt < 5; attempt++) {
+      await queue.flushQueue();
+    }
+
+    expect(await queue.getPendingItems(), isEmpty);
+    final deadLetters = await queue.getDeadLetterItems();
+    expect(deadLetters, hasLength(1));
+    expect(deadLetters.single.id, 'quiz-session-dead');
+    expect(deadLetters.single.retryCount, 5);
   });
 }

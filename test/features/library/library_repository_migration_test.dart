@@ -1,12 +1,18 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as path;
 import 'package:quiz_vance_flutter/core/storage/local_storage.dart';
 import 'package:quiz_vance_flutter/features/library/data/library_repository.dart';
+import 'package:quiz_vance_flutter/features/library/application/library_document_recovery.dart';
+import 'package:quiz_vance_flutter/features/study_plan/data/study_plan_repository.dart';
+import 'package:quiz_vance_flutter/features/study_plan/domain/study_document.dart';
 import 'package:quiz_vance_flutter/core/network/api_client.dart';
+import 'package:quiz_vance_flutter/shared/application/account_scoped_preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeApiClient implements ApiClient {
@@ -20,11 +26,17 @@ class _FakeApiClient implements ApiClient {
   Future<String?> getAccessToken() async => null;
 
   @override
+  Future<String?> getRefreshToken() async => null;
+
+  @override
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
+    bool? persist,
   }) async {}
 }
+
+class _MockDocumentRepository extends Mock implements StudyPlanRepository {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +49,7 @@ void main() {
       databasePath: path.join(tempDir.path, 'quiz_vance.db'),
     );
     SharedPreferences.setMockInitialValues({});
+    AccountScopedPreferences.instance.setActiveAccountId(null);
     await LocalStorage.instance.init();
     await LocalStorage.instance.debugExecute('DELETE FROM library_files');
     await LocalStorage.instance.debugExecute('DELETE FROM flashcards');
@@ -122,5 +135,126 @@ void main() {
 
     expect(listAfterInsert.map((item) => item.id), contains(created.id));
     expect(listAfterDelete.map((item) => item.id), isNot(contains(created.id)));
+  });
+
+  test('retomada importa documento remoto pronto de forma idempotente',
+      () async {
+    final repository = LibraryRepository(_FakeApiClient());
+    final document = StudyDocument(
+      id: 42,
+      purpose: StudyDocumentPurpose.library,
+      fileName: 'apostila.pdf',
+      sizeBytes: 4096,
+      status: StudyDocumentStatus.ready,
+      progress: 100,
+      cargos: const [],
+    );
+
+    await repository.importProcessedDocument(
+      document: document,
+      content: 'Conteudo extraido em segundo plano',
+    );
+    await repository.importProcessedDocument(
+      document: document,
+      content: 'Conteudo extraido em segundo plano',
+    );
+
+    final files = await repository.listFiles();
+    expect(files, hasLength(1));
+    expect(files.single.id, -42);
+    expect(files.single.nome, 'apostila');
+    expect(files.single.conteudo, contains('segundo plano'));
+  });
+
+  test('deleted recovered PDF stays deleted after repository recreation',
+      () async {
+    AccountScopedPreferences.instance.setActiveAccountId('owner');
+    LocalStorage.instance.setActiveAccountId('owner');
+    const document = StudyDocument(
+      id: 42,
+      purpose: StudyDocumentPurpose.library,
+      fileName: 'apostila.pdf',
+      sizeBytes: 4096,
+      status: StudyDocumentStatus.ready,
+      progress: 100,
+      cargos: [],
+    );
+    final repository = LibraryRepository(_FakeApiClient());
+    await repository.importProcessedDocument(
+      document: document,
+      content: 'Conteúdo extraído',
+    );
+    await repository.deleteFile(-42);
+    AccountScopedPreferences.instance.setActiveAccountId(null);
+    LocalStorage.instance.setActiveAccountId(null);
+    AccountScopedPreferences.instance.setActiveAccountId('owner');
+    LocalStorage.instance.setActiveAccountId('owner');
+    final reopened = LibraryRepository(_FakeApiClient());
+    await reopened.importProcessedDocument(
+      document: document,
+      content: 'Conteúdo extraído',
+    );
+    expect(await reopened.listFiles(), isEmpty);
+
+    await reopened.importProcessedDocument(
+      document: const StudyDocument(
+        id: 43,
+        purpose: StudyDocumentPurpose.library,
+        fileName: 'apostila.pdf',
+        sizeBytes: 4096,
+        status: StudyDocumentStatus.ready,
+        progress: 100,
+        cargos: [],
+      ),
+      content: 'Novo envio explícito',
+    );
+    expect((await reopened.listFiles()).single.id, -43);
+
+    AccountScopedPreferences.instance.setActiveAccountId('other-user');
+    LocalStorage.instance.setActiveAccountId('other-user');
+    await reopened.importProcessedDocument(
+      document: document,
+      content: 'Conteúdo da outra conta',
+    );
+    expect((await reopened.listFiles()).single.conteudo,
+        'Conteúdo da outra conta');
+  });
+
+  test('deletion during recovery download prevents the pending upsert',
+      () async {
+    const document = StudyDocument(
+      id: 44,
+      purpose: StudyDocumentPurpose.library,
+      fileName: 'em-download.pdf',
+      sizeBytes: 4096,
+      status: StudyDocumentStatus.ready,
+      progress: 100,
+      cargos: [],
+    );
+    final library = LibraryRepository(_FakeApiClient());
+    await library.importProcessedDocument(
+      document: document,
+      content: 'Texto salvo',
+    );
+    final documents = _MockDocumentRepository();
+    final downloading = Completer<void>();
+    final downloaded = Completer<String>();
+    when(() => documents.listDocuments(
+          purpose: StudyDocumentPurpose.library,
+        )).thenAnswer((_) async => [document]);
+    when(() => documents.getDocumentContent(44)).thenAnswer((_) {
+      downloading.complete();
+      return downloaded.future;
+    });
+    final pendingRecovery = LibraryDocumentRecovery(
+      libraryRepository: library,
+      documentRepository: documents,
+    ).resume();
+    await downloading.future;
+    await library.deleteFile(-44);
+    downloaded.complete('Texto baixado após exclusão');
+    await pendingRecovery;
+
+    expect(await library.listFiles(), isEmpty);
   });
 }

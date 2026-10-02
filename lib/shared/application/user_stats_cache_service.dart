@@ -20,11 +20,13 @@ class UserStatsCacheService {
   final AccountScopedPreferences _preferences;
 
   Future<void> saveRemoteStatsPayload(Map<String, dynamic> payload) {
-    return _storage.setCacheValue(userStatsCacheKey, jsonEncode(payload));
+    return _storage.setCacheValue(userStatsCacheKey, jsonEncode(payload),
+        scoped: true);
   }
 
   Future<Map<String, dynamic>?> readRemoteStatsPayload() async {
-    final cached = await _storage.getCacheValue(userStatsCacheKey);
+    final cached =
+        await _storage.getCacheValue(userStatsCacheKey, scoped: true);
     if (cached == null || cached == '{}') {
       return null;
     }

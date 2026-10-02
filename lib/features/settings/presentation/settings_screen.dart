@@ -6,9 +6,18 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/application/account_scoped_preferences.dart';
 import '../../../shared/providers/auth_provider.dart';
-import '../data/ai_generation_guard.dart';
 import '../domain/ai_provider_catalog.dart';
 import '../providers/settings_provider.dart';
+
+class _ProviderSaveResult {
+  const _ProviderSaveResult({
+    required this.succeeded,
+    required this.message,
+  });
+
+  final bool succeeded;
+  final String message;
+}
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -18,7 +27,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  String _selectedProvider = 'gemini';
+  String _selectedProvider = defaultAiProviderId;
   bool _isLoading = true;
 
   @override
@@ -30,7 +39,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _loadProvider() async {
     final selectedProvider =
         await AccountScopedPreferences.instance.getString('ai_provider') ??
-            'gemini';
+            defaultAiProviderId;
     if (!mounted) return;
     setState(() {
       _selectedProvider = selectedProvider;
@@ -45,51 +54,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result.message),
-        backgroundColor: result.isFullSuccess
-            ? AppColors.success
-            : result.isLocalOnly
-                ? AppColors.accent
-                : AppColors.error,
+        backgroundColor: result.succeeded ? AppColors.success : AppColors.error,
       ),
     );
   }
 
-  Future<SyncFeedbackResult> _persistProvider() async {
+  Future<_ProviderSaveResult> _persistProvider() async {
     try {
       await AccountScopedPreferences.instance
           .setString('ai_provider', _selectedProvider);
       ref.invalidate(aiProviderSettingProvider);
 
-      final guard = ref.read(aiGenerationGuardProvider);
-      await guard.markSyncPending();
-      final config =
-          await guard.loadConfig(overrideProvider: _selectedProvider);
-
-      if (!config.hasSelectedProviderKey) {
-        return SyncFeedbackResult(
-          state: SyncFeedbackState.localOnly,
-          message:
-              'Provedor salvo so no aparelho. Falta configurar a chave do ${config.selectedProviderLabel} antes de gerar conteudo.',
-        );
-      }
-
-      final remoteSynced =
-          await guard.trySyncCurrentConfig(overrideProvider: _selectedProvider);
-      if (remoteSynced) {
-        return const SyncFeedbackResult(
-          state: SyncFeedbackState.fullSuccess,
-          message: 'Provedor salvo e ativado no servidor com sucesso',
-        );
-      }
-
-      return const SyncFeedbackResult(
-        state: SyncFeedbackState.localOnly,
-        message:
-            'Provedor salvo so no aparelho; o servidor ainda nao recebeu a configuracao nova',
+      return const _ProviderSaveResult(
+        succeeded: true,
+        message: 'Provedor salvo! A IA do Quiz Vance já está ativa.',
       );
     } catch (_) {
-      return const SyncFeedbackResult(
-        state: SyncFeedbackState.failure,
+      return const _ProviderSaveResult(
+        succeeded: false,
         message: 'Não foi possível salvar o provedor selecionado',
       );
     }
@@ -113,16 +95,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
     }
 
-    final selected = aiProviderCatalog.firstWhere(
-      (provider) => provider.id == _selectedProvider,
-      orElse: () => aiProviderCatalog.first,
-    );
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalPadding =
+        screenWidth > 936 ? (screenWidth - 900) / 2 : 18.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            14,
+            horizontalPadding,
+            24,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -148,7 +134,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(width: 12),
                   const Text(
-                    'Provedor padrao',
+                    'Configurações de IA',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
@@ -158,38 +144,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      selected.label,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      selected.description,
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 13,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(),
-              const SizedBox(height: 18),
               ...aiProviderCatalog.asMap().entries.map((entry) {
                 final provider = entry.value;
                 final isSelected = provider.id == _selectedProvider;
@@ -273,7 +227,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   child: const Center(
                     child: Text(
-                      'Salvar provedor',
+                      'Salvar preferências',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -283,29 +237,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: () => context.pushNamed('apiKeys'),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Ir para chaves de API',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              // Painel Admin: Gerenciador de Chave Central de IA do Servidor
+              if (_isAdmin(context)) ...[
+                const SizedBox(height: 24),
+                const _AdminMasterKeysEntryCard(),
+              ],
+
               const SizedBox(height: 24),
               GestureDetector(
                 onTap: _logout,
@@ -332,6 +269,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  bool _isAdmin(BuildContext context) {
+    final authState = ref.read(authStateNotifierProvider).valueOrNull;
+    return authState?.isAdmin == true;
+  }
+}
+
+class _AdminMasterKeysEntryCard extends StatelessWidget {
+  const _AdminMasterKeysEntryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: () => context.pushNamed('adminKeys'),
+      tileColor: AppColors.primary.withOpacity(0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: AppColors.primary.withOpacity(0.4),
+          width: 1.5,
+        ),
+      ),
+      leading: const Icon(
+        Icons.admin_panel_settings_rounded,
+        color: AppColors.primary,
+      ),
+      title: const Text(
+        'PAINEL ADMIN: Chaves Centrais de IA',
+        style: TextStyle(
+          color: AppColors.primaryLight,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      subtitle: const Text(
+        'Gerencie com segurança as chaves usadas pelo servidor.',
+        style: TextStyle(color: AppColors.textMuted),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: AppColors.primary,
       ),
     );
   }

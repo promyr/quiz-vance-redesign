@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -11,19 +12,31 @@ from urllib.parse import urlparse
 import httpx
 from sqlalchemy import text
 
-sys.path.insert(0, "/app")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import telegram_bot
 from app.database import SessionLocal
 
-EXPECTED_HOST = "quiz-vance-redesign-backend.fly.dev"
-APK_PATH = Path("/app/releases/android/quiz-vance.apk")
+EXPECTED_HOST = "quiz-vance-redesign-1.onrender.com"
+APK_PATH = Path(__file__).resolve().parents[1] / "releases" / "android" / "quiz-vance.apk"
+
+
+def _release_manifest() -> dict:
+    manifest_path = APK_PATH.with_name("release-manifest.json")
+    if not manifest_path.is_file():
+        return {}
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise TypeError("release manifest must be an object")
+    return manifest
 
 
 def _release_version() -> str:
-    version = str(os.getenv("RELEASE_VERSION") or "").strip()
-    if not version:
-        raise RuntimeError("RELEASE_VERSION must be configured for Telegram publication")
+    version = str(
+        _release_manifest().get("app_version") or os.getenv("RELEASE_VERSION") or ""
+    ).strip()
+    if not re.fullmatch(r"[0-9A-Za-z._+-]+", version):
+        raise RuntimeError("a valid release version must be configured")
     return version
 
 
@@ -56,6 +69,9 @@ def _release_metadata(version: str) -> tuple[str, int, str]:
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.hostname != EXPECTED_HOST:
         raise RuntimeError("refusing to publish a non-canonical download URL")
+    manifest = _release_manifest()
+    if manifest and str(manifest.get("app_version") or "").strip() != str(version).strip():
+        raise RuntimeError("release manifest version does not match requested release version")
     if not APK_PATH.is_file():
         raise RuntimeError("release APK was not found in the deployed image")
     versioned_path = APK_PATH.with_name(f"quiz-vance-{version}.apk")
@@ -69,6 +85,12 @@ def _release_metadata(version: str) -> tuple[str, int, str]:
     sha256 = digest.hexdigest().upper()
     if versioned_path.stat().st_size != size:
         raise RuntimeError("latest and versioned release APK sizes do not match")
+    v_digest = hashlib.sha256()
+    with versioned_path.open("rb") as artifact:
+        for chunk in iter(lambda: artifact.read(1024 * 1024), b""):
+            v_digest.update(chunk)
+    if v_digest.hexdigest().upper() != sha256:
+        raise RuntimeError("versioned release APK hash does not match latest APK")
     return url, size, sha256
 
 
@@ -130,11 +152,18 @@ def _validate_uploaded_apk(
     *,
     expected_size: int,
     expected_thread_id: int,
+    expected_chat_id: str | int | None = None,
+    expected_filename: str | None = None,
 ) -> None:
     document = dict(message.get("document") or {})
-    filename = str(document.get("file_name") or "").strip().lower()
-    if not filename.endswith(".apk"):
+    filename = str(document.get("file_name") or "").strip()
+    if not filename.lower().endswith(".apk"):
         raise RuntimeError("Telegram did not return an APK document")
+    if expected_filename and filename.lower() != str(expected_filename).strip().lower():
+        raise RuntimeError(f"Telegram filename mismatch: expected {expected_filename}, got {filename}")
+    chat = dict(message.get("chat") or {})
+    if expected_chat_id is not None and str(chat.get("id") or "") != str(expected_chat_id):
+        raise RuntimeError("Telegram message was published to the wrong chat")
     if int(document.get("file_size") or 0) != int(expected_size):
         raise RuntimeError("Telegram APK size does not match the release artifact")
     if int(message.get("message_thread_id") or 0) != int(expected_thread_id):
@@ -144,6 +173,7 @@ def _validate_uploaded_apk(
 
 
 def _release_caption(*, version: str, size: int, digest: str) -> str:
+    notes = str(_release_manifest().get("release_notes") or "").strip()
     return "\n".join(
         [
             f"Quiz Vance {version} — APK oficial para teste",
@@ -151,26 +181,14 @@ def _release_caption(*, version: str, size: int, digest: str) -> str:
             f"Tamanho: {size:,} bytes".replace(",", "."),
             f"SHA-256: {digest}",
             "",
-            (
-                "Nova Central de Editais: o PDF fica salvo de forma privada, "
-                "é processado em segundo plano e você pode retomar sem reenvio."
-            ),
-            (
-                "A análise divide segmentos grandes, retoma checkpoints e alterna "
-                "entre provedores em limite temporário."
-            ),
-            "A extração percorre todas as páginas e usa OCR seletivo quando necessário.",
-            "A Biblioteca também usa o mesmo pipeline confiável de PDF.",
-            (
-                "Biometria de login corrigida: a digital só aparece quando o cofre "
-                "biométrico estiver realmente configurado."
-            ),
+            notes[:600] or "Atualizacao do Quiz Vance.",
+            "",
             "Toque no arquivo acima para baixar e instalar.",
         ]
     )
 
 
-def main() -> None:
+def publish_release() -> dict:
     version = _release_version()
     chat_id, thread_id = _community_target()
     download_url, size, digest = _release_metadata(version)
@@ -202,21 +220,20 @@ def main() -> None:
         expected_thread_id=thread_id,
     )
 
-    print(
-        json.dumps(
-            {
-                "ok": True,
-                "mode": "apk_attached",
-                "chat_id": chat_id,
-                "message_thread_id": thread_id,
-                "message_id": uploaded.get("message_id"),
-                "download_url": download_url,
-                "apk_size": size,
-                "sha256": digest,
-            },
-            ensure_ascii=True,
-        )
-    )
+    return {
+        "ok": True,
+        "mode": "apk_attached",
+        "chat_id": chat_id,
+        "message_thread_id": thread_id,
+        "message_id": uploaded.get("message_id"),
+        "download_url": download_url,
+        "apk_size": size,
+        "sha256": digest,
+    }
+
+
+def main() -> None:
+    print(json.dumps(publish_release(), ensure_ascii=True))
 
 
 if __name__ == "__main__":

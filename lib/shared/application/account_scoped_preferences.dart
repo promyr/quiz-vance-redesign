@@ -27,49 +27,54 @@ class AccountScopedPreferences {
     String key, {
     bool scoped = true,
     bool allowLegacyFallback = true,
-  }) => _getValue(
-    key,
-    scoped: scoped,
-    allowLegacyFallback: allowLegacyFallback,
-    read: (prefs, storageKey) => prefs.getString(storageKey),
-    write: (prefs, storageKey, value) => prefs.setString(storageKey, value),
-  );
+  }) =>
+      _getValue(
+        key,
+        scoped: scoped,
+        allowLegacyFallback: allowLegacyFallback,
+        read: (prefs, storageKey) => prefs.getString(storageKey),
+        write: (prefs, storageKey, value) => prefs.setString(storageKey, value),
+      );
 
   Future<int?> getInt(
     String key, {
     bool scoped = true,
     bool allowLegacyFallback = true,
-  }) => _getValue(
-    key,
-    scoped: scoped,
-    allowLegacyFallback: allowLegacyFallback,
-    read: (prefs, storageKey) => prefs.getInt(storageKey),
-    write: (prefs, storageKey, value) => prefs.setInt(storageKey, value),
-  );
+  }) =>
+      _getValue(
+        key,
+        scoped: scoped,
+        allowLegacyFallback: allowLegacyFallback,
+        read: (prefs, storageKey) => prefs.getInt(storageKey),
+        write: (prefs, storageKey, value) => prefs.setInt(storageKey, value),
+      );
 
   Future<bool?> getBool(
     String key, {
     bool scoped = true,
     bool allowLegacyFallback = true,
-  }) => _getValue(
-    key,
-    scoped: scoped,
-    allowLegacyFallback: allowLegacyFallback,
-    read: (prefs, storageKey) => prefs.getBool(storageKey),
-    write: (prefs, storageKey, value) => prefs.setBool(storageKey, value),
-  );
+  }) =>
+      _getValue(
+        key,
+        scoped: scoped,
+        allowLegacyFallback: allowLegacyFallback,
+        read: (prefs, storageKey) => prefs.getBool(storageKey),
+        write: (prefs, storageKey, value) => prefs.setBool(storageKey, value),
+      );
 
   Future<List<String>?> getStringList(
     String key, {
     bool scoped = true,
     bool allowLegacyFallback = true,
-  }) => _getValue(
-    key,
-    scoped: scoped,
-    allowLegacyFallback: allowLegacyFallback,
-    read: (prefs, storageKey) => prefs.getStringList(storageKey),
-    write: (prefs, storageKey, value) => prefs.setStringList(storageKey, value),
-  );
+  }) =>
+      _getValue(
+        key,
+        scoped: scoped,
+        allowLegacyFallback: allowLegacyFallback,
+        read: (prefs, storageKey) => prefs.getStringList(storageKey),
+        write: (prefs, storageKey, value) =>
+            prefs.setStringList(storageKey, value),
+      );
 
   Future<T?> _getValue<T>(
     String key, {

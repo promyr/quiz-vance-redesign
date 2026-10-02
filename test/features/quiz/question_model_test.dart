@@ -108,7 +108,11 @@ void main() {
             'text': 'Gerenciar o orcamento pessoal e familiar',
             'isCorrect': true,
           },
-          {'id': 'opt_0_2', 'text': 'Estudar teoria economica', 'isCorrect': false},
+          {
+            'id': 'opt_0_2',
+            'text': 'Estudar teoria economica',
+            'isCorrect': false
+          },
         ],
         'correctOptionId': 'opt_0_1',
         'explanation':
@@ -250,6 +254,29 @@ void main() {
 
       expect(question.explanation, isNull);
       expect(question.topic, isNull);
+    });
+
+    test('QuestionSource.fromJson parses chapter, section, page, topic, and excerpt', () {
+      final json = {
+        'document': 'TG LM-2500.pdf',
+        'document_id': 101,
+        'chapter': '1 - Componentes',
+        'section': '1.3 Ignição',
+        'page': 18,
+        'topic': 'Controle eletrônico',
+        'excerpt': 'Os componentes eletrônicos controlam...',
+      };
+
+      final source = QuestionSource.fromJson(json);
+
+      expect(source.document, equals('TG LM-2500.pdf'));
+      expect(source.documentId, equals(101));
+      expect(source.chapter, equals('1 - Componentes'));
+      expect(source.section, equals('1.3 Ignição'));
+      expect(source.page, equals(18));
+      expect(source.topic, equals('Controle eletrônico'));
+      expect(source.excerpt, equals('Os componentes eletrônicos controlam...'));
+      expect(source.hasData, isTrue);
     });
   });
 

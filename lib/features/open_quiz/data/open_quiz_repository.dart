@@ -39,26 +39,21 @@ class OpenQuizRepository {
       final statusCode = error.response?.statusCode ?? 0;
       final detail = extractApiErrorMessage(error.response?.data);
 
-      if (detail != null) {
-        if (statusCode == 429) {
-          throw PremiumLimitException(detail);
-        }
-        if (statusCode >= 400 && statusCode < 500) {
-          throw RemoteServiceException(detail);
-        }
-        throw RemoteServiceException(detail);
-      }
-
       if (statusCode == 429) {
         throw PremiumLimitException(
-          'Usuarios free podem gerar 1 questao dissertativa por semana. Faca upgrade para Premium.',
+          detail ??
+              'Usuarios free podem gerar 1 questao dissertativa por semana. Faca upgrade para Premium.',
         );
       }
 
-      if (statusCode >= 400 && statusCode < 500) {
-        throw RemoteServiceException(
-          'Erro $statusCode ao gerar questao dissertativa',
+      if (statusCode == 401 || statusCode == 403) {
+        throw const RemoteServiceException(
+          'Nao foi possivel gerar a questao. Verifique sua conexao e tente novamente.',
         );
+      }
+
+      if (detail != null && statusCode >= 400 && statusCode < 500) {
+        throw RemoteServiceException(detail);
       }
 
       throw buildRemoteServiceException(

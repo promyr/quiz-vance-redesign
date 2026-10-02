@@ -60,4 +60,3 @@ class AchievementRepository {
 final achievementRepositoryProvider = Provider<AchievementRepository>(
   (ref) => AchievementRepository(ref.watch(apiClientProvider)),
 );
-

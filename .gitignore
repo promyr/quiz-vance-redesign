@@ -32,6 +32,7 @@ migrate_working_dir/
 **/windows/flutter/ephemeral/
 .dart_tool/
 .codex/
+/.tooling/
 .flutter-plugins-dependencies
 .flutter-plugins
 .pub-cache/
@@ -44,6 +45,11 @@ migrate_working_dir/
 /quiz_test.log
 /quiz_test.err.log
 /\!TEMP_DIR!/
+/backend/.venv/
+/backend/.pytest.sqlite3
+/backend/.pytest*/
+/backend/.ruff_cache/
+**/__pycache__/
 
 # Symbolication related
 app.*.symbols
@@ -70,3 +76,16 @@ app.*.map.json
 /windows/flutter/generated_plugin_registrant.cc
 /windows/flutter/generated_plugin_registrant.h
 /windows/flutter/generated_plugins.cmake
+# Local secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local temporary and external attachments
+.codex-remote-attachments/
+output_desktop/
+telegram_bridge/downloads/
+telegram_bridge/incoming_queue.jsonl
+*.sqlite3
+.apk-audit*/
+.fly-apk-patch/

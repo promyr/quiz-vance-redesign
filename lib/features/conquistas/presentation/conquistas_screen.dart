@@ -25,7 +25,8 @@ class ConquistasScreen extends ConsumerWidget {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => context.canPop() ? context.pop() : context.go('/'),
+                    onTap: () =>
+                        context.canPop() ? context.pop() : context.go('/'),
                     child: Container(
                       width: 34,
                       height: 34,
@@ -259,6 +260,9 @@ class _AchievementCard extends StatelessWidget {
           ],
         ),
       ),
-    ).animate(delay: (index * 50).ms).fadeIn(duration: 300.ms).slideX(begin: 0.05);
+    )
+        .animate(delay: (index * 50).ms)
+        .fadeIn(duration: 300.ms)
+        .slideX(begin: 0.05);
   }
 }

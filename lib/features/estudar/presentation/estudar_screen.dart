@@ -112,128 +112,122 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
 
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                        child: GestureDetector(
-                          onTap: hasQuota
-                              ? () => context.go('/quiz')
-                              : () => context.push('/premium'),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF1e1a3e), Color(0xFF272250)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: AppColors.primary.withOpacity(0.4),
-                              ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1e1a3e), Color(0xFF272250)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            child: Stack(
-                              children: [
-                                // Top accent line
-                                Positioned(
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: Container(
-                                    height: 2,
-                                    decoration: BoxDecoration(
-                                      gradient: AppColors.primaryGradient,
-                                      borderRadius: const BorderRadius.vertical(
-                                          top: Radius.circular(18)),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: AppColors.primary.withOpacity(0.4),
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              // Top accent line
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  height: 2,
+                                  decoration: BoxDecoration(
+                                    gradient: AppColors.primaryGradient,
+                                    borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(18)),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(18),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Text('🧠',
+                                            style: TextStyle(fontSize: 28)),
+                                        const Spacer(),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFF6B35),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          child: const Text('HOT',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 0.5)),
+                                        ),
+                                      ],
                                     ),
-                                  ),
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Quiz IA',
+                                      style: TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Questões geradas sob medida para o seu nível. Adaptativo, sem repetição.',
+                                      style: TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: [
+                                        _Chip(label: '⏱ ~14 min'),
+                                        _Chip(label: '✦ +6 XP/questão'),
+                                        if (quotaLabel != null)
+                                          _Chip(label: quotaLabel),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 13),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        onPressed: hasQuota
+                                            ? () => context.push('/quiz')
+                                            : () => context.push('/premium'),
+                                        child: Text(
+                                          hasQuota
+                                              ? '▶  Iniciar agora'
+                                              : '🔒 Limite atingido · Seja Premium',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.all(18),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Text('🧠',
-                                              style: TextStyle(fontSize: 28)),
-                                          const Spacer(),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFFF6B35),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                            child: const Text('HOT',
-                                                style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.w800,
-                                                    letterSpacing: 0.5)),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      const Text(
-                                        'Quiz IA',
-                                        style: TextStyle(
-                                          color: AppColors.textPrimary,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      const Text(
-                                        'Questões geradas sob medida para o seu nível. Adaptativo, sem repetição.',
-                                        style: TextStyle(
-                                          color: AppColors.textMuted,
-                                          fontSize: 12,
-                                          height: 1.5,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 6,
-                                        children: [
-                                          _Chip(label: '⏱ ~14 min'),
-                                          _Chip(label: '✦ +6 XP/questão'),
-                                          if (quotaLabel != null)
-                                            _Chip(label: quotaLabel),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 14),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary,
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 13),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                          onPressed: hasQuota
-                                              ? () => context.go('/quiz')
-                                              : () => context.push('/premium'),
-                                          child: Text(
-                                            hasQuota
-                                                ? '▶  Iniciar agora'
-                                                : '🔒 Limite atingido · Seja Premium',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -288,13 +282,6 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                     subtitle: 'Exame cronometrado',
                     chipLabel: '~45 min',
                     onTap: () => context.go('/simulado'),
-                  ),
-                  _ModeCard(
-                    emoji: '📅',
-                    title: 'Plano de Estudo',
-                    subtitle: 'Plano personalizado IA',
-                    chipLabel: '✦ ativo',
-                    onTap: () => context.push('/study-plan'),
                   ),
                 ],
               ),

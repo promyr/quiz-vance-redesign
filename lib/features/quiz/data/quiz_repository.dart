@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/exceptions/premium_limit_exception.dart';
+import '../../../core/exceptions/provider_rate_limit_exception.dart';
 import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -18,6 +19,8 @@ class QuizRepository {
     required int quantity,
     String? aiProvider,
     String? conteudo,
+    String? documentName,
+    int? documentId,
   }) async {
     try {
       final response = await _client.dio.post(
@@ -28,6 +31,8 @@ class QuizRepository {
           'quantity': quantity,
           if (aiProvider != null) 'provider': aiProvider,
           if (conteudo != null) 'context': conteudo,
+          if (documentName != null) 'document_name': documentName,
+          if (documentId != null) 'document_id': documentId,
         },
       );
       final data = response.data;
@@ -42,24 +47,24 @@ class QuizRepository {
       final statusCode = e.response?.statusCode ?? 0;
       final detail = extractApiErrorMessage(e.response?.data);
 
-      if (detail != null) {
-        if (statusCode == 429) {
-          throw PremiumLimitException(detail);
-        }
-        if (statusCode >= 400 && statusCode < 500) {
-          throw RemoteServiceException(detail);
-        }
-        throw RemoteServiceException(detail);
-      }
-
       if (statusCode == 429) {
+        if (detail != null && isProviderRateLimitMessage(detail)) {
+          throw ProviderRateLimitException(detail);
+        }
         throw PremiumLimitException(
-          'Limite diário atingido. Faça upgrade para Premium.',
+          detail ?? 'Limite diário atingido. Faça upgrade para Premium.',
         );
       }
 
-      if (statusCode >= 400 && statusCode < 500) {
-        throw RemoteServiceException('Erro $statusCode ao gerar quiz');
+      // 401/403: nao expoe mensagem interna (ex: token inválido)
+      if (statusCode == 401 || statusCode == 403) {
+        throw const RemoteServiceException(
+          'Não foi possível gerar o quiz. Verifique sua conexão e tente novamente.',
+        );
+      }
+
+      if (detail != null && statusCode >= 400 && statusCode < 500) {
+        throw RemoteServiceException(detail);
       }
 
       throw buildRemoteServiceException(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -12,6 +14,8 @@ import '../../../shared/widgets/app_button.dart';
 import '../data/auth_repository.dart';
 import '../data/login_biometric_vault.dart';
 import 'forgot_password_sheet.dart';
+
+part 'login_unlock_panel.dart';
 
 enum AuthScreenMode {
   sessionUnlock,
@@ -36,12 +40,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isInitializing = true;
   bool _isRegister = false;
   bool _isSubmitting = false;
+  bool _isWaitingForServer = false;
+  Timer? _serverWaitTimer;
   bool _obscurePassword = true;
   bool _rememberSession = true;
   bool _canAuthenticate = false;
   bool _enrollBiometrics = true;
   Map<String, dynamic>? _savedUser;
   bool _biometricReady = false;
+  AuthScreenMode _screenMode = AuthScreenMode.standardLogin;
+
+  bool get _isUnlock => _screenMode == AuthScreenMode.sessionUnlock;
+  String get _savedLoginId => _savedUser?['login_id']?.toString() ?? '';
+
+  void _setScreenMode(AuthScreenMode mode) {
+    if (_isSubmitting) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    _formKey.currentState?.reset();
+    setState(() {
+      _passwordCtrl.clear();
+      _obscurePassword = true;
+      _isRegister = false;
+      _screenMode = mode;
+      _loginIdCtrl.text =
+          mode == AuthScreenMode.sessionUnlock ? _savedLoginId : '';
+    });
+  }
 
   @override
   void initState() {
@@ -75,6 +99,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         setState(() {
           _savedUser = cached;
+          _screenMode = cached != null &&
+                  (cached['login_id']?.toString().isNotEmpty ?? false)
+              ? AuthScreenMode.sessionUnlock
+              : AuthScreenMode.standardLogin;
           _biometricReady = biometricReady;
           _canAuthenticate = canAuthenticate;
           _enrollBiometrics = canAuthenticate && !biometricReady;
@@ -95,6 +123,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordFocusNode.requestFocus();
   }
 
+  void _togglePasswordVisibility() {
+    setState(() => _obscurePassword = !_obscurePassword);
+  }
+
   Future<void> _authenticateWithBiometrics() async {
     if (_isSubmitting) return;
     if (!_biometricReady) {
@@ -103,9 +135,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _isSubmitting = true);
+    _startServerWaitFeedback();
     try {
       await ref.read(authStateNotifierProvider.notifier).loginWithBiometrics(
-            loginId: _loginIdCtrl.text.trim(),
+            loginId: _savedLoginId,
           );
       if (!mounted) return;
       final authState = ref.read(authStateNotifierProvider);
@@ -147,6 +180,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       );
     } finally {
+      _stopServerWaitFeedback();
       if (mounted) {
         final biometricReady = await ref
             .read(loginBiometricAuthCoordinatorProvider)
@@ -164,6 +198,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
+    _serverWaitTimer?.cancel();
     _loginIdCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
@@ -178,19 +213,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
-    final loginId = _loginIdCtrl.text.trim();
-    if (loginId.isNotEmpty) {
-      try {
-        await LocalStorage.instance.setCacheValue(
-          'remembered_login_id',
-          loginId,
-          scoped: false,
-        );
-      } catch (_) {}
-    }
+    final loginId = _isUnlock ? _savedLoginId : _loginIdCtrl.text.trim();
 
     final auth = ref.read(authStateNotifierProvider.notifier);
     setState(() => _isSubmitting = true);
+    _startServerWaitFeedback();
 
     try {
       if (_isRegister) {
@@ -205,7 +232,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           loginId: loginId,
           password: _passwordCtrl.text,
           rememberSession: _rememberSession,
-          enrollBiometrics: _enrollBiometrics || _biometricReady,
+          enrollBiometrics:
+              _rememberSession && (_enrollBiometrics || _biometricReady),
         );
       }
 
@@ -257,9 +285,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     } finally {
+      _stopServerWaitFeedback();
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
+    }
+  }
+
+  void _startServerWaitFeedback() {
+    _serverWaitTimer?.cancel();
+    _serverWaitTimer = Timer(const Duration(milliseconds: 800), () {
+      if (mounted && _isSubmitting) {
+        setState(() => _isWaitingForServer = true);
+      }
+    });
+  }
+
+  void _stopServerWaitFeedback() {
+    _serverWaitTimer?.cancel();
+    _serverWaitTimer = null;
+    if (mounted && _isWaitingForServer) {
+      setState(() => _isWaitingForServer = false);
     }
   }
 
@@ -340,183 +386,224 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final isLoading = _isSubmitting;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // ── Background Glow Elements ─────────────────────────────────
-          Positioned(
-            top: -100,
-            right: -80,
-            child: Container(
-              width: 320,
-              height: 320,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.primary.withOpacity(0.28),
-                    Colors.transparent,
-                  ],
+    return PopScope(
+      canPop: _isUnlock || _savedUser == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_isUnlock && _savedUser != null) {
+          _setScreenMode(AuthScreenMode.sessionUnlock);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Stack(
+          children: [
+            // ── Background Glow Elements ─────────────────────────────────
+            Positioned(
+              top: -100,
+              right: -80,
+              child: Container(
+                width: 320,
+                height: 320,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.primary.withOpacity(0.28),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: -60,
-            left: -60,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.accent.withOpacity(0.18),
-                    Colors.transparent,
-                  ],
+            Positioned(
+              bottom: -60,
+              left: -60,
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.accent.withOpacity(0.18),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // ── Content Scroll View ──────────────────────────────────────
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 12),
-                    // ── Brand & Hero Section ─────────────────────────────
-                    Center(
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 84,
-                            height: 84,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withOpacity(0.4),
-                                  blurRadius: 28,
-                                  offset: const Offset(0, 12),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(22),
-                              child: Image.asset(
-                                'assets/quiz_vance_logo_1024.png',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          )
-                              .animate()
-                              .fadeIn(duration: 500.ms)
-                              .scale(begin: const Offset(0.85, 0.85), end: const Offset(1, 1), curve: Curves.easeOutBack),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Quiz Vance',
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                            ),
-                          ).animate().fadeIn(delay: 150.ms),
-                          const SizedBox(height: 6),
-                          Text(
-                            _isRegister
-                                ? 'Crie sua conta com um ID de acesso'
-                                : 'Entre com seu ID ou e-mail',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ).animate().fadeIn(delay: 250.ms),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // ── Tab Switcher (Entrar / Cadastrar) ─────────────────
-                    if (!_isInitializing)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 24),
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppColors.border.withOpacity(0.6),
-                          ),
-                        ),
-                        child: Row(
+            // ── Content Scroll View ──────────────────────────────────────
+            SafeArea(
+              child: SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 12),
+                      // ── Brand & Hero Section ─────────────────────────────
+                      Center(
+                        child: Column(
                           children: [
-                            Expanded(
-                              child: _buildAuthTab(
-                                label: 'Entrar',
-                                isSelected: !_isRegister,
-                                onTap: () {
-                                  if (_isRegister) {
-                                    HapticFeedback.selectionClick();
-                                    setState(() {
-                                      _isRegister = false;
-                                      _formKey.currentState?.reset();
-                                    });
-                                  }
-                                },
+                            Container(
+                              width: 84,
+                              height: 84,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(24),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF8B5CF6),
+                                    Color(0xFF6D28D9)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withOpacity(0.4),
+                                    blurRadius: 28,
+                                    offset: const Offset(0, 12),
+                                  ),
+                                ],
                               ),
-                            ),
-                            Expanded(
-                              child: _buildAuthTab(
-                                label: 'Cadastrar-se',
-                                isSelected: _isRegister,
-                                onTap: () {
-                                  if (!_isRegister) {
-                                    HapticFeedback.selectionClick();
-                                    setState(() {
-                                      _isRegister = true;
-                                      _formKey.currentState?.reset();
-                                    });
-                                  }
-                                },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(22),
+                                child: Image.asset(
+                                  'assets/quiz_vance_logo_1024.png',
+                                  fit: BoxFit.cover,
+                                ),
                               ),
-                            ),
+                            ).animate().fadeIn(duration: 500.ms).scale(
+                                begin: const Offset(0.85, 0.85),
+                                end: const Offset(1, 1),
+                                curve: Curves.easeOutBack),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Quiz Vance',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                              ),
+                            ).animate().fadeIn(delay: 150.ms),
+                            const SizedBox(height: 6),
+                            Text(
+                              _isUnlock
+                                  ? 'Desbloqueie sua conta para continuar'
+                                  : _isRegister
+                                      ? 'Crie sua conta com um ID de acesso'
+                                      : 'Entre com seu ID ou e-mail',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ).animate().fadeIn(delay: 250.ms),
                           ],
                         ),
-                      ).animate().fadeIn(delay: 200.ms),
+                      ),
+                      const SizedBox(height: 28),
 
-                    if (_isInitializing)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 48),
-                        child: Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
+                      // ── Tab Switcher (Entrar / Cadastrar) ─────────────────
+                      if (!_isInitializing && !_isUnlock)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.border.withOpacity(0.6),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildAuthTab(
+                                  label: 'Entrar',
+                                  isSelected: !_isRegister,
+                                  onTap: () {
+                                    if (_isRegister) {
+                                      HapticFeedback.selectionClick();
+                                      setState(() {
+                                        _isRegister = false;
+                                        _formKey.currentState?.reset();
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildAuthTab(
+                                  label: 'Cadastrar-se',
+                                  isSelected: _isRegister,
+                                  onTap: () {
+                                    if (!_isRegister) {
+                                      HapticFeedback.selectionClick();
+                                      setState(() {
+                                        _isRegister = true;
+                                        _formKey.currentState?.reset();
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ).animate().fadeIn(delay: 200.ms),
+
+                      if (_isInitializing)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                                color: AppColors.primary),
+                          ),
+                        )
+                      else
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 200),
+                          alignment: Alignment.topCenter,
+                          child: _isUnlock
+                              ? _buildSessionUnlockPanel(isLoading)
+                              : _buildStandardLoginForm(context, isLoading),
                         ),
-                      )
-                    else
-                      _buildStandardLoginForm(context, isLoading),
-                  ],
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: _isWaitingForServer
+                            ? Padding(
+                                key: const Key('server_wakeup_feedback'),
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Semantics(
+                                  liveRegion: true,
+                                  child: const Text(
+                                    'Conectando ao servidor...',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -560,11 +647,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildStandardLoginForm(BuildContext context, bool isLoading) {
-    final firstName = _savedUser != null
-        ? (_savedUser!['name']?.toString().split(' ').first ??
-            _savedUser!['login_id']?.toString())
-        : null;
-
     return AutofillGroup(
       key: const Key('standard_login_form'),
       child: Container(
@@ -586,54 +668,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_biometricReady && !_isRegister) ...[
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 20),
-                child: ElevatedButton.icon(
-                  key: const Key('biometric_login_button'),
-                  onPressed: isLoading ? null : _authenticateWithBiometrics,
-                  icon: const Icon(Icons.fingerprint_rounded, size: 28, color: Colors.white),
-                  label: Text(
-                    firstName != null
-                        ? 'Entrar com digital como $firstName'
-                        : 'Entrar com digital',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 3,
-                    shadowColor: AppColors.primary.withOpacity(0.4),
-                  ),
-                ),
+            if (_savedUser != null)
+              TextButton.icon(
+                key: const Key('return_to_saved_account'),
+                onPressed: isLoading
+                    ? null
+                    : () => _setScreenMode(AuthScreenMode.sessionUnlock),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Voltar à conta reconhecida'),
               ),
-              Row(
-                children: [
-                  Expanded(child: Divider(color: AppColors.border.withOpacity(0.6))),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'ou entre com sua senha',
-                      style: TextStyle(
-                        color: AppColors.textMuted.withOpacity(0.8),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: AppColors.border.withOpacity(0.6))),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
             if (_isRegister) ...[
               _buildLabel('Nome'),
               TextFormField(
@@ -646,18 +689,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   hintText: 'Seu nome completo',
                   filled: true,
                   fillColor: AppColors.background.withOpacity(0.6),
-                  prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.textMuted),
+                  prefixIcon: const Icon(Icons.person_outline_rounded,
+                      color: AppColors.textMuted),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                    borderSide:
+                        BorderSide(color: AppColors.border.withOpacity(0.6)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                    borderSide:
+                        BorderSide(color: AppColors.border.withOpacity(0.6)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide:
+                        const BorderSide(color: AppColors.primary, width: 1.5),
                   ),
                 ),
                 validator: (value) {
@@ -690,21 +737,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 helperText: _isRegister
                     ? 'Você usará esse ID para entrar na sua conta'
                     : null,
-                helperStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                helperStyle:
+                    const TextStyle(color: AppColors.textMuted, fontSize: 12),
                 filled: true,
                 fillColor: AppColors.background.withOpacity(0.6),
-                prefixIcon: const Icon(Icons.badge_outlined, color: AppColors.textMuted),
+                prefixIcon: const Icon(Icons.badge_outlined,
+                    color: AppColors.textMuted),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                  borderSide:
+                      BorderSide(color: AppColors.border.withOpacity(0.6)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                  borderSide:
+                      BorderSide(color: AppColors.border.withOpacity(0.6)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
                 ),
               ),
               validator: _validateLoginId,
@@ -722,18 +774,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   hintText: 'seu@email.com',
                   filled: true,
                   fillColor: AppColors.background.withOpacity(0.6),
-                  prefixIcon: const Icon(Icons.mail_outline_rounded, color: AppColors.textMuted),
+                  prefixIcon: const Icon(Icons.mail_outline_rounded,
+                      color: AppColors.textMuted),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                    borderSide:
+                        BorderSide(color: AppColors.border.withOpacity(0.6)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                    borderSide:
+                        BorderSide(color: AppColors.border.withOpacity(0.6)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide:
+                        const BorderSide(color: AppColors.primary, width: 1.5),
                   ),
                 ),
                 validator: _validateEmail,
@@ -759,18 +815,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 hintText: '********',
                 filled: true,
                 fillColor: AppColors.background.withOpacity(0.6),
-                prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted),
+                prefixIcon: const Icon(Icons.lock_outline_rounded,
+                    color: AppColors.textMuted),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                  borderSide:
+                      BorderSide(color: AppColors.border.withOpacity(0.6)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.6)),
+                  borderSide:
+                      BorderSide(color: AppColors.border.withOpacity(0.6)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
                 ),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -796,37 +856,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 12),
             if (!_isRegister) ...[
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: Checkbox(
-                      value: _rememberSession,
-                      activeColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      side: BorderSide(color: AppColors.border.withOpacity(0.8), width: 1.5),
-                      onChanged: (value) => setState(
-                        () => _rememberSession = value ?? true,
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: _rememberSession,
+                        activeColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        side: BorderSide(
+                            color: AppColors.border.withOpacity(0.8),
+                            width: 1.5),
+                        onChanged: (value) => setState(() {
+                          _rememberSession = value ?? true;
+                          if (!_rememberSession) _enrollBiometrics = false;
+                        }),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Lembrar meu login',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Lembrar meu login',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
+                  ]),
                   TextButton(
                     onPressed: _openForgotPassword,
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
@@ -841,7 +910,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ],
               ),
-              if (_canAuthenticate && !_biometricReady) ...[
+              if (_canAuthenticate && _rememberSession) ...[
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -855,7 +924,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        side: BorderSide(color: AppColors.border.withOpacity(0.8), width: 1.5),
+                        side: BorderSide(
+                            color: AppColors.border.withOpacity(0.8),
+                            width: 1.5),
                         onChanged: (value) => setState(
                           () => _enrollBiometrics = value ?? true,
                         ),
@@ -891,7 +962,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   Text(
                     _isRegister ? 'Já tem uma conta?' : 'Não tem uma conta?',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    style: const TextStyle(
+                        color: AppColors.textMuted, fontSize: 13),
                   ),
                   TextButton(
                     onPressed: () => setState(() {
@@ -913,7 +985,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms)
+        .slideY(begin: 0.08, end: 0, curve: Curves.easeOutCubic);
   }
 
   String _friendlyAuthError(dynamic error) {

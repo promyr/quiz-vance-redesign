@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 /// Paleta de cores centralizada do Quiz Vance.
 /// Nenhuma tela define cores diretamente — todas referenciam esta classe.
 abstract class AppColors {
-  // Backgrounds
-  static const Color background = Color(0xFF08090E);
-  static const Color surface = Color(0xFF121420);
-  static const Color surface2 = Color(0xFF1A1C2E);
+  // Backgrounds - Modern Slate Dark Palette
+  static const Color background = Color(0xFF0F172A);
+  static const Color surface = Color(0xFF1E293B);
+  static const Color surface2 = Color(0xFF334155);
 
   // Borders
-  static const Color border = Color(0xFF262A40);
+  static const Color border = Color(0xFF334155);
 
   // Brand
   static const Color primary = Color(0xFF7C3AED);
@@ -22,7 +22,7 @@ abstract class AppColors {
   // Semantic
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
-  static const Color error = Color(0xFFEF4444);
+  static const Color error = Color(0xFFF43F5E);
 
   // Gamification
   static const Color xpGold = Color(0xFFFFB800);
@@ -32,7 +32,8 @@ abstract class AppColors {
   // Text
   static const Color textPrimary = Color(0xFFF8FAFC);
   static const Color textSecondary = Color(0xFFCBD5E1);
-  static const Color textMuted = Color(0xFF64748B);
+  // Slate 400 preserves readable contrast on both background and surfaces.
+  static const Color textMuted = Color(0xFF94A3B8);
   static const Color textDisabled = Color(0xFF334155);
 
   // Gradients
@@ -65,4 +66,27 @@ abstract class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static const LinearGradient surfaceGradient = LinearGradient(
+    colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient neonPurpleGradient = LinearGradient(
+    colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient electricCyanGradient = LinearGradient(
+    colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // Glassmorphism tokens
+  static const Color glassBackground = Color(0x331E293B);
+  static const Color glassBorder = Color(0x33FFFFFF);
+  static const Color glassHighlight = Color(0x1AFFFFFF);
 }

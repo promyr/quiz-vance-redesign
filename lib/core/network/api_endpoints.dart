@@ -37,6 +37,14 @@ abstract class ApiEndpoints {
 
   // Plano de estudo
   static const String studyPlanGenerate = '/study-plan/generate';
+  static const String studyPlanAnalyzeNotice = '/study-plan/analyze-notice';
+  static const String documentsV2 = '/v2/documents';
+  static String documentV2(int id) => '$documentsV2/$id';
+  static String documentContentV2(int id) => '${documentV2(id)}/content';
+  static String documentSelectCargoV2(int id) =>
+      '${documentV2(id)}/select-cargo';
+  static String documentRetryAnalysisV2(int id) =>
+      '${documentV2(id)}/retry-analysis';
 
   // Biblioteca
   static const String libraryGeneratePackage = '/library/generate-package';
@@ -49,6 +57,18 @@ abstract class ApiEndpoints {
   static const String userUpdateLoginId = '/user/profile/login-id';
   static const String userDeleteAccount = '/user/account';
   static const String userAiConfig = '/user/ai-config';
+  static const String adminAiKeys = '/admin/ai-keys';
+  static String adminAiKey(String id) => '$adminAiKeys/$id';
+  static String adminAiKeyTest(String id) => '${adminAiKey(id)}/test';
+  static const String adminAiKeysReorder = '$adminAiKeys/reorder';
+  static const String adminAiAudit = '/admin/ai-audit';
+  static const String adminBiometricCredentials =
+      '/admin/biometric-credentials';
+  static const String adminBiometricCredentialStatus =
+      '$adminBiometricCredentials/status';
+  static const String adminBiometricChallenges = '/admin/biometric-challenges';
+  static const String adminBiometricChallengeVerify =
+      '$adminBiometricChallenges/verify';
   static const String userAchievements = '/user/achievements';
   static const String userAchievementsUnlock = '/user/achievements/unlock';
 

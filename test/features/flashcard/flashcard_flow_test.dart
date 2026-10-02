@@ -30,8 +30,7 @@ void main() {
     expect(shouldSyncFlashcardReview(null), isFalse);
   });
 
-  test(
-      'applyFlashcardReviewRewards registra progresso a cada review',
+  test('applyFlashcardReviewRewards registra progresso a cada review',
       () async {
     var todayCountCalls = 0;
     var reviewCalls = 0;

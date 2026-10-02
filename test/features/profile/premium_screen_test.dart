@@ -1,4 +1,6 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_vance_flutter/features/profile/data/billing_repository.dart';
 import 'package:quiz_vance_flutter/features/profile/domain/premium_entry_mode.dart';
 import 'package:quiz_vance_flutter/features/profile/presentation/premium_screen.dart';
@@ -28,7 +30,7 @@ void main() {
   const currentPremiumPlan = BillingPlan(
     code: 'premium_30',
     name: 'Premium Mensal',
-    priceCents: 1190,
+    priceCents: 1490,
     currency: 'BRL',
     features: [],
   );
@@ -154,7 +156,7 @@ void main() {
     );
 
     expect(hero.title, equals('Plano atual: Premium Mensal'));
-    expect(hero.badgeLabel, equals('Modo gerenciamento'));
+    expect(hero.badgeLabel, equals('Assinatura Ativa'));
     expectNoMojibake(hero.title);
     expectNoMojibake(hero.subtitle);
     expectNoMojibake(hero.badgeLabel);
@@ -167,10 +169,42 @@ void main() {
       currentPlan: freePlan,
     );
 
-    expect(hero.title, equals('Assine o Quiz Vance Premium'));
-    expect(hero.badgeLabel, equals('Modo assinatura'));
+    expect(hero.title, equals('Quiz Vance Premium'));
+    expect(hero.badgeLabel, equals('Oferta Especial'));
     expectNoMojibake(hero.title);
     expectNoMojibake(hero.subtitle);
     expectNoMojibake(hero.badgeLabel);
+  });
+
+  testWidgets('comparativo evita repetir benefícios dentro do plano',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          billingStatusProvider.overrideWith((ref) async => freeStatus),
+          billingPlansProvider.overrideWith(
+            (ref) async => const [
+              BillingPlan(
+                code: 'premium_30',
+                name: 'Premium Mensal',
+                priceCents: 1490,
+                currency: 'BRL',
+                features: ['Quizzes ilimitados'],
+              ),
+            ],
+          ),
+        ],
+        child: const MaterialApp(
+          home: PremiumScreen(entryMode: PremiumEntryMode.subscribe),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Grátis vs Premium'), findsOneWidget);
+    expect(find.text('Quizzes ilimitados'), findsNothing);
   });
 }

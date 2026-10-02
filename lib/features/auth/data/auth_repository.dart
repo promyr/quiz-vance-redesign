@@ -9,9 +9,10 @@ import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
 import '../../../core/observability/app_observability.dart';
 import '../../../core/storage/local_storage.dart';
+import '../../../shared/application/account_local_state_resetter.dart';
 import '../../../shared/application/account_scoped_preferences.dart';
 
-import '../../../shared/application/account_local_state_resetter.dart';
+const authColdStartTimeout = Duration(seconds: 75);
 
 const _userCacheKey = 'auth_user_cache';
 const _sessionModeCacheKey = 'auth_session_mode';
@@ -60,7 +61,7 @@ class AuthRepository {
     LocalStorage? storage,
     AppObservability? observability,
     AccountLocalStateResetter? accountStateResetter,
-    Duration authTimeout = const Duration(seconds: 15),
+    Duration authTimeout = authColdStartTimeout,
   })  : _storage = storage ?? LocalStorage.instance,
         _observability = observability ?? AppObservability.instance,
         _accountStateResetter =
@@ -87,34 +88,41 @@ class AuthRepository {
     );
 
     try {
-      final response = await _client.dio.post(
-        ApiEndpoints.login,
-        data: {
-          'login_id': normalizedLoginId,
-          'id': normalizedLoginId,
-          if (normalizedLoginId.contains('@')) 'email': normalizedLoginId,
-          if (normalizedLoginId.contains('@')) 'email_id': normalizedLoginId,
-          'password': password,
-        },
-      ).timeout(
-        _authTimeout,
-        onTimeout: () => throw buildRemoteServiceException(
-          DioException(
-            requestOptions: RequestOptions(path: ApiEndpoints.login),
-            type: DioExceptionType.connectionTimeout,
-          ),
-          fallback:
-              'Nao foi possivel concluir o login agora. Tente novamente em instantes.',
-          connectivityFallback:
-              'Nao foi possivel conectar ao servidor a tempo.',
-        ),
-      );
+      final response = await _client.dio
+          .post(
+            ApiEndpoints.login,
+            data: {
+              'login_id': normalizedLoginId,
+              'id': normalizedLoginId,
+              if (normalizedLoginId.contains('@')) 'email': normalizedLoginId,
+              if (normalizedLoginId.contains('@'))
+                'email_id': normalizedLoginId,
+              'password': password,
+            },
+            options: Options(
+              sendTimeout: _authTimeout,
+              receiveTimeout: _authTimeout,
+            ),
+          )
+          .timeout(
+            _authTimeout,
+            onTimeout: () => throw buildRemoteServiceException(
+              DioException(
+                requestOptions: RequestOptions(path: ApiEndpoints.login),
+                type: DioExceptionType.connectionTimeout,
+              ),
+              fallback:
+                  'Nao foi possivel concluir o login agora. Tente novamente em instantes.',
+              connectivityFallback:
+                  'Nao foi possivel conectar ao servidor a tempo.',
+            ),
+          );
       final raw = response.data;
       if (raw is! Map<String, dynamic>) {
         throw const FormatException('resposta inesperada de /auth/login');
       }
       final normalized = _normalizeAuthResponse(raw);
-      await _persistJwtSession(normalized);
+      await _persistJwtSession(normalized, rememberSession: rememberSession);
       _observability.trackEvent('auth.login_succeeded');
       return normalized;
     } on DioException catch (error, stackTrace) {
@@ -154,6 +162,8 @@ class AuthRepository {
             options: Options(
               headers: {'Authorization': 'Bearer $token'},
               extra: {'skipAuth': true},
+              sendTimeout: _authTimeout,
+              receiveTimeout: _authTimeout,
             ),
           )
           .timeout(_authTimeout);
@@ -479,7 +489,10 @@ class AuthRepository {
 
   Future<String?> getRefreshToken() => _client.getRefreshToken();
 
-  Future<void> _persistJwtSession(Map<String, dynamic> normalized) async {
+  Future<void> _persistJwtSession(
+    Map<String, dynamic> normalized, {
+    bool rememberSession = true,
+  }) async {
     final accessToken = (normalized['access_token'] as String? ?? '').trim();
     if (accessToken.isEmpty) {
       await clearSession();
@@ -488,10 +501,18 @@ class AuthRepository {
 
     final refreshToken =
         (normalized['refresh_token'] as String? ?? accessToken).trim();
-    await _client.saveTokens(
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-    );
+    if (rememberSession) {
+      // A password login may follow a memory-only session on this client.
+      await _client.clearTokens();
+      await _client.saveTokens(
+          accessToken: accessToken, refreshToken: refreshToken);
+    } else {
+      await _client.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        persist: false,
+      );
+    }
     await _cacheUser((normalized['user'] as Map<String, dynamic>?) ?? const {});
     await _writeSessionMode(AuthSessionMode.jwt);
   }

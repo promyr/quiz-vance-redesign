@@ -36,12 +36,22 @@ class ApiClient {
   late final Dio _refreshDio;
   final _storage = const FlutterSecureStorage();
   Future<bool>? _refreshFuture;
+  bool _persistSession = true;
+  String? _memoryAccessToken;
+  String? _memoryRefreshToken;
 
   Dio get dio => _dio;
 
   bool _isRefreshRequest(RequestOptions options) {
     return options.path == ApiEndpoints.refreshToken ||
         options.uri.path == ApiEndpoints.refreshToken;
+  }
+
+  bool _isLoginRequest(RequestOptions options) {
+    return options.path == ApiEndpoints.login ||
+        options.uri.path == ApiEndpoints.login ||
+        options.path == ApiEndpoints.register ||
+        options.uri.path == ApiEndpoints.register;
   }
 
   Future<void> _onRequest(
@@ -51,10 +61,9 @@ class ApiClient {
     options.headers['X-App-Version'] = AppConfig.appVersion;
     options.headers['X-Client-App'] = AppConfig.clientAppId;
     options.headers['X-Ranking-Namespace'] = AppConfig.rankingNamespace;
-    final token = await _storage.read(key: _tokenKey);
-    final isBypassToken = token == 'admin_bypass_token' || token == 'admin_vip_token';
+    final token = await getAccessToken();
     final skipAuth =
-        options.extra['skipAuth'] == true || _isRefreshRequest(options) || isBypassToken;
+        options.extra['skipAuth'] == true || _isRefreshRequest(options);
     if (!skipAuth && token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -66,28 +75,36 @@ class ApiClient {
     ErrorInterceptorHandler handler,
   ) async {
     final request = err.requestOptions;
-    final retryCount = (request.extra[_authRetryKey] as int?) ?? 0;
+    final rawRetry = request.extra[_authRetryKey];
+    final retryCount = (rawRetry is int ? rawRetry : 0).clamp(0, 3);
     final isUnauthorized = err.response?.statusCode == 401;
 
-    if (isUnauthorized && !_isRefreshRequest(request) && retryCount == 0) {
-      final refreshed = await _tryRefreshToken();
-      if (refreshed) {
-        final token = await _storage.read(key: _tokenKey);
-        final retryRequest = _cloneRequestOptions(
-          request,
-          headers: {
-            ...request.headers,
-            if (token != null && token.isNotEmpty && token != 'admin_bypass_token')
-              'Authorization': 'Bearer $token',
-          },
-          extra: {
-            ...request.extra,
-            _authRetryKey: retryCount + 1,
-          },
-        );
-        final response = await _dio.fetch(retryRequest);
-        return handler.resolve(response);
-      }
+    // Se recebeu 401 e nao e uma tentativa de retry ja feita
+    if (isUnauthorized &&
+        !_isRefreshRequest(request) &&
+        !_isLoginRequest(request) &&
+        retryCount == 0) {
+      try {
+        final refreshed = await _tryRefreshToken();
+
+        if (refreshed) {
+          final newToken = await getAccessToken();
+          final retryRequest = _cloneRequestOptions(
+            request,
+            headers: {
+              ...request.headers,
+              if (newToken != null && newToken.isNotEmpty)
+                'Authorization': 'Bearer $newToken',
+            },
+            extra: {
+              ...request.extra,
+              _authRetryKey: (retryCount + 1).clamp(0, 3),
+            },
+          );
+          final response = await _dio.fetch(retryRequest);
+          return handler.resolve(response);
+        }
+      } catch (_) {}
     }
 
     return handler.next(err);
@@ -111,13 +128,10 @@ class ApiClient {
 
   Future<bool> _performTokenRefresh() async {
     try {
-      final refreshToken = await _storage.read(key: _refreshTokenKey);
-      final accessToken = await _storage.read(key: _tokenKey);
+      final refreshToken = await getRefreshToken();
+      final accessToken = await getAccessToken();
       final tokenToRefresh = refreshToken ?? accessToken;
-      if (tokenToRefresh == null ||
-          tokenToRefresh.isEmpty ||
-          tokenToRefresh == 'admin_bypass_token' ||
-          tokenToRefresh == 'admin_bypass_refresh_token') {
+      if (tokenToRefresh == null || tokenToRefresh.isEmpty) {
         return false;
       }
 
@@ -175,7 +189,20 @@ class ApiClient {
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
+    bool? persist,
   }) async {
+    _persistSession = persist ?? _persistSession;
+    if (!_persistSession) {
+      await Future.wait([
+        _storage.delete(key: _tokenKey),
+        _storage.delete(key: _refreshTokenKey),
+      ]);
+      _memoryAccessToken = accessToken;
+      _memoryRefreshToken = refreshToken.isEmpty ? accessToken : refreshToken;
+      return;
+    }
+    _memoryAccessToken = null;
+    _memoryRefreshToken = null;
     await Future.wait([
       _storage.write(key: _tokenKey, value: accessToken),
       _storage.write(
@@ -186,13 +213,22 @@ class ApiClient {
   }
 
   Future<void> clearTokens() async {
+    _memoryAccessToken = null;
+    _memoryRefreshToken = null;
+    _persistSession = true;
     await Future.wait([
       _storage.delete(key: _tokenKey),
       _storage.delete(key: _refreshTokenKey),
     ]);
   }
 
-  Future<String?> getAccessToken() => _storage.read(key: _tokenKey);
+  Future<String?> getAccessToken() async => _persistSession
+      ? await _storage.read(key: _tokenKey)
+      : _memoryAccessToken;
+
+  Future<String?> getRefreshToken() async => _persistSession
+      ? await _storage.read(key: _refreshTokenKey)
+      : _memoryRefreshToken;
 }
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());

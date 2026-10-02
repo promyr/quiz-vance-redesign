@@ -50,10 +50,24 @@ set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
 add_subdirectory(${FLUTTER_MANAGED_DIR})
 
 # sqlcipher_flutter_libs on Windows depends on OpenSSL.
-# Prefer an explicit host installation when the environment variable is unset.
+# Prefer the project-local vcpkg installation, then a host installation.
 if(NOT DEFINED ENV{OPENSSL_ROOT_DIR} OR "$ENV{OPENSSL_ROOT_DIR}" STREQUAL "")
+  set(_project_openssl_root
+    "${CMAKE_CURRENT_SOURCE_DIR}/../.tooling/vcpkg_installed/x64-windows-static")
   set(_postgres_openssl_root "C:/Program Files/PostgreSQL/18")
-  if(EXISTS "${_postgres_openssl_root}/include/openssl/ssl.h" AND
+
+  if(EXISTS "${_project_openssl_root}/include/openssl/ssl.h" AND
+     EXISTS "${_project_openssl_root}/lib/libcrypto.lib" AND
+     EXISTS "${_project_openssl_root}/lib/libssl.lib")
+    set(OPENSSL_ROOT_DIR "${_project_openssl_root}" CACHE PATH
+      "Project-local OpenSSL root for Windows builds." FORCE)
+    set(OPENSSL_INCLUDE_DIR "${_project_openssl_root}/include" CACHE PATH
+      "Project-local OpenSSL include directory." FORCE)
+    set(OPENSSL_CRYPTO_LIBRARY "${_project_openssl_root}/lib/libcrypto.lib"
+      CACHE FILEPATH "Project-local OpenSSL crypto library." FORCE)
+    set(OPENSSL_SSL_LIBRARY "${_project_openssl_root}/lib/libssl.lib"
+      CACHE FILEPATH "Project-local OpenSSL SSL library." FORCE)
+  elseif(EXISTS "${_postgres_openssl_root}/include/openssl/ssl.h" AND
      EXISTS "${_postgres_openssl_root}/lib/libcrypto.lib")
     set(OPENSSL_ROOT_DIR "${_postgres_openssl_root}" CACHE PATH
       "Fallback OpenSSL root for Windows builds." FORCE)

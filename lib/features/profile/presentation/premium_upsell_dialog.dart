@@ -237,7 +237,7 @@ class _PremiumUpsellSheet extends StatelessWidget {
                     ),
                     SizedBox(width: 8),
                     Text(
-                      'Quero ser Premium',
+                      'Quero ser Premium (R\$ 14,90/mês)',
                       style: TextStyle(
                         color: Color(0xFF1A1200),
                         fontSize: 15,
@@ -287,8 +287,8 @@ const _benefits = [
     subtitle: 'Monte sessões longas, com mais contexto e menos atrito.',
   ),
   _Benefit(
-    'Flashcards com repetição espaçada',
-    subtitle: 'Use o algoritmo FSRS para revisar com mais eficiência.',
+    'Flashcards e revisões inteligentes',
+    subtitle: 'Revisões agendadas no momento ideal para fixar o conteúdo.',
   ),
   _Benefit(
     'Plano de estudo personalizado por IA',

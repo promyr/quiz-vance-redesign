@@ -24,6 +24,69 @@ class QuizOption {
       };
 }
 
+/// Metadados da fonte da questão (apostila/documento da biblioteca).
+class QuestionSource {
+  const QuestionSource({
+    this.document,
+    this.documentId,
+    this.chapter,
+    this.section,
+    this.page,
+    this.topic,
+    this.excerpt,
+  });
+
+  factory QuestionSource.fromJson(Map<String, dynamic> json) => QuestionSource(
+        document: json['document']?.toString(),
+        documentId: (json['document_id'] as num?)?.toInt() ??
+            (json['documentId'] as num?)?.toInt(),
+        chapter: json['chapter']?.toString(),
+        section: json['section']?.toString(),
+        page: (json['page'] as num?)?.toInt(),
+        topic: json['topic']?.toString(),
+        excerpt: json['excerpt']?.toString() ?? json['trecho_fonte']?.toString(),
+      );
+
+  /// Nome do documento/apostila de onde a questão foi extraída.
+  final String? document;
+
+  /// ID opcional do documento no backend para navegação direta.
+  final int? documentId;
+
+  /// Capítulo no documento.
+  final String? chapter;
+
+  /// Seção no documento.
+  final String? section;
+
+  /// Número da página.
+  final int? page;
+
+  /// Tópico específico de onde o trecho foi retirado.
+  final String? topic;
+
+  /// Trecho literal do documento que embasou a questão.
+  final String? excerpt;
+
+  /// Verdadeiro quando há pelo menos um campo com dado útil.
+  bool get hasData =>
+      (document?.trim().isNotEmpty ?? false) ||
+      (excerpt?.trim().isNotEmpty ?? false) ||
+      (chapter?.trim().isNotEmpty ?? false) ||
+      (section?.trim().isNotEmpty ?? false) ||
+      page != null;
+
+  Map<String, dynamic> toJson() => {
+        'document': document,
+        'document_id': documentId,
+        'chapter': chapter,
+        'section': section,
+        'page': page,
+        'topic': topic,
+        'excerpt': excerpt,
+      };
+}
+
 class Question {
   const Question({
     required this.id,
@@ -33,6 +96,7 @@ class Question {
     this.explanation,
     this.topic,
     this.difficulty = 'medium',
+    this.source,
   });
 
   factory Question.fromJson(Map<String, dynamic> json) {
@@ -46,6 +110,7 @@ class Question {
           json['correct_answer'] ??
           json['correctAnswer'],
     );
+    final rawSource = json['source'];
     return Question(
       id: json['id']?.toString() ?? '',
       text: json['text']?.toString() ??
@@ -61,6 +126,9 @@ class Question {
           json['explanation']?.toString() ?? json['explicacao']?.toString(),
       topic: json['topic']?.toString() ?? json['subtema']?.toString(),
       difficulty: json['difficulty']?.toString() ?? 'medium',
+      source: rawSource is Map<String, dynamic>
+          ? QuestionSource.fromJson(rawSource)
+          : null,
     );
   }
 
@@ -72,6 +140,10 @@ class Question {
   final String? topic;
   final String difficulty;
 
+  /// Metadados da fonte — presente apenas em questões geradas a partir de
+  /// um documento da biblioteca. Null quando gerada via tópico livre.
+  final QuestionSource? source;
+
   QuizOption? get correctOption {
     for (final option in options) {
       if (option.id == correctOptionId) {
@@ -81,12 +153,41 @@ class Question {
     return null;
   }
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+        'options': options.map((e) => e.toJson()).toList(),
+        'correct_option_id': correctOptionId,
+        'explanation': explanation,
+        'topic': topic,
+        'difficulty': difficulty,
+        if (source != null) 'source': source!.toJson(),
+      };
+
   String? get correctOptionLetter {
     final index = options.indexWhere((option) => option.id == correctOptionId);
     if (index < 0) {
       return null;
     }
     return String.fromCharCode(65 + index);
+  }
+
+  String getEffectiveExplanation([String? fallbackTopic]) {
+    final exp = explanation?.trim();
+    if (exp != null && exp.isNotEmpty) {
+      return exp;
+    }
+    final topicName = (topic?.trim().isNotEmpty == true)
+        ? topic!.trim()
+        : (fallbackTopic?.trim().isNotEmpty == true ? fallbackTopic!.trim() : 'deste assunto');
+    final letter = correctOptionLetter;
+    final optText = correctOption?.text.trim() ?? '';
+    if (letter != null && optText.isNotEmpty) {
+      return 'A alternativa correta é a letra $letter ($optText). Esta resposta sintetiza a solução adequada para as questões sobre $topicName.';
+    } else if (optText.isNotEmpty) {
+      return 'A alternativa correta é: $optText. Conceito essencial para a compreensão de $topicName.';
+    }
+    return 'Gabarito oficial correspondente aos tópicos fundamentais de $topicName.';
   }
 }
 
@@ -212,8 +313,7 @@ int? _extractAnswerIndex(String rawValue, int optionCount) {
   }
 
   final directNumber = RegExp(r'^(\d+)$').firstMatch(normalized);
-  final prefixedNumber =
-      RegExp(r'^(\d+)[\)\].:\-\s]+').firstMatch(normalized);
+  final prefixedNumber = RegExp(r'^(\d+)[\)\].:\-\s]+').firstMatch(normalized);
   final captured = directNumber?.group(1) ?? prefixedNumber?.group(1);
   if (captured == null) {
     return null;
@@ -312,11 +412,13 @@ String _stripDiacritics(String value) {
 
 String _stringValue(Object? value) {
   if (value is Map<String, dynamic>) {
-    final nestedId = value['id'] ?? value['option_id'] ?? value['correctOptionId'];
+    final nestedId =
+        value['id'] ?? value['option_id'] ?? value['correctOptionId'];
     if (nestedId != null) {
       return nestedId.toString().trim();
     }
-    final nestedText = value['text'] ?? value['answer'] ?? value['correct_answer'];
+    final nestedText =
+        value['text'] ?? value['answer'] ?? value['correct_answer'];
     if (nestedText != null) {
       return nestedText.toString().trim();
     }

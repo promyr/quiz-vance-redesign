@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/core/exceptions/remote_service_exception.dart';
 import 'package:quiz_vance_flutter/core/network/api_client.dart';
+import 'package:quiz_vance_flutter/core/network/api_endpoints.dart';
 import 'package:quiz_vance_flutter/core/storage/local_storage.dart';
 import 'package:quiz_vance_flutter/features/auth/data/auth_repository.dart';
 import 'package:quiz_vance_flutter/shared/application/account_local_state_resetter.dart';
@@ -65,6 +67,48 @@ void main() {
         .thenAnswer((_) async {});
   });
 
+  test('login default tolera o cold start do Render gratuito', () {
+    fakeAsync((clock) {
+      when(
+        () => dio.post<dynamic>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer(
+        (_) => Future<Response<dynamic>>.delayed(
+          const Duration(seconds: 56),
+          () => Response<dynamic>(
+            requestOptions: RequestOptions(path: ApiEndpoints.login),
+            data: 'invalid-after-cold-start',
+          ),
+        ),
+      );
+      Object? completedError;
+      repository
+          .login(loginId: 'promyr', password: 'test-password')
+          .catchError((Object error) {
+        completedError = error;
+        return <String, dynamic>{};
+      });
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 20));
+      clock.flushMicrotasks();
+      expect(completedError, isNull);
+      clock.elapse(const Duration(seconds: 40));
+      clock.flushMicrotasks();
+      expect(completedError, isA<FormatException>());
+      final call = verify(
+        () => dio.post<dynamic>(
+          ApiEndpoints.login,
+          data: any(named: 'data'),
+          options: captureAny(named: 'options'),
+        ),
+      ).captured.single as Options;
+      expect(call.receiveTimeout, const Duration(seconds: 75));
+    });
+  });
+
   test('restorePersistedSession descarta sessao jwt sem token', () async {
     when(
       () => storage.getCacheValue(
@@ -84,8 +128,10 @@ void main() {
 
     expect(session.mode, equals(AuthSessionMode.none));
     verify(() => apiClient.clearTokens()).called(1);
-    verify(() => storage.deleteCacheValue('auth_user_cache', scoped: false)).called(1);
-    verify(() => storage.deleteCacheValue('auth_session_mode', scoped: false)).called(1);
+    verify(() => storage.deleteCacheValue('auth_user_cache', scoped: false))
+        .called(1);
+    verify(() => storage.deleteCacheValue('auth_session_mode', scoped: false))
+        .called(1);
   });
 
   test('getCachedUser retorna usuario salvo na chave atual', () async {
@@ -160,8 +206,7 @@ void main() {
       if (key == 'auth_session_mode') return 'none';
       return null;
     });
-    when(() => apiClient.getAccessToken())
-        .thenAnswer((_) async => null);
+    when(() => apiClient.getAccessToken()).thenAnswer((_) async => null);
 
     final session = await repository.restorePersistedSession();
 
@@ -173,6 +218,7 @@ void main() {
       () => dio.post(
         any(),
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenAnswer(
       (_) async => Response<Map<String, dynamic>>(
@@ -203,6 +249,7 @@ void main() {
       () => dio.post(
         any(),
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenThrow(
       DioException(
@@ -229,6 +276,118 @@ void main() {
     );
   });
 
+  test('login informa credenciais invalidas em vez de erro generico', () async {
+    when(
+      () => dio.post(
+        any(),
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: '/auth/login'),
+        response: Response<Map<String, dynamic>>(
+          requestOptions: RequestOptions(path: '/auth/login'),
+          statusCode: 401,
+          data: const {'detail': 'Credenciais invalidas'},
+        ),
+      ),
+    );
+
+    await expectLater(
+      repository.login(loginId: 'promyr', password: 'senha-incorreta'),
+      throwsA(
+        isA<RemoteServiceException>().having(
+          (error) => error.message,
+          'message',
+          'Credenciais invalidas. Verifique seu ID/e-mail ou senha.',
+        ),
+      ),
+    );
+  });
+
+  test('login biometrico renova a sessao e carrega o usuario atual', () async {
+    when(
+      () => apiClient.saveTokens(
+        accessToken: any(named: 'accessToken'),
+        refreshToken: any(named: 'refreshToken'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
+      () => dio.post(
+        ApiEndpoints.refreshToken,
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer(
+      (_) async => Response<Map<String, dynamic>>(
+        requestOptions: RequestOptions(path: ApiEndpoints.refreshToken),
+        data: const {
+          'access_token': 'new-access',
+          'refresh_token': 'new-refresh',
+        },
+      ),
+    );
+    when(() => dio.get(ApiEndpoints.me)).thenAnswer(
+      (_) async => Response<Map<String, dynamic>>(
+        requestOptions: RequestOptions(path: ApiEndpoints.me),
+        data: const {
+          'id': '7',
+          'login_id': 'promyr',
+          'name': 'Belchior',
+          'role': 'admin',
+        },
+      ),
+    );
+
+    final result =
+        await repository.loginWithRefreshToken('saved-refresh-token');
+
+    expect(result['refresh_token'], 'new-refresh');
+    expect((result['user'] as Map<String, dynamic>)['login_id'], 'promyr');
+    verify(
+      () => apiClient.saveTokens(
+        accessToken: 'new-access',
+        refreshToken: 'new-refresh',
+      ),
+    ).called(1);
+    final refreshOptions = verify(
+      () => dio.post(
+        ApiEndpoints.refreshToken,
+        options: captureAny(named: 'options'),
+      ),
+    ).captured.single as Options;
+    expect(refreshOptions.receiveTimeout, authColdStartTimeout);
+  });
+
+  test('login biometrico classifica refresh recusado como sessao expirada',
+      () async {
+    when(
+      () => dio.post(
+        ApiEndpoints.refreshToken,
+        options: any(named: 'options'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: ApiEndpoints.refreshToken),
+        response: Response<Map<String, dynamic>>(
+          requestOptions: RequestOptions(path: ApiEndpoints.refreshToken),
+          statusCode: 401,
+        ),
+      ),
+    );
+
+    await expectLater(
+      repository.loginWithRefreshToken('expired-refresh-token'),
+      throwsA(isA<BiometricRefreshSessionExpired>()),
+    );
+    verifyNever(
+      () => storage.deleteCacheValue(
+        any(),
+        scoped: any(named: 'scoped'),
+      ),
+    );
+  });
+
   test('login encerra tentativa travada com timeout amigavel', () async {
     repository = AuthRepository(
       apiClient,
@@ -241,6 +400,7 @@ void main() {
       () => dio.post(
         any(),
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenAnswer((_) => Completer<Response<Map<String, dynamic>>>().future);
 
@@ -317,9 +477,22 @@ void main() {
               'login_id': 'belchior',
             }));
 
-    final result = await repository.updateLoginId(loginId: 'novo.id');
+    final result = await repository.updateLoginId(
+      loginId: 'novo.id',
+      currentPassword: 'senha-atual-secreta',
+    );
 
     expect(result['login_id'], equals('novo.id'));
+    final requestPayload = verify(
+      () => dio.post(
+        ApiEndpoints.userUpdateLoginId,
+        data: captureAny(named: 'data'),
+      ),
+    ).captured.single as Map<String, dynamic>;
+    expect(requestPayload, {
+      'login_id': 'novo.id',
+      'current_password': 'senha-atual-secreta',
+    });
     final captured = verify(
       () => storage.setCacheValue(
         'auth_user_cache',
@@ -351,10 +524,10 @@ void main() {
 
     verify(() => accountStateResetter.clearAccountState()).called(1);
     verify(() => apiClient.clearTokens()).called(1);
-    verify(() => storage.deleteCacheValue('auth_user_cache', scoped: any(named: 'scoped')))
-        .called(1);
-    verify(() => storage.deleteCacheValue('auth_session_mode', scoped: any(named: 'scoped')))
-        .called(1);
+    verify(() => storage.deleteCacheValue('auth_user_cache',
+        scoped: any(named: 'scoped'))).called(1);
+    verify(() => storage.deleteCacheValue('auth_session_mode',
+        scoped: any(named: 'scoped'))).called(1);
   });
 
   test('logout encerra sessao sem purgar cache local da conta', () async {
@@ -401,6 +574,7 @@ void main() {
       () => dio.post(
         any(),
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenAnswer(
       (_) async => Response<Map<String, dynamic>>(
@@ -421,7 +595,8 @@ void main() {
     await repository.login(loginId: 'conta.nova', password: '123456');
 
     verifyNever(() => accountStateResetter.clearAccountState());
-    expect(AccountScopedPreferences.instance.activeAccountId, equals('user-novo'));
+    expect(
+        AccountScopedPreferences.instance.activeAccountId, equals('user-novo'));
     verify(
       () => apiClient.saveTokens(
         accessToken: 'novo-token',

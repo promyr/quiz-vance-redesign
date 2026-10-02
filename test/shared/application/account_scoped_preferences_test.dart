@@ -22,9 +22,9 @@ void main() {
 
   test('setString and getString operate under active account scope', () async {
     prefs.setActiveAccountId('acc_A');
-    await prefs.setString('ai_provider', 'openai');
+    await prefs.setString('ai_provider', 'gemini');
 
-    expect(await prefs.getString('ai_provider'), 'openai');
+    expect(await prefs.getString('ai_provider'), 'gemini');
 
     // Switch account to acc_B
     prefs.setActiveAccountId('acc_B');
@@ -35,7 +35,7 @@ void main() {
 
     // Switch back to acc_A
     prefs.setActiveAccountId('acc_A');
-    expect(await prefs.getString('ai_provider'), 'openai');
+    expect(await prefs.getString('ai_provider'), 'gemini');
   });
 
   test('migrates legacy un-scoped key to scoped key on read', () async {

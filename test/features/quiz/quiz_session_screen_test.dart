@@ -7,6 +7,38 @@ import 'package:quiz_vance_flutter/features/quiz/presentation/quiz_session_scree
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('long topic preserves explanation width on narrow screens',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final question = Question.fromJson({
+      'id': 'layout',
+      'text': 'Qual alternativa está correta?',
+      'options': [
+        {'id': 'a', 'text': 'Alternativa correta'},
+        {'id': 'b', 'text': 'Outra alternativa'},
+      ],
+      'correct_answer': 'A',
+      'topic':
+          'Administração pública e organização dos poderes constitucionais',
+      'explanation':
+          'Uma justificativa longa deve usar a largura disponível e permanecer legível abaixo da resposta correta.',
+    });
+    await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+      home: QuizSessionScreen(questions: [question]),
+    )));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Alternativa correta'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+        tester.getSize(find.text('Você acertou! Explicação do Assunto')).width,
+        greaterThan(180));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
     'marks correct option when backend sends correct answer as letter',
     (tester) async {
@@ -40,9 +72,9 @@ void main() {
       await tester.tap(find.text('Gerenciar o orcamento pessoal e familiar'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_rounded), findsWidgets);
       expect(find.byIcon(Icons.cancel_rounded), findsNothing);
-      expect(find.text('Resposta correta'), findsOneWidget);
+      expect(find.textContaining('Resposta correta'), findsWidgets);
       expect(
         find.textContaining('Gerenciar o orcamento pessoal e familiar'),
         findsWidgets,
@@ -96,9 +128,9 @@ void main() {
       await tester.tap(find.text('Gerenciar o orcamento pessoal e familiar'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_rounded), findsWidgets);
       expect(find.byIcon(Icons.cancel_rounded), findsNothing);
-      expect(find.text('Resposta correta'), findsOneWidget);
+      expect(find.textContaining('Resposta correta'), findsWidgets);
       expect(
         find.textContaining('Gerenciar o orcamento pessoal e familiar'),
         findsWidgets,

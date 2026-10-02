@@ -62,7 +62,7 @@ void main() {
     );
   });
 
-  test('recupera geracao com fallback de provider e contexto', () async {
+  test('mantem provider no servidor e reduz contexto ao repetir', () async {
     when(
       () => aiGenerationGuard.ensureReadyForGeneration(
         overrideProvider: any(named: 'overrideProvider'),
@@ -71,22 +71,7 @@ void main() {
       return invocation.namedArguments[#overrideProvider] as String? ??
           'gemini';
     });
-    when(
-      () => aiGenerationGuard.loadConfig(
-        overrideProvider: any(named: 'overrideProvider'),
-      ),
-    ).thenAnswer(
-      (_) async => const AiGenerationConfigState(
-        selectedProvider: 'gemini',
-        selectedProviderLabel: 'Gemini',
-        selectedProviderKey: 'g-key',
-        geminiKey: 'g-key',
-        openaiKey: 'o-key',
-        groqKey: '',
-        syncPending: false,
-        lastSyncedProvider: 'gemini',
-      ),
-    );
+    var attempts = 0;
     when(
       () => repository.generate(
         topic: any(named: 'topic'),
@@ -94,10 +79,12 @@ void main() {
         quantity: any(named: 'quantity'),
         aiProvider: any(named: 'aiProvider'),
         conteudo: any(named: 'conteudo'),
+        documentName: any(named: 'documentName'),
+        documentId: any(named: 'documentId'),
       ),
     ).thenAnswer((invocation) async {
-      final aiProvider = invocation.namedArguments[#aiProvider] as String?;
-      if (aiProvider == 'gemini') {
+      attempts++;
+      if (attempts == 1) {
         throw const RemoteServiceException('Tente novamente');
       }
       return questions;
@@ -114,7 +101,7 @@ void main() {
     );
 
     expect(result.questions, equals(questions));
-    expect(result.aiProvider, equals('groq'));
+    expect(result.aiProvider, equals('gemini'));
     expect(result.infiniteMode, isTrue);
     verify(
       () => repository.generate(
@@ -123,20 +110,13 @@ void main() {
         quantity: 5,
         aiProvider: 'gemini',
         conteudo: any(named: 'conteudo'),
+        documentName: any(named: 'documentName'),
+        documentId: any(named: 'documentId'),
       ),
-    ).called(1);
-    verify(
-      () => repository.generate(
-        topic: selectedFile.nome,
-        difficulty: 'hard',
-        quantity: 5,
-        aiProvider: 'groq',
-        conteudo: any(named: 'conteudo'),
-      ),
-    ).called(greaterThanOrEqualTo(1));
+    ).called(2);
   });
 
-  test('recupera tema manual com outro provedor ao receber erro de quota',
+  test('nao repete outro provider no cliente quando gateway esgota o pool',
       () async {
     when(
       () => aiGenerationGuard.ensureReadyForGeneration(
@@ -147,48 +127,53 @@ void main() {
           'gemini';
     });
     when(
-      () => aiGenerationGuard.loadConfig(
-        overrideProvider: any(named: 'overrideProvider'),
-      ),
-    ).thenAnswer(
-      (_) async => const AiGenerationConfigState(
-        selectedProvider: 'gemini',
-        selectedProviderLabel: 'Gemini',
-        selectedProviderKey: 'g-key',
-        geminiKey: 'g-key',
-        openaiKey: 'o-key',
-        groqKey: '',
-        syncPending: false,
-        lastSyncedProvider: 'gemini',
-      ),
-    );
-    when(
       () => repository.generate(
         topic: any(named: 'topic'),
         difficulty: any(named: 'difficulty'),
         quantity: any(named: 'quantity'),
         aiProvider: any(named: 'aiProvider'),
         conteudo: any(named: 'conteudo'),
+        documentName: any(named: 'documentName'),
+        documentId: any(named: 'documentId'),
       ),
     ).thenAnswer((invocation) async {
-      final provider = invocation.namedArguments[#aiProvider] as String?;
-      if (provider == 'gemini') {
-        throw const RemoteServiceException('Quota exceeded');
-      }
-      return questions;
+      throw const RemoteServiceException('Quota exceeded');
     });
 
-    final result = await coordinator.generate(
-      useLibrary: false,
-      topic: 'Direito constitucional',
-      difficulty: 'medium',
-      quantity: 10,
-      infiniteMode: false,
-      preferredProvider: 'gemini',
+    await expectLater(
+      coordinator.generate(
+        useLibrary: false,
+        topic: 'Direito constitucional',
+        difficulty: 'medium',
+        quantity: 10,
+        infiniteMode: false,
+        preferredProvider: 'gemini',
+      ),
+      throwsA(isA<RemoteServiceException>()),
     );
 
-    expect(result.aiProvider, 'groq');
-    expect(result.questions, questions);
+    verify(
+      () => repository.generate(
+        topic: 'Direito constitucional',
+        difficulty: 'medium',
+        quantity: 10,
+        aiProvider: 'gemini',
+        conteudo: null,
+        documentName: null,
+        documentId: null,
+      ),
+    ).called(1);
+    verifyNever(
+      () => repository.generate(
+        topic: any(named: 'topic'),
+        difficulty: any(named: 'difficulty'),
+        quantity: any(named: 'quantity'),
+        aiProvider: 'groq',
+        conteudo: any(named: 'conteudo'),
+        documentName: any(named: 'documentName'),
+        documentId: any(named: 'documentId'),
+      ),
+    );
   });
 
   test('limpa memoria a partir do topico selecionado', () async {
@@ -202,5 +187,37 @@ void main() {
     );
 
     verify(() => repository.clearSeenQuestions(topic: 'Historia')).called(1);
+  });
+
+  group('sliceStudyMaterialForSession', () {
+    test('retorna material original se for menor ou igual a windowChars', () {
+      const shortText = 'Texto pequeno de estudo.';
+      final result = sliceStudyMaterialForSession(shortText, windowChars: 100);
+      expect(result, equals(shortText));
+    });
+
+    test('fatia trechos distintos para sementes temporais diferentes em material longo', () {
+      final longText = List.generate(100, (i) => 'Paragrafo $i: conteudo detalhado de estudo sobre tema $i. ').join();
+      expect(longText.length, greaterThan(5000));
+
+      final slice0 = sliceStudyMaterialForSession(
+        longText,
+        seed: 0,
+        windowChars: 2000,
+        overlapChars: 400,
+      );
+      final slice1 = sliceStudyMaterialForSession(
+        longText,
+        seed: 1,
+        windowChars: 2000,
+        overlapChars: 400,
+      );
+
+      expect(slice0.length, lessThanOrEqualTo(2000));
+      expect(slice1.length, lessThanOrEqualTo(2000));
+      expect(slice0, isNot(equals(slice1)));
+      expect(slice0.startsWith('Paragrafo 0:'), isTrue);
+      expect(slice1.startsWith('Paragrafo 0:'), isFalse);
+    });
   });
 }

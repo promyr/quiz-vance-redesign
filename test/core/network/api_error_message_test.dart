@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_vance_flutter/core/exceptions/remote_service_exception.dart';
 import 'package:quiz_vance_flutter/core/network/api_error_message.dart';
@@ -73,6 +74,28 @@ void main() {
       expect(
         translateApiErrorMessage('code is invalid'),
         contains('código informado é inválido'),
+      );
+    });
+
+    test('can expose a safe authentication detail for a 401 response', () {
+      final error = DioException(
+        requestOptions: RequestOptions(path: '/auth/login'),
+        response: Response<Map<String, dynamic>>(
+          requestOptions: RequestOptions(path: '/auth/login'),
+          statusCode: 401,
+          data: const {'detail': 'Credenciais invalidas'},
+        ),
+      );
+
+      final translated = buildRemoteServiceException(
+        error,
+        fallback: 'Falha generica',
+        exposeAuthenticationDetail: true,
+      );
+
+      expect(
+        translated.message,
+        'Credenciais invalidas. Verifique seu ID/e-mail ou senha.',
       );
     });
   });

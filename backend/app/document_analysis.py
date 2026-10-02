@@ -137,8 +137,11 @@ def consolidate_analysis(
     return [by_subject[key] for key in order if by_subject[key]["topicos"]]
 
 
-def analysis_window_hash(*, cargo_title: str, window: AnalysisWindow) -> str:
+def analysis_window_hash(
+    *, cargo_title: str, window: AnalysisWindow, checkpoint_version: int = 1
+) -> str:
     digest = hashlib.sha256()
+    digest.update(f"analysis-v{checkpoint_version}\0".encode("ascii"))
     digest.update(_plain(cargo_title).encode("utf-8"))
     digest.update(b"\0")
     digest.update(",".join(str(page) for page in window.page_numbers).encode("ascii"))

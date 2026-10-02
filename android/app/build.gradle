@@ -13,9 +13,39 @@ if (keystorePropertiesFile.exists()) {
     }
 }
 
+def releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains("release")
+}
+def requiredSigningProperties = [
+    "keyAlias",
+    "keyPassword",
+    "storeFile",
+    "storePassword",
+]
+if (releaseTaskRequested) {
+    if (!keystorePropertiesFile.exists()) {
+        throw new GradleException(
+            "Release signing requires android/key.properties; debug fallback is forbidden."
+        )
+    }
+    requiredSigningProperties.each { propertyName ->
+        if (!keystoreProperties[propertyName]?.toString()?.trim()) {
+            throw new GradleException(
+                "Release signing property is missing: ${propertyName}"
+            )
+        }
+    }
+    def configuredStoreFile = rootProject.file(keystoreProperties["storeFile"])
+    if (!configuredStoreFile.exists()) {
+        throw new GradleException(
+            "Release keystore was not found at the configured storeFile."
+        )
+    }
+}
+
 android {
     namespace "com.quizvance.quiz_vance_flutter"
-    compileSdk 35
+    compileSdk 36
     ndkVersion "27.0.12077973"
 
     compileOptions {
@@ -85,6 +115,7 @@ android {
 
     packagingOptions {
         jniLibs {
+            useLegacyPackaging true
             pickFirsts += ['**/libsqlite3.so']
         }
     }
@@ -102,11 +133,10 @@ android {
 
     buildTypes {
         release {
-            signingConfig keystorePropertiesFile.exists() ?
-                signingConfigs.release :
-                signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

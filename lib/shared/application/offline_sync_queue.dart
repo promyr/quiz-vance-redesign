@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -15,7 +16,7 @@ class QueuedSyncItem {
   });
 
   final String id;
-  final String type; // 'quiz_result', 'xp_gain', 'streak_update'
+  final String type;
   final Map<String, dynamic> payload;
   final DateTime timestamp;
   final int retryCount;
@@ -56,9 +57,18 @@ class OfflineSyncQueue {
   final AccountScopedPreferences _preferences;
 
   static const _queueKey = 'offline_sync_queue_v1';
+  static const _deadLetterKey = 'offline_sync_dead_letter_v1';
 
   Future<List<QueuedSyncItem>> getPendingItems() async {
-    final raw = await _preferences.getStringList(_queueKey) ?? [];
+    return _readItems(_queueKey);
+  }
+
+  Future<List<QueuedSyncItem>> getDeadLetterItems() async {
+    return _readItems(_deadLetterKey);
+  }
+
+  Future<List<QueuedSyncItem>> _readItems(String key) async {
+    final raw = await _preferences.getStringList(key) ?? [];
     final items = <QueuedSyncItem>[];
     for (final str in raw) {
       try {
@@ -72,10 +82,19 @@ class OfflineSyncQueue {
   Future<void> enqueueItem({
     required String type,
     required Map<String, dynamic> payload,
+    String? idempotencyKey,
   }) async {
     final items = await getPendingItems();
+    final stableId = idempotencyKey?.trim();
+    if (stableId != null &&
+        stableId.isNotEmpty &&
+        items.any((item) => item.id == stableId)) {
+      return;
+    }
     final newItem = QueuedSyncItem(
-      id: '${DateTime.now().millisecondsSinceEpoch}_${items.length}',
+      id: stableId == null || stableId.isEmpty
+          ? '${DateTime.now().microsecondsSinceEpoch}_${items.length}'
+          : stableId,
       type: type,
       payload: payload,
       timestamp: DateTime.now(),
@@ -93,28 +112,23 @@ class OfflineSyncQueue {
 
     int syncedCount = 0;
     final succeededIds = <String>{};
+    final deadLetterIds = <String>{};
+    final newDeadLetters = <QueuedSyncItem>[];
     final updatedRetries = <String, QueuedSyncItem>{};
 
     for (final item in itemsToSync) {
       try {
-        if (item.type == 'quiz_result') {
-          await client.dio.post(
-            ApiEndpoints.userStats,
-            data: item.payload,
-          );
-          syncedCount++;
-          succeededIds.add(item.id);
-        } else {
-          // General analytics / XP sync
-          syncedCount++;
-          succeededIds.add(item.id);
-        }
+        await _submit(client, item);
+        syncedCount++;
+        succeededIds.add(item.id);
       } catch (_) {
         final nextRetry = item.retryCount + 1;
         if (nextRetry < 5) {
           updatedRetries[item.id] = item.copyWith(retryCount: nextRetry);
+        } else {
+          deadLetterIds.add(item.id);
+          newDeadLetters.add(item.copyWith(retryCount: nextRetry));
         }
-        // If nextRetry >= 5, drop poison pill item to prevent infinite loops
       }
     }
 
@@ -125,6 +139,9 @@ class OfflineSyncQueue {
       if (succeededIds.contains(item.id)) {
         continue; // Successfully synced
       }
+      if (deadLetterIds.contains(item.id)) {
+        continue;
+      }
       if (updatedRetries.containsKey(item.id)) {
         finalItems.add(updatedRetries[item.id]!);
       } else {
@@ -134,12 +151,41 @@ class OfflineSyncQueue {
     }
 
     await _saveItems(finalItems);
+    if (newDeadLetters.isNotEmpty) {
+      final currentDeadLetters = await getDeadLetterItems();
+      final merged = <String, QueuedSyncItem>{
+        for (final item in currentDeadLetters) item.id: item,
+        for (final item in newDeadLetters) item.id: item,
+      };
+      await _saveItemsForKey(_deadLetterKey, merged.values.toList());
+    }
     return syncedCount;
   }
 
+  Future<void> _submit(ApiClient client, QueuedSyncItem item) async {
+    final endpoint = switch (item.type) {
+      'quiz_result' => ApiEndpoints.quizSubmit,
+      'simulado_result' => ApiEndpoints.simuladoSubmit,
+      'flashcard_review' => ApiEndpoints.flashcardsReview,
+      _ => throw StateError('Unsupported sync item type: ${item.type}'),
+    };
+    await client.dio.post(
+      endpoint,
+      data: item.payload,
+      options: Options(headers: {'Idempotency-Key': item.id}),
+    );
+  }
+
   Future<void> _saveItems(List<QueuedSyncItem> items) async {
+    await _saveItemsForKey(_queueKey, items);
+  }
+
+  Future<void> _saveItemsForKey(
+    String key,
+    List<QueuedSyncItem> items,
+  ) async {
     final raw = items.map((i) => jsonEncode(i.toJson())).toList();
-    await _preferences.setStringList(_queueKey, raw);
+    await _preferences.setStringList(key, raw);
   }
 }
 

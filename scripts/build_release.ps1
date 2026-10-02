@@ -1,6 +1,6 @@
 param(
-    [ValidateSet("android", "windows", "ios", "all")]
-    [string]$Platform = "all",
+    [ValidateSet("android")]
+    [string]$Platform = "android",
     [string]$BackendUrl = "",
     [string]$Version = ""
 )
@@ -43,15 +43,15 @@ function Resolve-BackendUrl {
         }
     }
 
-    return "https://quiz-vance-redesign-backend.fly.dev"
+    throw "Defina BackendUrl, QUIZ_VANCE_BACKEND_URL ou backend_url.txt antes do build."
 }
 
 function Resolve-FlutterCommand {
     $candidates = @(
-        "$env:USERPROFILE\.puro\envs\stable\flutter\bin\flutter.bat",
-        "$env:USERPROFILE\.puro\envs\stable\flutter\bin\flutter",
         "C:\flutter\bin\flutter.bat",
-        "C:\flutter\bin\flutter"
+        "C:\flutter\bin\flutter",
+        "$env:USERPROFILE\.puro\envs\stable\flutter\bin\flutter.bat",
+        "$env:USERPROFILE\.puro\envs\stable\flutter\bin\flutter"
     )
 
     foreach ($candidate in $candidates) {
@@ -125,31 +125,45 @@ function Get-LocalProperty([string]$Key) {
 }
 
 function Resolve-AppVersion {
-    if ($Version) {
-        return $Version.Trim()
-    }
-
-    $localVersion = Get-LocalProperty "flutter.versionName"
-    if ($localVersion) {
-        return $localVersion
-    }
-
-    if (Test-Path $PubspecFile) {
-        $match = Select-String -Path $PubspecFile -Pattern '^version:\s*([0-9A-Za-z.\-_]+)(?:\+\d+)?\s*$' | Select-Object -First 1
+    $candidate = $Version.Trim()
+    if (-not $candidate -and (Test-Path $PubspecFile)) {
+        $match = Select-String -Path $PubspecFile -Pattern '^version:\s*(.*?)\s*$' | Select-Object -First 1
         if ($match) {
-            return $match.Matches[0].Groups[1].Value.Trim()
+            $candidate = $match.Matches[0].Groups[1].Value.Trim()
         }
     }
+    if ($candidate -notmatch '^\d+\.\d+\.\d+(\+([1-9]\d{0,9}))?$') {
+        throw "Versao ausente ou invalida. Use major.minor.patch (ex: 2.1.0) ou major.minor.patch+build."
+    }
+    return $candidate
+}
 
-    return "1.0.0"
+function Get-ReleaseBuildArguments {
+    param([string]$AppVersion, [string]$Backend)
+    if ($AppVersion -match '^([^+]+)\+([1-9]\d{0,9})$') {
+        $buildName = $Matches[1]
+        $buildNumber = $Matches[2]
+    } else {
+        $buildName = $AppVersion
+        $buildNumber = "72"
+        if (Test-Path $PubspecFile) {
+            $match = Select-String -Path $PubspecFile -Pattern '^version:\s*[^+]+\+([1-9]\d{0,9})\s*$' | Select-Object -First 1
+            if ($match) {
+                $buildNumber = $match.Matches[0].Groups[1].Value.Trim()
+            }
+        }
+    }
+    return @(
+        "build", "apk", "--release", "--flavor", "production",
+        "--target", "lib/main.dart", "--no-pub",
+        "--build-name=$buildName", "--build-number=$buildNumber",
+        "--dart-define=BACKEND_URL=$Backend",
+        "--dart-define=APP_VERSION=$buildName"
+    )
 }
 
 $BackendUrl = Resolve-BackendUrl -CliValue $BackendUrl
 $resolvedVersion = Resolve-AppVersion
-$dartDefines = @(
-    "--dart-define=BACKEND_URL=$BackendUrl",
-    "--dart-define=APP_VERSION=$resolvedVersion"
-)
 $script:FlutterCmd = Resolve-FlutterCommand
 if (-not $script:FlutterCmd) {
     throw "Flutter nao encontrado."
@@ -163,33 +177,66 @@ Write-Host "  Flutter SDK: $script:FlutterCmd" -ForegroundColor Gray
 
 Ensure-Dependencies
 
-if ($Platform -in @("android", "all")) {
+if ($Platform -eq "android") {
     Write-Step "Build Android APK"
-    Invoke-Flutter -Arguments (@("build", "apk", "--release", "--no-pub") + $dartDefines)
-    Write-OK "APK: build\\app\\outputs\\flutter-apk\\app-release.apk"
-
-    Write-Step "Build Android AAB"
-    Invoke-Flutter -Arguments (@("build", "appbundle", "--release", "--no-pub") + $dartDefines)
-    Write-OK "AAB: build\\app\\outputs\\bundle\\release\\app-release.aab"
-}
-
-if ($Platform -in @("windows", "all")) {
-    Write-Step "Build Windows EXE"
-    Invoke-Flutter -Arguments (@("build", "windows", "--release", "--no-pub") + $dartDefines)
-    Write-OK "EXE: build\\windows\\x64\\runner\\Release\\quiz_vance_flutter.exe"
-
-    $zipPath = "build\\QuizVance-Windows-$resolvedVersion.zip"
-    Compress-Archive `
-        -Path "build\\windows\\x64\\runner\\Release\\*" `
-        -DestinationPath $zipPath `
-        -Force
-    Write-OK "ZIP: $zipPath"
-}
-
-if ($Platform -eq "ios") {
-    Write-Step "Build iOS (requires macOS + Xcode)"
-    Invoke-Flutter -Arguments (@("build", "ios", "--release", "--no-codesign", "--no-pub") + $dartDefines)
-    Write-OK "Archive: build\\ios\\archive\\Runner.xcarchive"
+    Invoke-Flutter -Arguments (Get-ReleaseBuildArguments -AppVersion $resolvedVersion -Backend $BackendUrl)
+    $sourceApk = Join-Path $ProjectDir "build\\app\\outputs\\flutter-apk\\app-production-release.apk"
+    $outputDir = Join-Path $ProjectDir "output_apk"
+    $targetApk = Join-Path $outputDir "quiz-vance-$resolvedVersion-universal.apk"
+    New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+    Copy-Item -LiteralPath $sourceApk -Destination $targetApk -Force
+    $androidSdk = (Get-LocalProperty "sdk.dir") -replace '\\\\','\'
+    $buildTools = Get-ChildItem -Directory (Join-Path $androidSdk "build-tools") |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+    if (-not $buildTools) {
+        throw "Android build-tools nao encontrado."
+    }
+    $zipalign = Join-Path $buildTools.FullName "zipalign.exe"
+    $apksigner = Join-Path $buildTools.FullName "apksigner.bat"
+    & $zipalign -c -P 16 4 $targetApk
+    if ($LASTEXITCODE -ne 0) {
+        throw "APK de producao nao esta alinhado."
+    }
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $signatureReport = & $apksigner verify --verbose --print-certs $targetApk 2>&1
+    $signatureExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorActionPreference
+    if ($signatureExitCode -ne 0) {
+        throw "Assinatura do APK de producao invalida."
+    }
+    $certificateLine = $signatureReport |
+        Select-String "Signer #1 certificate SHA-256 digest:" |
+        Select-Object -First 1
+    if (-not $certificateLine) {
+        throw "Digest do certificado de assinatura nao encontrado."
+    }
+    $certificateSha256 = ($certificateLine.Line -split ":", 2)[1].Trim().ToUpperInvariant()
+    $apkSha256 = (Get-FileHash -LiteralPath $targetApk -Algorithm SHA256).Hash
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $gitCommit = (& git rev-parse HEAD 2>$null).Trim()
+    $gitStatus = @(& git status --porcelain 2>$null)
+    $gitStatusExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorActionPreference
+    $manifest = [ordered]@{
+        schema_version = 1
+        app_version = $resolvedVersion
+        artifact = Split-Path -Leaf $targetApk
+        size_bytes = (Get-Item -LiteralPath $targetApk).Length
+        apk_sha256 = $apkSha256
+        certificate_sha256 = $certificateSha256
+        commit = $gitCommit
+        clean_tree = ($gitStatusExitCode -eq 0 -and $gitStatus.Count -eq 0)
+        backend_url = $BackendUrl
+    }
+    $manifest |
+        ConvertTo-Json |
+        Set-Content -LiteralPath (Join-Path $outputDir "release-manifest.json") -Encoding UTF8
+    Write-OK "APK: $targetApk"
+    Write-OK "SHA256: $apkSha256"
+    Write-OK "Manifest: $(Join-Path $outputDir 'release-manifest.json')"
 }
 
 Write-Host ""

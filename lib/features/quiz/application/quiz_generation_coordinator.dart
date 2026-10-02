@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/content/study_material_sanitizer.dart';
-import '../../../core/network/api_error_message.dart';
 import '../../../core/observability/app_observability.dart';
 import '../../library/domain/library_model.dart';
+import '../../settings/data/ai_generation_fallback.dart';
 import '../../settings/data/ai_generation_guard.dart';
 import '../data/quiz_repository.dart';
 import '../domain/question_model.dart';
@@ -83,6 +83,8 @@ class QuizGenerationCoordinator {
         quantity: effectiveQuantity,
         aiProvider: resolvedProvider,
         conteudo: resolvedContext,
+        documentName: selection.documentName,
+        documentId: selection.documentId,
       );
       _observability.trackEvent(
         'quiz.generate_succeeded',
@@ -101,18 +103,11 @@ class QuizGenerationCoordinator {
         infiniteMode: infiniteMode,
       );
     } catch (firstError) {
-      final firstMessage = userVisibleErrorMessage(firstError, fallback: '');
-      if (!_isRetryableAiGenerationFailure(firstMessage)) {
+      if (!isRetryableAiGenerationFailure(firstError)) {
         rethrow;
       }
 
-      final config = await _aiGenerationGuard.loadConfig(
-        overrideProvider: preferredProvider,
-      );
-      final providerCandidates = _buildProviderFallbackOrder(
-        preferredProvider: resolvedProvider,
-        config: config,
-      );
+      final providerCandidates = <String>[resolvedProvider];
       final contextCandidates = _buildContextFallbackOrder(
         initialContext: selection.libraryContext,
         rawLibraryContent: selection.rawLibraryContent,
@@ -127,15 +122,14 @@ class QuizGenerationCoordinator {
           if (sameAsOriginal) continue;
 
           try {
-            await _aiGenerationGuard.ensureReadyForGeneration(
-              overrideProvider: candidateProvider,
-            );
             final questions = await _quizRepository.generate(
               topic: selection.topic,
               difficulty: difficulty,
               quantity: effectiveQuantity,
               aiProvider: candidateProvider,
               conteudo: candidateContext,
+              documentName: selection.documentName,
+              documentId: selection.documentId,
             );
 
             resolvedProvider = candidateProvider;
@@ -158,11 +152,7 @@ class QuizGenerationCoordinator {
             );
           } catch (retryError) {
             lastError = retryError;
-            final retryMessage = userVisibleErrorMessage(
-              retryError,
-              fallback: '',
-            );
-            if (!_isRetryableAiGenerationFailure(retryMessage)) {
+            if (!isRetryableAiGenerationFailure(retryError)) {
               rethrow;
             }
           }
@@ -210,13 +200,19 @@ class QuizGenerationCoordinator {
         );
       }
 
+      final docId = int.tryParse(selectedLibraryFile.id.toString());
+      final slicedContent = sliceStudyMaterialForSession(
+        selectedLibraryFile.conteudo,
+      );
       return _QuizSelection(
         topic: selectedLibraryFile.nome,
         libraryContext: sanitizeStudyMaterialForPrompt(
-          selectedLibraryFile.conteudo,
+          slicedContent,
           maxChars: 2200,
         ),
-        rawLibraryContent: selectedLibraryFile.conteudo,
+        rawLibraryContent: slicedContent,
+        documentName: selectedLibraryFile.nome,
+        documentId: docId,
         useLibrary: true,
       );
     }
@@ -230,6 +226,8 @@ class QuizGenerationCoordinator {
       topic: trimmedTopic,
       libraryContext: null,
       rawLibraryContent: null,
+      documentName: null,
+      documentId: null,
       useLibrary: false,
     );
   }
@@ -240,42 +238,41 @@ class _QuizSelection {
     required this.topic,
     required this.libraryContext,
     required this.rawLibraryContent,
+    required this.documentName,
+    required this.documentId,
     required this.useLibrary,
   });
 
   final String topic;
   final String? libraryContext;
   final String? rawLibraryContent;
+  final String? documentName;
+  final int? documentId;
   final bool useLibrary;
 }
 
-bool _isRetryableAiGenerationFailure(String message) {
-  final normalized = message.trim().toLowerCase();
-  if (normalized.isEmpty) return false;
-
-  return normalized.contains('erro ao gerar') ||
-      normalized.contains('nao foi possivel gerar') ||
-      normalized.contains('tente novamente') ||
-      normalized.contains('chave de api') ||
-      normalized.contains('prove') ||
-      normalized.contains('modelo') ||
-      normalized.contains('autentic') ||
-      normalized.contains('quota') ||
-      normalized.contains('credito');
-}
-
-List<String> _buildProviderFallbackOrder({
-  required String preferredProvider,
-  required AiGenerationConfigState config,
+/// Retorna uma fatia do material de acordo com uma semente temporal (por padrão a hora UTC atual),
+/// garantindo que sessões consecutivas ou em horários diferentes explorem trechos distintos de PDFs longos.
+String sliceStudyMaterialForSession(
+  String raw, {
+  int? seed,
+  int windowChars = 3000,
+  int overlapChars = 500,
 }) {
-  final providers = <String>['gemini', 'groq', 'openai'];
+  if (raw.length <= windowChars) return raw;
 
-  if (providers.contains(preferredProvider)) {
-    providers.remove(preferredProvider);
-    providers.insert(0, preferredProvider);
+  final effectiveSeed =
+      seed ?? (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 3600000);
+  final strideChars = windowChars - overlapChars;
+  final maxPositions = ((raw.length - overlapChars) / strideChars).ceil();
+  if (maxPositions <= 1) {
+    return raw.substring(0, windowChars.clamp(0, raw.length));
   }
 
-  return providers;
+  final position = (effectiveSeed.abs()) % maxPositions;
+  final start = (position * strideChars).clamp(0, raw.length - 1);
+  final end = (start + windowChars).clamp(start + 1, raw.length);
+  return raw.substring(start, end);
 }
 
 List<String?> _buildContextFallbackOrder({
@@ -290,12 +287,17 @@ List<String?> _buildContextFallbackOrder({
     initialContext,
     sanitizeStudyMaterialForPrompt(rawLibraryContent, maxChars: 1400),
     sanitizeStudyMaterialForPrompt(rawLibraryContent, maxChars: 900),
+    null,
   ];
 
   final deduped = <String?>[];
   for (final candidate in candidates) {
     final text = candidate?.trim();
-    if (text == null || text.isEmpty) continue;
+    if (text == null) {
+      if (!deduped.contains(null)) deduped.add(null);
+      continue;
+    }
+    if (text.isEmpty) continue;
     if (deduped.contains(text)) continue;
     deduped.add(text);
   }

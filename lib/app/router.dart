@@ -22,7 +22,7 @@ import '../features/quiz/presentation/quiz_result_screen.dart';
 import '../features/quiz/presentation/quiz_session_screen.dart'
     show QuizGenerationParams, QuizSessionScreen;
 import '../features/ranking/presentation/ranking_screen.dart';
-import '../features/settings/presentation/api_keys_screen.dart';
+import '../features/settings/presentation/admin_master_keys_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/simulado/presentation/simulado_config_screen.dart';
 import '../features/simulado/presentation/simulado_result_screen.dart';
@@ -30,6 +30,7 @@ import '../features/simulado/presentation/simulado_review_screen.dart';
 import '../features/simulado/presentation/simulado_screen.dart';
 import '../features/stats/presentation/stats_screen.dart';
 import '../features/study_plan/presentation/study_plan_screen.dart';
+import '../features/study_plan/presentation/today_plan_screen.dart';
 import '../features/estudar/presentation/estudar_screen.dart';
 import '../shared/providers/auth_provider.dart';
 
@@ -58,6 +59,7 @@ bool isAppBootstrapLoading({
 String? resolveAppRedirect({
   required bool authLoading,
   required bool isAuthenticated,
+  bool isAdmin = false,
   required bool shouldShowOnboardingFlag,
   required String location,
   String? pendingLocation,
@@ -96,6 +98,15 @@ String? resolveAppRedirect({
     return '/login';
   }
 
+  if (isAuthenticated &&
+      (location == '/api-keys' || location == '/settings/api-keys')) {
+    return '/settings';
+  }
+
+  if (isAuthenticated && location.startsWith('/admin/') && !isAdmin) {
+    return '/';
+  }
+
   if (isAuthenticated && (isLoginRoute || isOnboardingRoute)) {
     return '/';
   }
@@ -103,14 +114,30 @@ String? resolveAppRedirect({
   return null;
 }
 
-final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
-  final onboardingState = ref.watch(onboardingGateProvider);
+class _RouterRefreshNotifier extends ChangeNotifier {
+  _RouterRefreshNotifier(Ref ref) {
+    ref.listen(authStateProvider, (_, __) => notifyListeners());
+    ref.listen(onboardingGateProvider, (_, __) => notifyListeners());
+  }
+}
 
-  return GoRouter(
+final _routerRefreshProvider = Provider<_RouterRefreshNotifier>((ref) {
+  final notifier = _RouterRefreshNotifier(ref);
+  ref.onDispose(notifier.dispose);
+  return notifier;
+});
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final refreshNotifier = ref.watch(_routerRefreshProvider);
+
+  final router = GoRouter(
     initialLocation: _bootRoute,
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
+      final onboardingState = ref.read(onboardingGateProvider);
       final isAuthenticated = authState.valueOrNull?.isAuthenticated ?? false;
+      final isAdmin = authState.valueOrNull?.isAdmin ?? false;
       final bootstrapLoading = isAppBootstrapLoading(
         authLoading: authState.isLoading,
         authHasValue: authState.hasValue,
@@ -121,6 +148,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       return resolveAppRedirect(
         authLoading: bootstrapLoading,
         isAuthenticated: isAuthenticated,
+        isAdmin: isAdmin,
         shouldShowOnboardingFlag: onboardingState.valueOrNull ?? false,
         location: state.matchedLocation,
         pendingLocation: state.uri.queryParameters['from'],
@@ -169,6 +197,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 generationParams:
                     extra?['generationParams'] as QuizGenerationParams?,
                 infiniteMode: (extra?['infiniteMode'] as bool?) ?? false,
+                isErrorRevisionMode:
+                    (extra?['isErrorRevisionMode'] as bool?) ?? false,
               );
             },
           ),
@@ -245,6 +275,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
+        path: '/admin/keys',
+        name: 'adminKeys',
+        builder: (context, state) => const AdminMasterKeysScreen(),
+      ),
+      GoRoute(
         path: '/premium',
         name: 'premium',
         builder: (context, state) => PremiumScreen(
@@ -271,17 +306,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
-        routes: [
-          GoRoute(
-            path: 'api-keys',
-            builder: (context, state) => const ApiKeysScreen(),
-          ),
-        ],
-      ),
-      GoRoute(
-        path: '/api-keys',
-        name: 'apiKeys',
-        builder: (context, state) => const ApiKeysScreen(),
       ),
       GoRoute(
         path: '/open-quiz',
@@ -292,6 +316,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/study-plan',
         name: 'studyPlan',
         builder: (context, state) => const StudyPlanScreen(),
+      ),
+      GoRoute(
+        path: '/today-plan',
+        name: 'todayPlan',
+        builder: (context, state) => const TodayPlanScreen(),
       ),
       GoRoute(
         path: '/library',
@@ -318,6 +347,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });
 
 class _BootstrapScreen extends StatelessWidget {

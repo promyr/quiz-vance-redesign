@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('fontes Dart nao contem texto com codificacao corrompida', () {
     final suspiciousText = RegExp(
-      r'Ã(?:[\u0080-\u00BF]| )|Â[\u0080-\u00BF]|â(?:€|†|œ|”)|ðŸ|ï¸|�',
+      r'Ã(?:[\u0080-\u00BF]| )|Â[\u0080-\u00BF]|â(?:€|†|œ|”|š)|ðŸ|ï¸|�',
     );
     final corruptedFiles = <String>[];
 

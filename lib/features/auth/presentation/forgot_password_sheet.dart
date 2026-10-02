@@ -11,7 +11,8 @@ class ForgotPasswordSheet extends ConsumerStatefulWidget {
   const ForgotPasswordSheet({super.key});
 
   @override
-  ConsumerState<ForgotPasswordSheet> createState() => _ForgotPasswordSheetState();
+  ConsumerState<ForgotPasswordSheet> createState() =>
+      _ForgotPasswordSheetState();
 }
 
 class _ForgotPasswordSheetState extends ConsumerState<ForgotPasswordSheet> {
@@ -45,9 +46,10 @@ class _ForgotPasswordSheetState extends ConsumerState<ForgotPasswordSheet> {
 
     setState(() => _isSubmitting = true);
     try {
-      final message = await ref.read(authRepositoryProvider).requestPasswordReset(
-            identifier: identifier,
-          );
+      final message =
+          await ref.read(authRepositoryProvider).requestPasswordReset(
+                identifier: identifier,
+              );
       if (!mounted) return;
       setState(() => _requestSent = true);
       _showMessage(message);
@@ -76,7 +78,8 @@ class _ForgotPasswordSheetState extends ConsumerState<ForgotPasswordSheet> {
       return;
     }
     if (password.length < 6) {
-      _showMessage('A nova senha precisa ter no mínimo 6 caracteres.', isError: true);
+      _showMessage('A nova senha precisa ter no mínimo 6 caracteres.',
+          isError: true);
       return;
     }
     if (password != confirmPassword) {
@@ -86,11 +89,12 @@ class _ForgotPasswordSheetState extends ConsumerState<ForgotPasswordSheet> {
 
     setState(() => _isSubmitting = true);
     try {
-      final message = await ref.read(authRepositoryProvider).confirmPasswordReset(
-            identifier: identifier,
-            code: code,
-            newPassword: password,
-          );
+      final message =
+          await ref.read(authRepositoryProvider).confirmPasswordReset(
+                identifier: identifier,
+                code: code,
+                newPassword: password,
+              );
       if (!mounted) return;
       setState(() {
         _isSuccess = true;
@@ -124,9 +128,11 @@ class _ForgotPasswordSheetState extends ConsumerState<ForgotPasswordSheet> {
           return detail;
         }
       }
-      return userVisibleErrorMessage(error, fallback: 'Falha ao redefinir a senha.');
+      return userVisibleErrorMessage(error,
+          fallback: 'Falha ao redefinir a senha.');
     }
-    return userVisibleErrorMessage(error, fallback: 'Falha ao redefinir a senha.');
+    return userVisibleErrorMessage(error,
+        fallback: 'Falha ao redefinir a senha.');
   }
 
   @override

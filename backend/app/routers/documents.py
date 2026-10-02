@@ -31,6 +31,7 @@ router = APIRouter(prefix="/v2/documents", tags=["documents-v2"])
 
 class SelectCargoIn(BaseModel):
     cargo_id: str = Field(min_length=1, max_length=120)
+    cargo_title: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 def _now() -> datetime:
@@ -240,7 +241,7 @@ def select_document_cargo(
 ):
     user = require_user(authorization, db)
     document = _document_for_user(
-        db, document_id=document_id, user_id=user.id
+        db, document_id=document_id, user_id=user.id, for_update=True
     )
     if document.purpose != "study_plan":
         raise HTTPException(
@@ -255,6 +256,22 @@ def select_document_cargo(
         ),
         None,
     )
+    if cargo is None and payload.cargo_id == "manual" and payload.cargo_title:
+        title = payload.cargo_title.strip()
+        has_pages = (
+            db.query(models.StudyDocumentPage.id)
+            .filter(models.StudyDocumentPage.document_id == document.id)
+            .first()
+            is not None
+        )
+        if has_pages and title:
+            cargo = {"id": "manual", "title": title, "page_number": None}
+            current_cargos = [
+                c for c in list(document.cargos or [])
+                if str(c.get("id") or "") != "manual"
+            ]
+            current_cargos.append(cargo)
+            document.cargos = current_cargos
     if cargo is None:
         raise HTTPException(
             status_code=422,
@@ -273,34 +290,28 @@ def select_document_cargo(
         .first()
     )
     cargo_title = str(cargo.get("title") or "").strip()
-    if active is None:
-        db.add(
-            models.StudyDocumentJob(
-                document_id=document.id,
-                user_id=user.id,
-                kind="analyze",
-                status="queued",
-                progress=0,
-                attempt_count=0,
-                payload={
-                    "cargo_id": payload.cargo_id,
-                    "cargo_title": cargo_title,
-                },
-                available_at=_now(),
-            )
+    if active is not None:
+        if str((active.payload or {}).get("cargo_id") or "") == payload.cargo_id:
+            return _serialize_document(document)
+        raise HTTPException(
+            status_code=409,
+            detail="Aguarde a analise atual terminar antes de selecionar outro cargo.",
         )
-    else:
-        active.payload = {
-            "cargo_id": payload.cargo_id,
-            "cargo_title": cargo_title,
-        }
-        active.status = "queued"
-        active.available_at = _now()
-        active.locked_by = None
-        active.locked_until = None
-        active.error_code = None
-        active.error_message = None
-        active.updated_at = _now()
+    db.add(
+        models.StudyDocumentJob(
+            document_id=document.id,
+            user_id=user.id,
+            kind="analyze",
+            status="queued",
+            progress=0,
+            attempt_count=0,
+            payload={
+                "cargo_id": payload.cargo_id,
+                "cargo_title": cargo_title,
+            },
+            available_at=_now(),
+        )
+    )
 
     document.selected_cargo_id = payload.cargo_id
     document.selected_cargo_title = cargo_title
