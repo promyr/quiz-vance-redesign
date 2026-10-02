@@ -19,6 +19,7 @@ from .database import SessionLocal, engine, get_db
 from .deps import authenticate_access_token, authenticate_admin
 from .document_worker import start_document_worker, stop_document_worker
 from .rate_limit import rate_limit
+from .release_publication import start_release_publication
 from .routers import admin_ai as admin_ai_router
 from .routers import auth as auth_router
 from .routers import documents as documents_router
@@ -44,6 +45,7 @@ async def _app_lifespan(_app: FastAPI):
     _promote_configured_admin()
     _start_telegram_auto_post_scheduler()
     start_document_worker()
+    start_release_publication()
     try:
         yield
     finally:

@@ -131,26 +131,28 @@ def _call_groq(
     max_output_tokens: int | None = None,
 ) -> str:
     model_id = model or "llama-3.3-70b-versatile"
-    try:
-        return _call_chat_completion_api(
-            api_key,
-            model_id,
-            system,
-            user,
-            base_url="https://api.groq.com/openai/v1",
-            max_output_tokens=max_output_tokens,
-        )
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 404 and model_id != "openai/gpt-oss-20b":
+    fallback_models = (
+        model_id,
+        "openai/gpt-oss-20b",
+        "llama-3.1-8b-instant",
+    )
+    last_error: Exception | None = None
+    for candidate in dict.fromkeys(fallback_models):
+        try:
             return _call_chat_completion_api(
                 api_key,
-                "openai/gpt-oss-20b",
+                candidate,
                 system,
                 user,
                 base_url="https://api.groq.com/openai/v1",
                 max_output_tokens=max_output_tokens,
             )
-        raise
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            if exc.response.status_code != 404:
+                raise
+    assert last_error is not None
+    raise last_error
 
 
 def call_ai(
