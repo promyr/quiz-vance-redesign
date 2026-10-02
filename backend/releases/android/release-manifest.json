@@ -1,14 +1,20 @@
-{
+﻿{
   "schema_version": 1,
   "app_version": "2.0.72+71",
   "artifact": "quiz-vance-2.0.72+71.apk",
   "size_bytes": 40429606,
   "apk_sha256": "7A080287B4A78827D2F66493B96CF6EFE176453E084F4ADD992932773FDFB7E4",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
-  "commit": "db44a926fff459cde664924c23730309a2abce9b",
+  "commit": "24d852ec29c96cf4c3fcffb39a347dc4eb09a8d7",
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
   "release_notes": "Correções críticas: seleção manual de cargo no edital mesmo com extração prévia, suporte a conhecimentos básicos e generic markers ampliados, limite de tokens de análise aumentado para 4096, layout responsivo na Home para Streak/Quotas em telas de 320-390px, substituição de emojis unicode por ícones nativos e refinamento no gabarito comentado.",
   "published_at": "2026-10-02T13:00:00+00:00",
-  "telegram_publish_requested": true
+  "telegram_publish_requested": false,
+  "telegram_publication_receipt": {
+    "version": "2.0.72+71",
+    "status": "sent",
+    "message_id": 879,
+    "sha256": "7A080287B4A78827D2F66493B96CF6EFE176453E084F4ADD992932773FDFB7E4"
+  }
 }
