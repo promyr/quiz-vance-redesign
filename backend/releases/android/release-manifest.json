@@ -10,5 +10,11 @@
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
   "release_notes": "Quiz Vance v2.1.0: Geração dinâmica de quizzes sem repetição de perguntas (deduplicação ativa no banco), rotação horária de trechos em PDFs longos da biblioteca, regras pedagógicas de pré-enumeração de subtemas e diversificação de tipos cognitivos na IA, blindagem do cache semântico e maior resiliência em provedores LLM.",
   "published_at": "2026-10-02T18:40:00+00:00",
-  "telegram_publish_requested": true
+  "telegram_publish_requested": false,
+  "telegram_publication_receipt": {
+    "version": "2.1.0",
+    "status": "sent",
+    "message_id": 899,
+    "sha256": "3DA87DB7A2ED4A5665E1A307F1AC893D370F19F378E13CEBB0A2509560924589"
+  }
 }
