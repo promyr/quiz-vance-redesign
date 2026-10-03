@@ -956,15 +956,69 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Desmarque o que não quiser incluir no plano.',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${analysis.subjects.length} disciplinas • ${analysis.subjects.fold<int>(0, (acc, s) => acc + s.topics.length)} tópicos',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _selectedSubjectIndexes = Set<int>.from(
+                                  List<int>.generate(
+                                    analysis.subjects.length,
+                                    (i) => i,
+                                  ),
+                                );
+                              });
+                            },
+                            child: const Text(
+                              'Marcar todas',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.primaryLight,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _selectedSubjectIndexes.clear();
+                              });
+                            },
+                            child: const Text(
+                              'Desmarcar',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 12),
                   ...analysis.subjects.asMap().entries.map((entry) {
                     final index = entry.key;
                     final subject = entry.value;
@@ -1069,7 +1123,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: AppButton(
-                label: 'Criar plano com conteúdo selecionado',
+                label:
+                    'Criar plano (${_selectedSubjectIndexes.length} de ${analysis.subjects.length} selecionadas)',
                 isLoading: _loading,
                 onPressed: _generatePlan,
               ),
