@@ -36,15 +36,23 @@ def build_ai_candidates(
         .filter(models.UserSettings.user_id == user.id)
         .first()
     )
-    stored_provider = normalize_provider(
-        settings.provider if settings is not None else requested_provider
-    )
-    preferred = normalize_provider(requested_provider or stored_provider)
-    candidates: list[AiCredentialCandidate] = []
+    raw_provider = requested_provider
+    if raw_provider is None and settings is not None and getattr(settings, "provider", None):
+        raw_provider = settings.provider
 
+    preferred: str | None = None
+    if raw_provider and str(raw_provider).strip().lower() in ("gemini", "groq"):
+        preferred = str(raw_provider).strip().lower()
+
+    candidates: list[AiCredentialCandidate] = []
     candidates.extend(select_master_key_candidates(db, preferred_provider=preferred))
-    provider_order = [preferred, *[name for name in ENV_KEY_NAMES if name != preferred]]
-    for provider in provider_order:
+
+    env_order = [preferred] if preferred else ["gemini", "groq"]
+    for provider in ("groq", "gemini"):
+        if provider not in env_order:
+            env_order.append(provider)
+
+    for provider in env_order:
         env_key = os.getenv(ENV_KEY_NAMES[provider], "").strip()
         if not env_key:
             continue

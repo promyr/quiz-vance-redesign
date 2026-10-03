@@ -195,25 +195,61 @@ def select_master_key_candidates(
     *,
     preferred_provider: str | None = None,
 ) -> list[AiCredentialCandidate]:
-    preferred = normalize_provider(preferred_provider)
-    provider_order = [preferred] + [
-        provider for provider in ("groq", "gemini") if provider != preferred
-    ]
-    rank = {provider: index for index, provider in enumerate(provider_order)}
+    clean_preferred = str(preferred_provider or "").strip().lower()
+    if clean_preferred not in ("gemini", "groq"):
+        clean_preferred = None
+
     now = _utc_now()
     rows = db.query(models.AiMasterKey).all()
     available = [row for row in rows if _is_available(row, now)]
-    available.sort(
-        key=lambda row: (
-            rank.get(row.provider, len(rank)),
+
+    def _key_sort_metric(row: models.AiMasterKey) -> tuple:
+        last_used = _as_aware(row.last_success_at) or datetime.min.replace(tzinfo=timezone.utc)
+        return (
             int(row.priority or 0),
             int(row.failure_count or 0),
+            last_used,
             int(row.id or 0),
         )
-    )
+
+    gemini_keys = [r for r in available if r.provider == "gemini"]
+    groq_keys = [r for r in available if r.provider == "groq"]
+
+    gemini_keys.sort(key=_key_sort_metric)
+    groq_keys.sort(key=_key_sort_metric)
+
+    chosen_order: list[models.AiMasterKey] = []
+
+    if clean_preferred == "gemini":
+        chosen_order = gemini_keys + groq_keys
+    elif clean_preferred == "groq":
+        chosen_order = groq_keys + gemini_keys
+    else:
+        # Cross-provider interleaved rotation: provider with oldest success begins
+        gemini_last = max(
+            [_as_aware(k.last_success_at) or datetime.min.replace(tzinfo=timezone.utc) for k in gemini_keys],
+            default=datetime.min.replace(tzinfo=timezone.utc),
+        )
+        groq_last = max(
+            [_as_aware(k.last_success_at) or datetime.min.replace(tzinfo=timezone.utc) for k in groq_keys],
+            default=datetime.min.replace(tzinfo=timezone.utc),
+        )
+
+        first_group, second_group = (
+            (gemini_keys, groq_keys)
+            if gemini_last <= groq_last
+            else (groq_keys, gemini_keys)
+        )
+
+        total_keys = max(len(first_group), len(second_group))
+        for i in range(total_keys):
+            if i < len(first_group):
+                chosen_order.append(first_group[i])
+            if i < len(second_group):
+                chosen_order.append(second_group[i])
 
     candidates: list[AiCredentialCandidate] = []
-    for row in available:
+    for row in chosen_order:
         api_key = (
             services.decrypt_api_key(app_secret(), row.secret_encrypted) or ""
         ).strip()
