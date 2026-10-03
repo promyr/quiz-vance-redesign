@@ -138,6 +138,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
             tempoDiario: _tempo,
             rawTopics: '',
             reviewedTopics: _selectedNoticeTopics(),
+            sourceDocumentIds:
+                _noticeDocument != null ? [_noticeDocument!.id] : const [],
           );
 
       if (mounted) {
@@ -168,7 +170,10 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
     return [
       for (final entry in analysis.subjects.asMap().entries)
         if (_selectedSubjectIndexes.contains(entry.key))
-          for (final topic in entry.value.topics) '${entry.value.name}: $topic',
+          if (entry.value.topics.isEmpty)
+            entry.value.name
+          else
+            for (final topic in entry.value.topics) '${entry.value.name}: $topic',
     ];
   }
 
@@ -535,21 +540,28 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
     );
   }
 
-  Future<void> _toggleItem(int index) async {
-    if (_plan != null) {
-      await ref.read(studyPlanCoordinatorProvider).toggleItem(
-            plan: _plan!,
-            index: index,
-          );
-      // Recarrega o plano para refletir as mudanças
-      try {
-        final updatedPlan = await ref.read(activePlanProvider.future);
-        if (updatedPlan != null && mounted) {
-          setState(() => _plan = updatedPlan);
-        }
-      } catch (_) {}
-      // Invalida para atualizar providers
+  Future<void> _toggleItem(StudyPlanItem item) async {
+    if (_plan == null) return;
+    try {
+      final targetIndex = _plan!.items.indexWhere(
+        (i) => i.effectiveSessionId == item.effectiveSessionId,
+      );
+      if (targetIndex < 0) return;
+
+      final updatedPlan =
+          await ref.read(studyPlanCoordinatorProvider).toggleItem(
+                plan: _plan!,
+                index: targetIndex,
+              );
+      if (mounted) {
+        setState(() => _plan = updatedPlan);
+      }
       ref.invalidate(activePlanProvider);
+      ref.invalidate(allPlansProvider);
+    } catch (_) {
+      if (mounted) {
+        _showError('Não foi possível atualizar a sessão. Tente novamente.');
+      }
     }
   }
 
@@ -1087,9 +1099,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
     }
 
     final plan = _plan!;
-    final itemsConcluidos = plan.items.where((item) => item.concluido).length;
-    final progressPct =
-        plan.items.isEmpty ? 0.0 : itemsConcluidos / plan.items.length;
+    final itemsConcluidos = plan.items.where((item) => item.isCompleted).length;
+    final progressPct = plan.totalProgress;
 
     // Agrupar itens por dia
     final itensPorDia = <String, List<StudyPlanItem>>{};
@@ -1200,7 +1211,6 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                     ...itensPorDia.entries.map((entry) {
                       final dia = entry.key;
                       final itens = entry.value;
-                      final indexInicial = plan.items.indexOf(itens.first);
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1217,14 +1227,10 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                               ),
                             ),
                           ),
-                          ...itens.asMap().entries.map((itemEntry) {
-                            final relativeIndex = itemEntry.key;
-                            final item = itemEntry.value;
-                            final globalIndex = indexInicial + relativeIndex;
-
+                          ...itens.map((item) {
                             return _StudyItemCard(
                               item: item,
-                              onToggle: () => _toggleItem(globalIndex),
+                              onToggle: () => _toggleItem(item),
                             );
                           }),
                         ],

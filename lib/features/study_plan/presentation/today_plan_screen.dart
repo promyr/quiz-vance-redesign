@@ -712,13 +712,20 @@ class _TodayPlanScreenState extends ConsumerState<TodayPlanScreen> {
                           session: session,
                           isLoading: _loadingDocument,
                           onToggleComplete: () async {
-                            await ref
-                                .read(studyPlanCoordinatorProvider)
-                                .toggleItem(
-                                  plan: plan,
-                                  index: idx,
-                                );
-                            ref.invalidate(activePlanProvider);
+                            final targetIndex = plan.items.indexWhere(
+                              (i) =>
+                                  i.effectiveSessionId ==
+                                  session.effectiveSessionId,
+                            );
+                            if (targetIndex >= 0) {
+                              await ref
+                                  .read(studyPlanCoordinatorProvider)
+                                  .toggleItem(
+                                    plan: plan,
+                                    index: targetIndex,
+                                  );
+                              ref.invalidate(activePlanProvider);
+                            }
                           },
                           onStartQuiz: () =>
                               _startQuizForSession(plan, session),

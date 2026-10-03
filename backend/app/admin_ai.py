@@ -183,8 +183,8 @@ def rotate_master_key(
     row.updated_at = _utc_now()
 
 
-def _is_available(row: models.AiMasterKey, now: datetime) -> bool:
-    if not bool(row.is_active):
+def _is_available(row: models.AiMasterKey | None, now: datetime) -> bool:
+    if row is None or not bool(row.is_active):
         return False
     blocked_until = _as_aware(row.blocked_until)
     return blocked_until is None or blocked_until <= now

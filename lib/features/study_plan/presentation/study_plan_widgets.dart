@@ -16,7 +16,7 @@ class _StudyItemCard extends StatelessWidget {
     return GestureDetector(
       onTap: onToggle,
       child: Opacity(
-        opacity: item.concluido ? 0.5 : 1.0,
+        opacity: item.isCompleted ? 0.5 : 1.0,
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
@@ -36,14 +36,14 @@ class _StudyItemCard extends StatelessWidget {
                 height: 20,
                 decoration: BoxDecoration(
                   color:
-                      item.concluido ? AppColors.success : AppColors.surface2,
+                      item.isCompleted ? AppColors.success : AppColors.surface2,
                   borderRadius: BorderRadius.circular(5),
                   border: Border.all(
                     color:
-                        item.concluido ? AppColors.success : AppColors.border,
+                        item.isCompleted ? AppColors.success : AppColors.border,
                   ),
                 ),
-                child: item.concluido
+                child: item.isCompleted
                     ? const Center(
                         child: Icon(Icons.check_rounded,
                             size: 12, color: AppColors.background),

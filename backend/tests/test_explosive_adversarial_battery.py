@@ -171,10 +171,11 @@ def test_adversarial_concurrent_key_rotation():
 
     selected_first_keys = []
     lock = threading.Lock()
+    db_lock = threading.Lock()
 
     def worker_request():
-        # Cada thread abre sua sessão
-        candidates = select_master_key_candidates(db)
+        with db_lock:
+            candidates = select_master_key_candidates(db)
         if candidates:
             with lock:
                 selected_first_keys.append((candidates[0].provider, candidates[0].key_id))

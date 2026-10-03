@@ -261,7 +261,106 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                         decoration: const InputDecoration(
                           hintText: 'Cole a chave secreta',
                         ),
+                        onChanged: (val) {
+                          final trimmed = val.trim();
+                          if (trimmed.startsWith('gsk_') && selectedProvider != 'groq') {
+                            setDialogState(() => selectedProvider = 'groq');
+                          } else if (trimmed.startsWith('AIza') && selectedProvider != 'gemini') {
+                            setDialogState(() => selectedProvider = 'gemini');
+                          } else {
+                            setDialogState(() {});
+                          }
+                        },
                       ),
+                      if (keyCtrl.text.trim().startsWith('gsk_')) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: selectedProvider == 'groq'
+                                ? AppColors.primary.withOpacity(0.12)
+                                : AppColors.error.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: selectedProvider == 'groq'
+                                  ? AppColors.primary.withOpacity(0.3)
+                                  : AppColors.error.withOpacity(0.4),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                selectedProvider == 'groq'
+                                    ? Icons.info_outline_rounded
+                                    : Icons.warning_amber_rounded,
+                                size: 16,
+                                color: selectedProvider == 'groq'
+                                    ? AppColors.primaryLight
+                                    : AppColors.error,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  selectedProvider == 'groq'
+                                      ? 'Prefixo "gsk_": chave Groq detectada automaticamente.'
+                                      : 'Atenção: chaves iniciadas por "gsk_" pertencem ao Groq! Alterne o provedor para Groq ou use sua chave do Gemini (iniciada por "AIzaSy").',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: selectedProvider == 'groq'
+                                        ? AppColors.primaryLight
+                                        : AppColors.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else if (keyCtrl.text.trim().startsWith('AIza')) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: selectedProvider == 'gemini'
+                                ? AppColors.primary.withOpacity(0.12)
+                                : AppColors.error.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: selectedProvider == 'gemini'
+                                  ? AppColors.primary.withOpacity(0.3)
+                                  : AppColors.error.withOpacity(0.4),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                selectedProvider == 'gemini'
+                                    ? Icons.info_outline_rounded
+                                    : Icons.warning_amber_rounded,
+                                size: 16,
+                                color: selectedProvider == 'gemini'
+                                    ? AppColors.primaryLight
+                                    : AppColors.error,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  selectedProvider == 'gemini'
+                                      ? 'Prefixo "AIza": chave Google Gemini detectada automaticamente.'
+                                      : 'Atenção: chaves iniciadas por "AIza" são do Google Gemini! Alterne o provedor para Gemini.',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: selectedProvider == 'gemini'
+                                        ? AppColors.primaryLight
+                                        : AppColors.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

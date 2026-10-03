@@ -93,7 +93,12 @@ class AdminBiometricAuthCoordinator {
     }
     await _vault.clear();
     final credential = await _vault.createCredential();
-    await _remote.enroll(credential: credential, password: password);
+    try {
+      await _remote.enroll(credential: credential, password: password);
+    } catch (_) {
+      await _vault.clear();
+      rethrow;
+    }
   }
 
   Future<AdminAuthorization> authorize({

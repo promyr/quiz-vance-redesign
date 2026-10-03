@@ -178,7 +178,172 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
+
+                // ── Card Destaque: Plano de Estudos ─────────────────
+                Consumer(
+                  builder: (context, ref, _) {
+                    final activePlanAsync = ref.watch(activePlanProvider);
+                    return activePlanAsync.when(
+                      data: (plan) {
+                        final hasActivePlan = plan != null;
+                        final completedCount = hasActivePlan
+                            ? plan.items.where((i) => i.isCompleted).length
+                            : 0;
+                        final totalCount =
+                            hasActivePlan ? plan.items.length : 0;
+                        final pct = hasActivePlan ? plan.totalProgress : 0.0;
+
+                        return Container(
+                          margin: const EdgeInsets.fromLTRB(18, 4, 18, 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.surface,
+                                AppColors.primary.withOpacity(0.10),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.primary.withOpacity(0.35),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.18),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: InkWell(
+                            onTap: () => context.push('/study-plan'),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary
+                                            .withOpacity(0.18),
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.calendar_month_rounded,
+                                        color: AppColors.primaryLight,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Plano de Estudos',
+                                            style: TextStyle(
+                                              color: AppColors.textPrimary,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          Text(
+                                            hasActivePlan
+                                                ? plan.objetivo
+                                                : 'Cronograma com base em editais ou disciplinas',
+                                            style: const TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 11,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary
+                                            .withOpacity(0.18),
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            hasActivePlan ? 'Abrir' : 'Criar',
+                                            style: const TextStyle(
+                                              color: AppColors.primaryLight,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 13,
+                                            color: AppColors.primaryLight,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (hasActivePlan) ...[
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          child: LinearProgressIndicator(
+                                            value: pct,
+                                            minHeight: 5,
+                                            backgroundColor:
+                                                AppColors.surface2,
+                                            valueColor:
+                                                const AlwaysStoppedAnimation<
+                                                    Color>(
+                                              AppColors.success,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        '$completedCount/$totalCount sessões',
+                                        style: const TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    );
+                  },
+                ),
 
                 // ── Content ──────────────────────────────────────────
                 Expanded(
