@@ -547,4 +547,47 @@ void main() {
 
     expect(text, contains('Pagina dois'));
   });
+
+  test('resultado usa o identificador efetivo de uma sessao legada', () async {
+    final item = StudyPlanItem(
+        id: 7,
+        dia: 'Hoje',
+        subject: 'Direito',
+        tema: 'Direito',
+        atividade: 'Quiz',
+        duracaoMin: 30,
+        prioridade: 1);
+    await repository.savePlan(StudyPlan(
+        id: 'legacy', objetivo: 'Concurso', tempoDiario: 30, items: [item]));
+    final updated = await repository.updateSessionResult(
+        planId: 'legacy',
+        sessionId: item.effectiveSessionId,
+        status: StudySessionStatus.completed);
+    expect(updated.items.single.isCompleted, isTrue);
+  });
+
+  test('plano ausente nao redireciona o resultado para outro plano ativo',
+      () async {
+    await repository.savePlan(StudyPlan(
+        id: 'another',
+        objetivo: 'Concurso',
+        tempoDiario: 30,
+        items: const [
+          StudyPlanItem(
+              sessionId: 'same-session',
+              dia: 'Hoje',
+              tema: 'Direito',
+              atividade: 'Quiz',
+              duracaoMin: 30,
+              prioridade: 1)
+        ]));
+    await expectLater(
+        repository.updateSessionResult(
+            planId: 'missing',
+            sessionId: 'same-session',
+            status: StudySessionStatus.completed),
+        throwsException);
+    expect(
+        (await repository.getActivePlan())!.items.single.isCompleted, isFalse);
+  });
 }

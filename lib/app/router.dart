@@ -211,7 +211,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               if (result == null) {
                 return const HomeScreen();
               }
-              return QuizResultScreen(result: result);
+              return QuizResultScreen(
+                result: result,
+                studyPlanId: extra?['studyPlanId'] as String?,
+              );
             },
           ),
         ],

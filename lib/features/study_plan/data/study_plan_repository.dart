@@ -170,9 +170,12 @@ class StudyPlanRepository {
     final planIndex = plans.indexWhere((p) => p.id == planId);
     if (planIndex < 0) {
       final active = await getActivePlan();
-      if (active == null) throw Exception('Plano não encontrado.');
+      if (active == null || active.id != planId) {
+        throw Exception('Plano selecionado não encontrado.');
+      }
+      await savePlan(active);
       return updateSessionResult(
-        planId: active.id,
+        planId: planId,
         sessionId: sessionId,
         status: status,
         correctAnswers: correctAnswers,
@@ -184,7 +187,7 @@ class StudyPlanRepository {
 
     final targetPlan = plans[planIndex];
     final itemIndex = targetPlan.items.indexWhere(
-      (i) => i.sessionId == sessionId || i.id.toString() == sessionId,
+      (i) => i.effectiveSessionId == sessionId || i.id.toString() == sessionId,
     );
 
     if (itemIndex < 0) return targetPlan;
@@ -261,7 +264,7 @@ class StudyPlanRepository {
 
     final targetPlan = plans[planIndex];
     final itemIndex = targetPlan.items.indexWhere(
-      (i) => i.sessionId == sessionId || i.id.toString() == sessionId,
+      (i) => i.effectiveSessionId == sessionId || i.id.toString() == sessionId,
     );
 
     if (itemIndex < 0) return targetPlan;

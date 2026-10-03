@@ -10,6 +10,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../library/application/study_document_picker.dart';
 import '../../library/application/study_document_upload_source.dart';
 import '../application/study_plan_coordinator.dart';
+import '../application/study_plan_quiz_request.dart';
 import '../data/study_plan_repository.dart';
 import '../domain/study_plan_model.dart';
 import '../domain/study_plan_notice_analysis.dart';
@@ -173,7 +174,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
           if (entry.value.topics.isEmpty)
             entry.value.name
           else
-            for (final topic in entry.value.topics) '${entry.value.name}: $topic',
+            for (final topic in entry.value.topics)
+              '${entry.value.name}: $topic',
     ];
   }
 
@@ -577,8 +579,16 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
     });
   }
 
-  void _goToQuiz() {
-    context.goNamed('quizConfig');
+  void _goToQuiz([StudyPlanItem? item]) {
+    final plan = _plan;
+    if (plan == null || plan.items.isEmpty) return;
+    final session = item ??
+        plan.items
+            .firstWhere((i) => !i.isCompleted, orElse: () => plan.items.first);
+    context.pushNamed('quizSession', extra: {
+      'generationParams': studyPlanQuizRequest(plan, session),
+      'infiniteMode': false,
+    });
   }
 
   @override
@@ -972,7 +982,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                         children: [
                           TextButton(
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
@@ -997,7 +1008,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                           const SizedBox(width: 4),
                           TextButton(
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
@@ -1286,6 +1298,7 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                             return _StudyItemCard(
                               item: item,
                               onToggle: () => _toggleItem(item),
+                              onStudy: () => _goToQuiz(item),
                             );
                           }),
                         ],
@@ -1310,7 +1323,7 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                   const SizedBox(height: 12),
                   AppButton(
                     label: 'Estudar Agora →',
-                    onPressed: _goToQuiz,
+                    onPressed: () => _goToQuiz(),
                   ),
                 ],
               ),

@@ -6,8 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../quiz/domain/question_model.dart';
-import '../../quiz/presentation/quiz_session_screen.dart';
 import '../application/study_plan_coordinator.dart';
+import '../application/study_plan_quiz_request.dart';
 import '../data/study_plan_repository.dart';
 import '../domain/study_plan_model.dart';
 
@@ -151,50 +151,12 @@ class _TodayPlanScreenState extends ConsumerState<TodayPlanScreen> {
     );
   }
 
-  Future<void> _startQuizForSession(
-      StudyPlan plan, StudyPlanItem session) async {
-    setState(() => _loadingDocument = true);
-    try {
-      String? documentContext;
-
-      if (session.sourceDocumentIds.isNotEmpty) {
-        final docId = session.sourceDocumentIds.first;
-        try {
-          documentContext = await ref
-              .read(studyPlanRepositoryProvider)
-              .getDocumentContent(docId);
-        } catch (_) {}
-      }
-
-      final topicText = session.subtopics.isNotEmpty
-          ? '${session.subject}: ${session.subtopics.first}'
-          : (session.tema.isNotEmpty ? session.tema : session.subject);
-
-      if (!mounted) return;
-
-      context.pushNamed('quizSession', extra: {
-        'questions': const <Question>[],
-        'generationParams': QuizGenerationParams(
-          topic: topicText,
-          difficulty: session.difficulty,
-          aiProvider: 'gemini',
-          conteudo: documentContext,
-        ),
-        'infiniteMode': false,
-      });
-
-      // Registrar inicio em andamento se pendente
-      if (session.isPending) {
-        await ref.read(studyPlanCoordinatorProvider).updateSessionResult(
-              planId: plan.id,
-              sessionId: session.sessionId,
-              status: StudySessionStatus.inProgress,
-            );
-        ref.invalidate(activePlanProvider);
-      }
-    } finally {
-      if (mounted) setState(() => _loadingDocument = false);
-    }
+  void _startQuizForSession(StudyPlan plan, StudyPlanItem session) {
+    context.pushNamed('quizSession', extra: {
+      'questions': const <Question>[],
+      'generationParams': studyPlanQuizRequest(plan, session),
+      'infiniteMode': false,
+    });
   }
 
   void _startFlashcardsForSession(StudyPlan plan, StudyPlanItem session) {

@@ -4,10 +4,12 @@ class _StudyItemCard extends StatelessWidget {
   const _StudyItemCard({
     required this.item,
     required this.onToggle,
+    required this.onStudy,
   });
 
   final StudyPlanItem item;
   final VoidCallback onToggle;
+  final VoidCallback onStudy;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +89,10 @@ class _StudyItemCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                     ),
+                    TextButton.icon(
+                        onPressed: onStudy,
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: const Text('Estudar isso')),
                   ],
                 ),
               ),

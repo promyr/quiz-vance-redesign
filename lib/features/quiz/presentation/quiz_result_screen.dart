@@ -19,9 +19,10 @@ import '../data/quiz_repository.dart';
 import '../domain/question_model.dart';
 
 class QuizResultScreen extends ConsumerStatefulWidget {
-  const QuizResultScreen({super.key, required this.result});
+  const QuizResultScreen({super.key, required this.result, this.studyPlanId});
 
   final QuizResult result;
+  final String? studyPlanId;
 
   @override
   ConsumerState<QuizResultScreen> createState() => _QuizResultScreenState();
@@ -538,8 +539,18 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
 
               const SizedBox(height: 22),
               _PrimaryAction(
-                label: 'Fazer outro quiz',
-                onTap: () => context.go('/quiz'),
+                label: widget.studyPlanId != null
+                    ? 'Continuar plano de estudos'
+                    : 'Fazer outro quiz',
+                onTap: () {
+                  if (widget.studyPlanId == null) {
+                    context.go('/quiz');
+                  } else if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/today-plan');
+                  }
+                },
               ).animate(delay: 300.ms).fadeIn(),
               const SizedBox(height: 10),
               _SecondaryAction(

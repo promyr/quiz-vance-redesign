@@ -15,23 +15,13 @@ import '../../study_plan/data/study_plan_repository.dart';
 import '../../study_plan/domain/study_plan_model.dart';
 import '../data/quiz_repository.dart';
 import '../domain/question_model.dart';
+import '../domain/quiz_generation_params.dart';
+import '../../../core/content/study_material_sanitizer.dart';
+
+export '../domain/quiz_generation_params.dart';
 
 part 'quiz_session_sections.dart';
-
-/// Parâmetros de geração para o modo infinito.
-class QuizGenerationParams {
-  const QuizGenerationParams({
-    required this.topic,
-    required this.difficulty,
-    required this.aiProvider,
-    this.conteudo,
-  });
-
-  final String topic;
-  final String difficulty;
-  final String aiProvider;
-  final String? conteudo;
-}
+part 'quiz_session_initial_generation.dart';
 
 class QuizSessionScreen extends ConsumerStatefulWidget {
   const QuizSessionScreen({
@@ -76,6 +66,8 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
   bool _fetchFailed = false;
   bool _showFloatingXp = false;
   bool _zenMode = false;
+  bool _loadingInitial = false;
+  String? _initialError;
 
   /// Tamanho do batch para prefetch.
   static const _batchSize = 5;
@@ -87,7 +79,13 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
   void initState() {
     super.initState();
     _questions = List<Question>.from(widget.questions);
-    _stopwatch = Stopwatch()..start();
+    _stopwatch = Stopwatch();
+    if (_questions.isNotEmpty) _stopwatch.start();
+    if (_questions.isEmpty && widget.generationParams != null) {
+      _loadingInitial = true;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _generateInitialQuiz());
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       // Usa o Stopwatch como fonte de verdade — não acumula drift quando o
       // app vai para background e o timer continua contando sozinho.
@@ -100,6 +98,10 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
     _timer?.cancel();
     _stopwatch.stop();
     super.dispose();
+  }
+
+  void _updateQuizState(VoidCallback update) {
+    if (mounted) setState(update);
   }
 
   Question get _current => _questions[_currentIndex];
@@ -214,7 +216,7 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
     } catch (_) {}
   }
 
-  void _finishQuiz({bool completed = true}) {
+  Future<void> _finishQuiz({bool completed = true}) async {
     if (_finishing) return;
     _finishing = true;
     try {
@@ -234,34 +236,14 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
 
     final correct = _answers.where((a) => a.isCorrect).length;
 
-    // Atualiza o progresso no Plano de Estudos se houver um plano ativo
-    final activePlan = ref.read(activePlanProvider).valueOrNull;
-    if (completed && activePlan != null && activePlan.items.isNotEmpty) {
-      final topic = widget.generationParams?.topic ?? '';
-      final itemIndex = activePlan.items.indexWhere(
-        (i) =>
-            topic.contains(i.subject) ||
-            topic.contains(i.tema) ||
-            i.sessionId == topic,
-      );
-      final targetItem = itemIndex >= 0
-          ? activePlan.items[itemIndex]
-          : activePlan.items.firstWhere((i) => !i.isCompleted,
-              orElse: () => activePlan.items.first);
-
-      ref.read(studyPlanCoordinatorProvider).updateSessionResult(
-            planId: activePlan.id,
-            sessionId: targetItem.sessionId,
-            status: StudySessionStatus.completed,
-            correctAnswers: correct,
-            incorrectAnswers: _answers.length - correct,
-            timeSpentMinutes: _stopwatch.elapsed.inMinutes.clamp(1, 120),
-            score: _answers.isNotEmpty ? (correct / _answers.length * 100) : 0,
-          );
-      ref.invalidate(activePlanProvider);
+    // Só a sessão explicitamente iniciada pelo plano recebe este resultado.
+    final params = widget.generationParams;
+    if (completed && params?.planId != null && params?.studySessionId != null) {
+      await _recordStudySessionResult(correct: correct);
     }
 
-    context.goNamed('quizResult', extra: {
+    if (!mounted) return;
+    final resultExtra = <String, dynamic>{
       'result': QuizResult(
         sessionId: DateTime.now().millisecondsSinceEpoch.toString(),
         total: _answers.length,
@@ -271,7 +253,13 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
         answers: _answers,
         topic: widget.generationParams?.topic,
       ),
-    });
+    };
+    if (params?.planId != null) {
+      resultExtra['studyPlanId'] = params!.planId;
+      context.pushReplacementNamed('quizResult', extra: resultExtra);
+    } else {
+      context.goNamed('quizResult', extra: resultExtra);
+    }
   }
 
   String _formatElapsed() {
@@ -282,6 +270,9 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_questions.isEmpty && widget.generationParams != null) {
+      return _buildInitialQuizState();
+    }
     if (_questions.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/');
