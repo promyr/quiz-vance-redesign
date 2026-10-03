@@ -290,7 +290,7 @@ def test_legacy_personal_ai_keys_are_not_exposed_as_available(db: Session) -> No
     settings = models.UserSettings(
         user_id=account.id,
         provider="gemini",
-        model="gemini-3.5-flash",
+        model="gemini-3.8-flash",
         api_key_gemini="legacy-encrypted-personal-key",
     )
     db.add(settings)

@@ -62,7 +62,7 @@ def test_default_analyzer_prioritizes_gemini_and_limits_response_tokens(
     output_limits: list[int | None] = []
     candidate = AiCredentialCandidate(
         provider="gemini",
-        model="gemini-3.5-flash",
+        model="gemini-3.8-flash",
         api_key="server-key",
         key_id=None,
         source="server_env",

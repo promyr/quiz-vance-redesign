@@ -431,7 +431,7 @@ def get_ai_config(
     if not settings:
         return {
             "provider": "gemini",
-            "model": "gemini-3.5-flash",
+            "model": "gemini-3.8-flash",
             "has_api_key": False,
             "has_api_key_gemini": False,
             "has_api_key_groq": False,

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 DEFAULT_MODELS = {
-    "gemini": "gemini-3.5-flash",
+    "gemini": "gemini-3.8-flash",
     "groq": "llama-3.3-70b-versatile",
 }
 
 RETIRED_MODELS = {
     "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "llama-3-70b-8192",
+    "llama-3-8b-8192",
 }
 
 

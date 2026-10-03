@@ -302,7 +302,7 @@ def test_gateway_forwards_per_operation_output_budget(db: Session) -> None:
         candidate = [
             AiCredentialCandidate(
                 provider="gemini",
-                model="gemini-3.5-flash",
+                model="gemini-3.8-flash",
                 api_key="server-key",
                 key_id=None,
                 source="server_env",
@@ -379,7 +379,7 @@ def test_gateway_fallback_does_not_degrade_key_for_payload_size(
         ),
         AiCredentialCandidate(
             provider="gemini",
-            model="gemini-3.5-flash",
+            model="gemini-3.8-flash",
             api_key="gemini-secret",
             key_id=None,
             source="server_env",
@@ -493,4 +493,4 @@ def test_retired_gemini_model_is_not_reused_from_legacy_settings() -> None:
         stored_provider="gemini",
     )
 
-    assert model == "gemini-3.5-flash"
+    assert model == "gemini-3.8-flash"

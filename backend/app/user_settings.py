@@ -25,7 +25,7 @@ def get_or_create_user_settings(
     row = models.UserSettings(
         user_id=normalized_user_id,
         provider="gemini",
-        model="gemini-3.5-flash",
+        model="gemini-3.8-flash",
         economia_mode=0,
         telemetry_opt_in=0,
     )
@@ -45,7 +45,7 @@ def user_settings_out(
     return schemas.UserSettingsOut(
         user_id=int(user_id),
         provider=str(row.provider or "gemini"),
-        model=str(row.model or "gemini-3.5-flash"),
+        model=str(row.model or "gemini-3.8-flash"),
         api_key=None,
         api_key_gemini=None,
         api_key_groq=None,

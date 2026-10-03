@@ -48,7 +48,7 @@ def _call_gemini(
     *,
     max_output_tokens: int | None = None,
 ) -> str:
-    model_id = model or "gemini-3.5-flash"
+    model_id = model or "gemini-3.8-flash"
     # A chave é enviada via header x-goog-api-key, nunca como query param,
     # para evitar que ela seja registrada em logs de proxy, CDN e servidor.
     url = (

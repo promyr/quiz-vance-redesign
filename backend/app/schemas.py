@@ -109,7 +109,7 @@ class UpsertUserIn(BaseModel):
 class UserSettingsOut(BaseModel):
     user_id: int
     provider: str = "gemini"
-    model: str = "gemini-3.5-flash"
+    model: str = "gemini-3.8-flash"
     api_key: str | None = None
     api_key_gemini: str | None = None
     api_key_groq: str | None = None
@@ -123,7 +123,7 @@ class UserSettingsOut(BaseModel):
 class UpsertUserSettingsIn(BaseModel):
     user_id: int
     provider: str = "gemini"
-    model: str = "gemini-3.5-flash"
+    model: str = "gemini-3.8-flash"
     api_key: str | None = None
     api_key_gemini: str | None = None
     api_key_groq: str | None = None

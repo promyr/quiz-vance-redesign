@@ -1863,7 +1863,7 @@ def upsert_user_settings(
 
     row = get_or_create_user_settings(db, int(uid))
     row.provider = str(payload.provider or "gemini").strip().lower() or "gemini"
-    row.model = str(payload.model or "gemini-3.5-flash").strip() or "gemini-3.5-flash"
+    row.model = str(payload.model or "gemini-3.8-flash").strip() or "gemini-3.8-flash"
     row.economia_mode = 1 if bool(payload.economia_mode) else 0
     row.telemetry_opt_in = 1 if bool(payload.telemetry_opt_in) else 0
     row.updated_at = datetime.now(timezone.utc)

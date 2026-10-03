@@ -45,7 +45,7 @@ def test_provider_payloads_honor_the_per_call_output_budget(monkeypatch) -> None
     gemini = ai_service.call_ai(
         "gemini",
         "gemini-key",
-        "gemini-3.5-flash",
+        "gemini-3.8-flash",
         "system",
         "prompt",
         max_output_tokens=1500,

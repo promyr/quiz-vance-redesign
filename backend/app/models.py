@@ -173,7 +173,7 @@ class UserSettings(Base):
         index=True,
     )
     provider: Mapped[str] = mapped_column(String(40), default="gemini")
-    model: Mapped[str] = mapped_column(String(120), default="gemini-3.5-flash")
+    model: Mapped[str] = mapped_column(String(120), default="gemini-3.8-flash")
     api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     api_key_gemini: Mapped[str | None] = mapped_column(Text, nullable=True)
     api_key_groq: Mapped[str | None] = mapped_column(Text, nullable=True)
