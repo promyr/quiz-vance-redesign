@@ -1,21 +1,13 @@
 {
   "schema_version": 1,
-  "app_version": "2.1.0",
-  "artifact": "quiz-vance-2.1.0.apk",
-  "size_bytes": 40431706,
-  "apk_sha256": "BB6BE18884F8289122D7814469B4298E7F8573F9B379F78223B5A8FF4DA499A9",
+  "app_version": "2.1.1",
+  "artifact": "quiz-vance-2.1.1.apk",
+  "size_bytes": 40452622,
+  "apk_sha256": "BEF48A4D08165B4D88F5D71395021BB6D8A486C5F9686CEF2830146045E3E923",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
-  "commit": "4b55c1025a40b91e9f1938531ecb94a96b3d4f82",
+  "commit": "adc8c6165b5752131190ecc1eeb585f7a910bfc3",
   "clean_tree": true,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "release_notes": "Quiz Vance v2.1.0: Suporte oficial a modelos mais recentes e econômicos (Gemini 3.8 Flash e Groq Llama 3.3/3.1), rodízio inteligente LRU de credenciais e alternância intercalada entre provedores, priorização do Gemini no Plano de Estudos, deduplicação de perguntas no banco e rotação de janelas em PDFs.",
-  "published_at": "2026-10-03T15:40:00+00:00",
-  "telegram_publish_requested": false,
-  "telegram_publication_receipt": {
-    "version": "2.1.0",
-    "status": "sent",
-    "message_id": 914,
-    "changelog_message_id": 915,
-    "sha256": "BB6BE18884F8289122D7814469B4298E7F8573F9B379F78223B5A8FF4DA499A9"
-  }
+  "release_notes": "Quiz Vance v2.1.1: Suporte a chaves Gemini com prefixo AQ./AQ.Ab e chaves Groq gsk_, correção da autenticação biométrica no painel admin com janela de 15s no KeyStore, Card de Destaque fixo do Plano de Estudos no topo da Biblioteca, conclusão determinística de sessões de estudo com recálculo instantâneo de progresso e estatísticas de disciplinas e tópicos na revisão de editais.",
+  "published_at": "2026-10-03T17:41:00+00:00"
 }
