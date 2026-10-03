@@ -265,7 +265,10 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                           final trimmed = val.trim();
                           if (trimmed.startsWith('gsk_') && selectedProvider != 'groq') {
                             setDialogState(() => selectedProvider = 'groq');
-                          } else if (trimmed.startsWith('AIza') && selectedProvider != 'gemini') {
+                          } else if ((trimmed.startsWith('AIza') ||
+                                  trimmed.startsWith('AQ.') ||
+                                  trimmed.startsWith('AQ')) &&
+                              selectedProvider != 'gemini') {
                             setDialogState(() => selectedProvider = 'gemini');
                           } else {
                             setDialogState(() {});
@@ -303,7 +306,7 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                                 child: Text(
                                   selectedProvider == 'groq'
                                       ? 'Prefixo "gsk_": chave Groq detectada automaticamente.'
-                                      : 'Atenção: chaves iniciadas por "gsk_" pertencem ao Groq! Alterne o provedor para Groq ou use sua chave do Gemini (iniciada por "AIzaSy").',
+                                      : 'Atenção: chaves iniciadas por "gsk_" pertencem ao Groq! Alterne o provedor para Groq ou use sua chave do Gemini (iniciada por "AIza" ou "AQ.").',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: selectedProvider == 'groq'
@@ -316,7 +319,9 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                             ],
                           ),
                         ),
-                      ] else if (keyCtrl.text.trim().startsWith('AIza')) ...[
+                      ] else if (keyCtrl.text.trim().startsWith('AIza') ||
+                          keyCtrl.text.trim().startsWith('AQ.') ||
+                          keyCtrl.text.trim().startsWith('AQ')) ...[
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.all(8),
@@ -346,8 +351,8 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                               Expanded(
                                 child: Text(
                                   selectedProvider == 'gemini'
-                                      ? 'Prefixo "AIza": chave Google Gemini detectada automaticamente.'
-                                      : 'Atenção: chaves iniciadas por "AIza" são do Google Gemini! Alterne o provedor para Gemini.',
+                                      ? 'Prefixo "${keyCtrl.text.trim().startsWith('AQ.') ? 'AQ.' : (keyCtrl.text.trim().startsWith('AQ') ? 'AQ' : 'AIza')}": chave Google Gemini detectada automaticamente.'
+                                      : 'Atenção: chaves iniciadas por "${keyCtrl.text.trim().startsWith('AQ.') ? 'AQ.' : (keyCtrl.text.trim().startsWith('AQ') ? 'AQ' : 'AIza')}" são do Google Gemini! Alterne o provedor para Gemini.',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: selectedProvider == 'gemini'
