@@ -56,7 +56,7 @@ function Resolve-BackendUrl {
         }
     }
 
-    return "https://quiz-vance-redesign-backend.fly.dev"
+    throw "Defina BackendUrl, QUIZ_VANCE_BACKEND_URL ou backend_url.txt antes do build."
 }
 
 function Resolve-FlutterPath {
@@ -141,19 +141,17 @@ function Resolve-SdkManager {
 }
 
 function Resolve-AppVersion {
-    $localVersion = Get-LocalProperty "flutter.versionName"
-    if ($localVersion) {
-        return $localVersion.Trim()
-    }
-
+    $candidate = ''
     if (Test-Path $PubspecFile) {
-        $match = Select-String -Path $PubspecFile -Pattern '^version:\s*([0-9A-Za-z.\-_]+)(?:\+\d+)?\s*$' | Select-Object -First 1
+        $match = Select-String -Path $PubspecFile -Pattern '^version:\s*(.*?)\s*$' | Select-Object -First 1
         if ($match) {
-            return $match.Matches[0].Groups[1].Value.Trim()
+            $candidate = $match.Matches[0].Groups[1].Value.Trim()
         }
     }
-
-    return "1.0.0"
+    if ($candidate -notmatch '^\d+\.\d+\.\d+\+([1-9]\d{0,9})$' -or [long]$Matches[1] -gt 2100000000) {
+        throw "Versao ausente ou invalida no pubspec.yaml. Use major.minor.patch+build com build entre 1 e 2100000000."
+    }
+    return $candidate
 }
 
 function Ensure-Dependencies {
@@ -286,6 +284,7 @@ Ensure-Dependencies
 Write-Log "[2/3] flutter build apk --release (production universal)" "Yellow"
 Write-Log ""
 
+$buildName, $buildNumber = $AppVersion -split '\+', 2
 $buildExitCode = Invoke-FlutterLogged -Arguments @(
     "build",
     "apk",
@@ -293,6 +292,8 @@ $buildExitCode = Invoke-FlutterLogged -Arguments @(
     "--flavor",
     "production",
     "--no-pub",
+    "--build-name=$buildName",
+    "--build-number=$buildNumber",
     "--dart-define=BACKEND_URL=$BackendUrl",
     "--dart-define=APP_VERSION=$AppVersion"
 )
@@ -311,10 +312,6 @@ Write-Log "[3/3] Copiando APK final..." "Yellow"
 $OutputDir = Join-Path $ProjectDir "output_apk"
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
-Get-ChildItem -Path $OutputDir -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Extension -in @(".apk", ".aab") } |
-    Remove-Item -Force -ErrorAction SilentlyContinue
-
 $universalSource = Join-Path $ProjectDir "build\app\outputs\flutter-apk\app-production-release.apk"
 
 if (-not (Test-Path $universalSource)) {
@@ -325,9 +322,47 @@ if (-not (Test-Path $universalSource)) {
     exit 1
 }
 
-$universalTarget = Join-Path $OutputDir "app-universal-release.apk"
+$universalTarget = Join-Path $OutputDir "quiz-vance-$AppVersion-universal.apk"
 Copy-Item $universalSource -Destination $universalTarget -Force
-Write-Log "  -> app-universal-release.apk" "Green"
+Write-Log "  -> quiz-vance-$AppVersion-universal.apk" "Green"
+
+$apksigner = Get-ChildItem (Join-Path $SdkPath "build-tools") `
+    -Recurse -Filter "apksigner.bat" -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending |
+    Select-Object -First 1 -ExpandProperty FullName
+if (-not $apksigner) {
+    throw "apksigner nao encontrado no Android SDK."
+}
+
+$signatureReport = & $apksigner verify --verbose --print-certs $universalTarget 2>&1
+if ($LASTEXITCODE -ne 0) {
+    throw "Falha ao validar assinatura do APK de producao."
+}
+$certificateLine = $signatureReport |
+    Select-String "Signer #1 certificate SHA-256 digest:" |
+    Select-Object -First 1
+if (-not $certificateLine) {
+    throw "Digest do certificado de assinatura nao encontrado."
+}
+$certificateSha256 = ($certificateLine.Line -split ":", 2)[1].Trim().ToUpperInvariant()
+$apkSha256 = (Get-FileHash -LiteralPath $universalTarget -Algorithm SHA256).Hash
+$gitCommit = (& git rev-parse HEAD 2>$null).Trim()
+$cleanTree = -not [bool](& git status --porcelain 2>$null)
+$manifest = [ordered]@{
+    schema_version = 1
+    app_version = $AppVersion
+    artifact = Split-Path -Leaf $universalTarget
+    size_bytes = (Get-Item -LiteralPath $universalTarget).Length
+    apk_sha256 = $apkSha256
+    certificate_sha256 = $certificateSha256
+    commit = $gitCommit
+    clean_tree = $cleanTree
+    backend_url = $BackendUrl
+}
+$manifest |
+    ConvertTo-Json |
+    Set-Content -LiteralPath (Join-Path $OutputDir "release-manifest.json") -Encoding UTF8
+Write-Log "  SHA256: $apkSha256" "Green"
 
 Start-Process explorer $OutputDir
 

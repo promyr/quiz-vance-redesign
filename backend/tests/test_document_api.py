@@ -388,17 +388,15 @@ def test_retry_analysis_reuses_extracted_pages_and_is_idempotent() -> None:
 def test_production_app_exposes_versioned_document_routes() -> None:
     from app.main import app
 
-    routes = {(route.path, ",".join(sorted(route.methods or []))) for route in app.routes}
-    assert any(path == "/v2/documents" and "POST" in methods for path, methods in routes)
-    assert any(
-        path == "/v2/documents/{document_id}/select-cargo"
-        and "POST" in methods
-        for path, methods in routes
+    paths = app.openapi()["paths"]
+    assert "/v2/documents" in paths and "post" in paths["/v2/documents"]
+    assert (
+        "/v2/documents/{document_id}/select-cargo" in paths
+        and "post" in paths["/v2/documents/{document_id}/select-cargo"]
     )
-    assert any(
-        path == "/v2/documents/{document_id}/retry-analysis"
-        and "POST" in methods
-        for path, methods in routes
+    assert (
+        "/v2/documents/{document_id}/retry-analysis" in paths
+        and "post" in paths["/v2/documents/{document_id}/retry-analysis"]
     )
 
 

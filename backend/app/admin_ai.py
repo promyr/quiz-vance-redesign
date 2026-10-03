@@ -330,6 +330,21 @@ def classify_provider_error(exc: Exception) -> str:
         return "timeout"
     if isinstance(exc, (httpx.NetworkError, httpx.RemoteProtocolError)):
         return "provider_unavailable"
+
+    msg = str(exc or "").lower()
+    if "413" in msg or "payload too large" in msg or "request entity too large" in msg:
+        return "payload_too_large"
+    if "429" in msg or "rate limit" in msg or "resource has been exhausted" in msg or "quota" in msg:
+        return "rate_limit"
+    if "401" in msg or "invalid api key" in msg or "unauthenticated" in msg or "api_key_invalid" in msg:
+        return "invalid_key"
+    if "403" in msg or "permission denied" in msg or "forbidden" in msg:
+        return "permission_denied"
+    if "503" in msg or "500" in msg or "service unavailable" in msg or "overloaded" in msg:
+        return "provider_unavailable"
+    if "timeout" in msg or "timed out" in msg:
+        return "timeout"
+
     return "provider_error"
 
 

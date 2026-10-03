@@ -27,4 +27,6 @@ os.environ.setdefault(
 )
 os.environ.setdefault("ALLOW_INSECURE_BOOT", "1")
 os.environ.setdefault("ENVIRONMENT", "test")
-os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///./backend/.pytest.sqlite3")
+_test_sqlite_path = (BACKEND_ROOT / ".pytest.sqlite3").as_posix()
+os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{_test_sqlite_path}")
+

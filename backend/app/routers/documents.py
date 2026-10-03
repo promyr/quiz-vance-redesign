@@ -248,6 +248,11 @@ def select_document_cargo(
             status_code=422,
             detail="Selecao de cargo disponivel somente para editais.",
         )
+    if document.status in ("extracting", "failed"):
+        raise HTTPException(
+            status_code=422,
+            detail="Documento ainda em extracao ou em estado invalido.",
+        )
     cargo = next(
         (
             item
