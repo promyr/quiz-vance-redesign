@@ -2,19 +2,20 @@
   "schema_version": 1,
   "app_version": "2.1.0",
   "artifact": "quiz-vance-2.1.0.apk",
-  "size_bytes": 40431642,
-  "apk_sha256": "3DA87DB7A2ED4A5665E1A307F1AC893D370F19F378E13CEBB0A2509560924589",
+  "size_bytes": 40431706,
+  "apk_sha256": "BB6BE18884F8289122D7814469B4298E7F8573F9B379F78223B5A8FF4DA499A9",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
-  "commit": "a93095d14a7a8d12de00dacf3db4a08168939a8c",
+  "commit": "4b55c1025a40b91e9f1938531ecb94a96b3d4f82",
   "clean_tree": true,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "release_notes": "Quiz Vance v2.1.0: Geração dinâmica de quizzes sem repetição de perguntas (deduplicação ativa no banco), rotação horária de trechos em PDFs longos da biblioteca, regras pedagógicas de pré-enumeração de subtemas e diversificação de tipos cognitivos na IA, blindagem do cache semântico e maior resiliência em provedores LLM.",
-  "published_at": "2026-10-02T18:40:00+00:00",
+  "release_notes": "Quiz Vance v2.1.0: Suporte oficial a modelos mais recentes e econômicos (Gemini 3.8 Flash e Groq Llama 3.3/3.1), rodízio inteligente LRU de credenciais e alternância intercalada entre provedores, priorização do Gemini no Plano de Estudos, deduplicação de perguntas no banco e rotação de janelas em PDFs.",
+  "published_at": "2026-10-03T15:40:00+00:00",
   "telegram_publish_requested": false,
   "telegram_publication_receipt": {
     "version": "2.1.0",
     "status": "sent",
-    "message_id": 899,
-    "sha256": "3DA87DB7A2ED4A5665E1A307F1AC893D370F19F378E13CEBB0A2509560924589"
+    "message_id": 914,
+    "changelog_message_id": 915,
+    "sha256": "BB6BE18884F8289122D7814469B4298E7F8573F9B379F78223B5A8FF4DA499A9"
   }
 }
