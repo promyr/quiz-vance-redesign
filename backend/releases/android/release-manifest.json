@@ -10,5 +10,11 @@
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
   "release_notes": "Quiz do plano inicia automaticamente com a matéria e todos os tópicos da sessão selecionada. Corrige retorno indevido à Home, dispensa configuração repetida, mantém tentativa novamente no mesmo fluxo e registra progresso no item correto. Resultado permite continuar o plano.",
   "published_at": "2026-10-03T21:42:43.856150+00:00",
-  "telegram_publish_requested": false
+  "telegram_publish_requested": false,
+  "telegram_publication_receipt": {
+    "version": "2.1.2",
+    "status": "sent",
+    "message_id": 925,
+    "sha256": "B667DB0FD560E430CF9F63EB0A7772F8D2912AC0CBCA91580A89642FEBF4F7E3"
+  }
 }
