@@ -19,4 +19,9 @@ Os testes do backend usaram diretório temporário próprio porque o diretório 
 
 ## Publicação
 
-APK, assinatura, download público e entrega pelo bot serão registrados após confirmação.
+Código e APK publicados no commit be341d2. Readiness público HTTP 200; versão 2.1.4. Download integral verificado: 40.564.378 bytes, SHA-256 A1FFEDEF3519E160A939C5884D7179E5E92527FED3C6FBB780E757A404CC42E4. Assinatura v2 com o certificado de produção preservado.
+
+O GitHub aprovou higiene de segredos e testes/análise estática do backend. O build Docker revelou psycopg2-binary 2.9.10 sem wheel para Python 3.14; atualização para 2.9.13, com wheel oficial Linux verificado e 210 testes novamente aprovados. Referência: https://www.psycopg.org/docs/news.html. A etapa Android no GitHub está bloqueada pela ausência dos quatro secrets de assinatura; o APK entregue foi compilado e assinado localmente.
+
+
+Entrega pelo Gerent3Bot confirmada no tópico Atualizações, mensagem 929: https://t.me/c/3742591996/929. Tamanho confirmado pelo Telegram igual ao APK verificado. Credencial fornecida por entrada oculta, sem gravação em arquivo.
