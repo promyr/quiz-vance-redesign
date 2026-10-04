@@ -21,6 +21,7 @@ import '../../settings/providers/settings_provider.dart';
 import '../application/quiz_generation_coordinator.dart';
 import '../providers/recent_subjects_provider.dart';
 import 'quiz_session_screen.dart' show QuizGenerationParams;
+import 'resume_quiz_card.dart';
 
 part 'quiz_config_sections.dart';
 
@@ -295,6 +296,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const ResumeQuizCard(),
                     // Cartão Unificado de Escolha de Assunto & Biblioteca
                     Container(
                       padding: const EdgeInsets.all(16),

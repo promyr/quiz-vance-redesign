@@ -10,6 +10,7 @@ import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
 import '../../../shared/application/account_scoped_preferences.dart';
 import '../domain/study_plan_model.dart';
+import '../../../shared/application/document_text_cache.dart';
 import '../domain/study_plan_notice_analysis.dart';
 import '../domain/study_document.dart';
 
@@ -549,6 +550,7 @@ class StudyPlanRepository {
       final response = await _client.dio.post(
         ApiEndpoints.documentRetryAnalysisV2(documentId),
       );
+      await DocumentTextCache().invalidate(documentId);
       return _documentFromResponse(response.data);
     } on DioException catch (error) {
       throw buildRemoteServiceException(
@@ -558,7 +560,10 @@ class StudyPlanRepository {
     }
   }
 
-  Future<String> getDocumentContent(int documentId) async {
+  Future<String> getDocumentContent(int documentId) => DocumentTextCache()
+      .get(documentId, () => _fetchDocumentContent(documentId));
+
+  Future<String> _fetchDocumentContent(int documentId) async {
     try {
       final response =
           await _client.dio.get(ApiEndpoints.documentContentV2(documentId));
@@ -578,6 +583,7 @@ class StudyPlanRepository {
   Future<void> deleteDocument(int documentId) async {
     try {
       await _client.dio.delete(ApiEndpoints.documentV2(documentId));
+      await DocumentTextCache().invalidate(documentId);
     } on DioException catch (error) {
       throw buildRemoteServiceException(
         error,

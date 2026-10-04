@@ -579,16 +579,20 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
     });
   }
 
-  void _goToQuiz([StudyPlanItem? item]) {
+  Future<void> _goToQuiz([StudyPlanItem? item]) async {
     final plan = _plan;
     if (plan == null || plan.items.isEmpty) return;
     final session = item ??
         plan.items
             .firstWhere((i) => !i.isCompleted, orElse: () => plan.items.first);
-    context.pushNamed('quizSession', extra: {
+    await context.pushNamed('quizSession', extra: {
       'generationParams': studyPlanQuizRequest(plan, session),
       'infiniteMode': false,
     });
+    if (mounted) {
+      ref.invalidate(activePlanProvider);
+      await _loadActivePlan();
+    }
   }
 
   @override
@@ -1260,6 +1264,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    _NextStudySession(
+                        plan: plan, onStudy: (item) => _goToQuiz(item)),
                     // Chip com data da prova
                     if (plan.dataProva != null && plan.dataProva!.isNotEmpty)
                       Padding(

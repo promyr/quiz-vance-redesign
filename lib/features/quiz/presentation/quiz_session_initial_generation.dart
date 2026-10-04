@@ -3,14 +3,14 @@ part of 'quiz_session_screen.dart';
 extension _InitialQuizGeneration on _QuizSessionScreenState {
   Future<void> _generateInitialQuiz() async {
     final params = widget.generationParams;
-    if (!mounted || params == null) return;
+    if (!mounted || params == null || !_sameAccount) return;
     _updateQuizState(() {
       _loadingInitial = true;
       _initialError = null;
     });
     try {
-      var content = params.conteudo;
-      if (content == null && params.documentId != null) {
+      var content = _contentPrepared ? _preparedContent : params.conteudo;
+      if (!_contentPrepared && content == null && params.documentId != null) {
         try {
           content = await ref
               .read(studyPlanRepositoryProvider)
@@ -19,18 +19,22 @@ extension _InitialQuizGeneration on _QuizSessionScreenState {
           // O tópico do plano continua suficiente quando o PDF está indisponível.
         }
       }
-      if (!mounted) return;
+      if (!mounted || !_sameAccount) return;
+      if (!_contentPrepared) {
+        _preparedContent = content == null
+            ? null
+            : selectRelevantStudyMaterial(content, params.topic);
+        _contentPrepared = content != null || params.documentId == null;
+      }
       final questions = await ref.read(quizRepositoryProvider).generate(
             topic: params.topic,
             difficulty: params.difficulty,
             quantity: params.quantity,
             aiProvider: params.aiProvider,
-            conteudo: content == null
-                ? null
-                : sanitizeStudyMaterialForPrompt(content),
+            conteudo: _preparedContent,
             documentId: params.documentId,
           );
-      if (!mounted) return;
+      if (!mounted || !_sameAccount) return;
       if (questions.isEmpty) throw const FormatException('empty quiz');
       if (params.planId != null && params.studySessionId != null) {
         try {
@@ -49,17 +53,24 @@ extension _InitialQuizGeneration on _QuizSessionScreenState {
           }
         }
       }
-      if (!mounted) return;
+      if (!mounted || !_sameAccount) return;
       _updateQuizState(() {
         _questions.addAll(questions);
         _loadingInitial = false;
       });
       _stopwatch.start();
-    } catch (_) {
+      _saveSessionLocally();
+    } catch (error) {
+      if (!mounted || !_sameAccount) return;
       _updateQuizState(() {
         _loadingInitial = false;
-        _initialError =
-            'Não foi possível gerar as perguntas desta sessão. Tente novamente.';
+        _initialError = switch (error) {
+          RemoteServiceException e => e.message,
+          ProviderRateLimitException e => e.message,
+          PremiumLimitException e => e.message,
+          _ =>
+            'Não foi possível gerar as perguntas desta sessão. Tente novamente.',
+        };
       });
     }
   }
@@ -73,7 +84,9 @@ extension _InitialQuizGeneration on _QuizSessionScreenState {
             status: StudySessionStatus.completed,
             correctAnswers: correct,
             incorrectAnswers: _answers.length - correct,
-            timeSpentMinutes: _stopwatch.elapsed.inMinutes.clamp(1, 120),
+            timeSpentMinutes:
+                ((_restoredSeconds + _stopwatch.elapsed.inSeconds) ~/ 60)
+                    .clamp(1, 120),
             score: _answers.isNotEmpty ? correct / _answers.length * 100 : 0,
           );
       ref.invalidate(activePlanProvider);

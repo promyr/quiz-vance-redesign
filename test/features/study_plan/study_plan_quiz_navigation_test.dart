@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:quiz_vance_flutter/features/quiz/data/quiz_recovery_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quiz_vance_flutter/features/study_plan/domain/study_plan_model.dart';
 import 'package:quiz_vance_flutter/features/study_plan/data/study_plan_repository.dart';
@@ -20,6 +21,7 @@ class _Plans extends Mock implements StudyPlanRepository {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   final first = StudyPlanItem(
       sessionId: 'first',
       dia: 'Hoje',
@@ -66,6 +68,7 @@ void main() {
       when(() => repository.listDocuments(purpose: any(named: 'purpose')))
           .thenAnswer((_) async => []);
       QuizGenerationParams? captured;
+      var returned = false;
       final router = GoRouter(routes: [
         GoRoute(
             path: '/',
@@ -74,11 +77,17 @@ void main() {
         GoRoute(
             path: '/session',
             name: 'quizSession',
-            builder: (_, state) {
+            builder: (context, state) {
               captured =
                   (state.extra as Map<String, dynamic>)['generationParams']
                       as QuizGenerationParams;
-              return const Text('Quiz iniciado');
+              return Scaffold(
+                  body: TextButton(
+                      onPressed: () {
+                        returned = true;
+                        context.pop();
+                      },
+                      child: const Text('Quiz iniciado')));
             }),
         GoRoute(
             path: '/config',
@@ -87,13 +96,19 @@ void main() {
       ]);
       addTearDown(router.dispose);
       await tester.pumpWidget(ProviderScope(overrides: [
-        activePlanProvider.overrideWith((ref) async => plan),
+        activePlanProvider.overrideWith((ref) async => returned
+            ? plan.copyWith(items: [
+                first,
+                selected.copyWith(status: StudySessionStatus.completed)
+              ])
+            : plan),
         allPlansProvider.overrideWith((ref) async => [plan]),
         studyPlanRepositoryProvider.overrideWithValue(repository),
       ], child: MaterialApp.router(routerConfig: router)));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
+      if (!daily) expect(find.text('Próxima sessão: Sintaxe'), findsOneWidget);
       final button = find.text(daily ? 'Fazer Quiz' : 'Estudar isso').last;
       await tester.ensureVisible(button);
       await tester.tap(button);
@@ -103,6 +118,11 @@ void main() {
       expect(captured!.topic, contains('Direitos fundamentais'));
       expect(captured!.topic, contains('Organizacao do Estado'));
       expect(find.text('Configuracao indevida'), findsNothing);
+      if (!daily) {
+        await tester.tap(find.text('Quiz iniciado'));
+        await tester.pumpAndSettle();
+        expect(find.text('1/2 itens concluídos'), findsOneWidget);
+      }
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });
@@ -239,7 +259,7 @@ void main() {
             (ref) async => plan.copyWith(id: 'another-active-plan')),
         allPlansProvider.overrideWith((ref) async => [plan]),
       ], child: MaterialApp.router(routerConfig: router)));
-      await tester.pump();
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Correta'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
@@ -248,6 +268,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       expect(find.text('Resultado recebido'), findsOneWidget);
+      if (fromPlan) {
+        expect(
+            await QuizRecoveryStore().load('plan:chosen-plan/session:chosen'),
+            isNull);
+      }
       Future<StudyPlan> verifyCall() => repository.updateSessionResult(
           planId: 'chosen-plan',
           sessionId: 'chosen',

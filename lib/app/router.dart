@@ -191,6 +191,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final extra = state.extra as Map<String, dynamic>?;
               return QuizSessionScreen(
+                recoveryKey: extra?['recoveryKey'] as String?,
                 questions: (extra?['questions'] as List<dynamic>? ?? const [])
                     .whereType<Question>()
                     .toList(),

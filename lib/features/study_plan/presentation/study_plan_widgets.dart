@@ -417,3 +417,28 @@ class _InfoChip extends StatelessWidget {
     );
   }
 }
+
+class _NextStudySession extends StatelessWidget {
+  const _NextStudySession({required this.plan, required this.onStudy});
+  final StudyPlan plan;
+  final ValueChanged<StudyPlanItem> onStudy;
+  @override
+  Widget build(BuildContext context) {
+    final pending = plan.items.where((item) => !item.isCompleted);
+    if (pending.isEmpty) {
+      return const Padding(
+          padding: EdgeInsets.only(bottom: 16),
+          child: Text('Plano concluído',
+              style: TextStyle(color: AppColors.success)));
+    }
+    final next = pending.first;
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: OutlinedButton.icon(
+          onPressed: () => onStudy(next),
+          icon: const Icon(Icons.play_arrow_rounded),
+          label: Text('Próxima sessão: ${next.tema}',
+              maxLines: 3, overflow: TextOverflow.ellipsis),
+        ));
+  }
+}

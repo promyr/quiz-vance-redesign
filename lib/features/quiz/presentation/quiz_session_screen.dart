@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/storage/local_storage.dart';
+import '../../../core/exceptions/remote_service_exception.dart';
+import '../../../core/exceptions/provider_rate_limit_exception.dart';
+import '../../../core/exceptions/premium_limit_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/floating_xp_overlay.dart';
 import '../../error_notebook/providers/error_notebook_provider.dart';
@@ -16,12 +20,15 @@ import '../../study_plan/domain/study_plan_model.dart';
 import '../data/quiz_repository.dart';
 import '../domain/question_model.dart';
 import '../domain/quiz_generation_params.dart';
-import '../../../core/content/study_material_sanitizer.dart';
+import '../../../core/content/relevant_study_material.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
+import '../data/quiz_recovery_store.dart';
 
 export '../domain/quiz_generation_params.dart';
 
 part 'quiz_session_sections.dart';
 part 'quiz_session_initial_generation.dart';
+part 'quiz_session_recovery.dart';
 
 class QuizSessionScreen extends ConsumerStatefulWidget {
   const QuizSessionScreen({
@@ -30,10 +37,12 @@ class QuizSessionScreen extends ConsumerStatefulWidget {
     this.generationParams,
     this.infiniteMode = false,
     this.isErrorRevisionMode = false,
+    this.recoveryKey,
   });
 
   /// Questões iniciais carregadas pela tela de configuração.
   final List<Question> questions;
+  final String? recoveryKey;
 
   /// Parâmetros para buscar mais questões (obrigatório no modo infinito).
   final QuizGenerationParams? generationParams;
@@ -48,7 +57,8 @@ class QuizSessionScreen extends ConsumerStatefulWidget {
   ConsumerState<QuizSessionScreen> createState() => _QuizSessionScreenState();
 }
 
-class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
+class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
   String? _selectedOptionId;
   bool _answered = false;
@@ -68,6 +78,12 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
   bool _zenMode = false;
   bool _loadingInitial = false;
   String? _initialError;
+  String? _preparedContent;
+  bool _contentPrepared = false;
+  int _restoredSeconds = 0;
+  bool _restoring = true;
+  late final String? _sessionAccount;
+  final _recoveryStore = QuizRecoveryStore();
 
   /// Tamanho do batch para prefetch.
   static const _batchSize = 5;
@@ -80,21 +96,29 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
     super.initState();
     _questions = List<Question>.from(widget.questions);
     _stopwatch = Stopwatch();
-    if (_questions.isNotEmpty) _stopwatch.start();
-    if (_questions.isEmpty && widget.generationParams != null) {
-      _loadingInitial = true;
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _generateInitialQuiz());
-    }
+    _sessionAccount = AccountScopedPreferences.instance.activeAccountId;
+    WidgetsBinding.instance.addObserver(this);
+    _loadingInitial = _questions.isEmpty && widget.generationParams != null;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreOrStart());
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       // Usa o Stopwatch como fonte de verdade — não acumula drift quando o
       // app vai para background e o timer continua contando sozinho.
-      if (mounted) setState(() => _elapsed = _stopwatch.elapsed.inSeconds);
+      if (mounted) {
+        setState(
+            () => _elapsed = _restoredSeconds + _stopwatch.elapsed.inSeconds);
+        if (_elapsed > 0 && _elapsed % 15 == 0) _saveSessionLocally();
+      }
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _saveSessionLocally();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _stopwatch.stop();
     super.dispose();
@@ -137,12 +161,13 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
         conteudo: params.conteudo,
       );
 
-      if (mounted && newQuestions.isNotEmpty) {
+      if (mounted && _sameAccount && newQuestions.isNotEmpty) {
         setState(() {
           _questions.addAll(newQuestions);
           _isFetching = false;
         });
-      } else {
+        _saveSessionLocally();
+      } else if (mounted) {
         setState(() => _isFetching = false);
       }
     } catch (_) {
@@ -176,6 +201,8 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
       _answered = true;
     });
 
+    _saveSessionLocally();
+
     // Verifica prefetch após responder.
     if (_shouldPrefetch) {
       _prefetchQuestions();
@@ -189,36 +216,22 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
       isCorrect: _selectedOptionId == _current.correctOptionId,
     ));
 
-    _saveSessionLocally();
-
     if (_currentIndex + 1 < _questions.length) {
       setState(() {
         _currentIndex++;
         _selectedOptionId = null;
         _answered = false;
       });
+      _saveSessionLocally();
     } else {
       _finishQuiz();
     }
   }
 
-  void _saveSessionLocally() {
-    try {
-      const sessionId = 'quiz_session_current';
-      unawaited(LocalStorage.instance.saveActiveQuizSession(
-        sessionId: sessionId,
-        sessionData: {
-          'currentIndex': _currentIndex,
-          'answersCount': _answers.length,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-      ).catchError((Object _) {}));
-    } catch (_) {}
-  }
-
   Future<void> _finishQuiz({bool completed = true}) async {
     if (_finishing) return;
     _finishing = true;
+    await _recoveryStore.clear(_recoveryKey).catchError((Object _) {});
     try {
       unawaited(LocalStorage.instance
           .clearActiveQuizSession('quiz_session_current')
@@ -249,7 +262,8 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
         total: _answers.length,
         correct: correct,
         xpEarned: correct * 10,
-        timeTaken: _stopwatch.elapsed,
+        timeTaken:
+            Duration(seconds: _restoredSeconds + _stopwatch.elapsed.inSeconds),
         answers: _answers,
         topic: widget.generationParams?.topic,
       ),
@@ -270,6 +284,9 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_restoring) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     if (_questions.isEmpty && widget.generationParams != null) {
       return _buildInitialQuizState();
     }
@@ -729,7 +746,12 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
 
   void _showExitConfirmation() {
     if (_answers.isEmpty && !_answered) {
-      context.go('/');
+      _saveSessionLocally();
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/');
+      }
       return;
     }
 
@@ -752,6 +774,18 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen> {
           style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _saveSessionLocally();
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
+            child: const Text('Pausar e sair'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Continuar',

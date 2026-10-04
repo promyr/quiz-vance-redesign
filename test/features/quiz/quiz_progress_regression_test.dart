@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -66,6 +67,8 @@ class _RecordingRepository extends QuizRepository {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   testWidgets('statistics submission is not blocked by gamification',
       (tester) async {
     final repository = _RecordingRepository();

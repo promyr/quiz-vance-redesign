@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
+import 'quiz_generation_metrics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/exceptions/premium_limit_exception.dart';
@@ -22,6 +24,9 @@ class QuizRepository {
     String? documentName,
     int? documentId,
   }) async {
+    final timer = Stopwatch()..start();
+    final metrics = QuizGenerationMetrics();
+    var generated = <Question>[];
     try {
       final response = await _client.dio.post(
         ApiEndpoints.quizGenerate,
@@ -40,9 +45,10 @@ class QuizRepository {
         throw const FormatException('resposta inválida');
       }
       final list = (data['questions'] as List<dynamic>?) ?? [];
-      return list
+      generated = list
           .map((e) => Question.fromJson(e as Map<String, dynamic>))
           .toList();
+      return generated;
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode ?? 0;
       final detail = extractApiErrorMessage(e.response?.data);
@@ -73,6 +79,12 @@ class QuizRepository {
         connectivityFallback:
             'Não foi possível conectar ao servidor do quiz. Verifique sua conexão e tente novamente.',
       );
+    } finally {
+      timer.stop();
+      unawaited(metrics.record(
+          durationMs: timer.elapsedMilliseconds,
+          success: generated.isNotEmpty,
+          texts: generated.map((q) => q.text).toList()));
     }
   }
 
