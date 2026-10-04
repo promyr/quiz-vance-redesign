@@ -34,3 +34,6 @@ O scan remoto confirmou vulnerabilidades em dependências e na imagem base. Atua
 Um teste intermitente de rotação foi reproduzido com relógio congelado: sucessos no mesmo instante podiam quebrar a alternância dos provedores. O registro de sucesso agora mantém timestamps estritamente crescentes em operações sequenciais. Essa correção não afirma serialização global entre transações concorrentes. O teste de regressão passou.
 
 Validação final das dependências atualizadas: 211 testes do backend aprovados, Ruff sem problemas e pip check sem incompatibilidades. Os 432 testes Flutter continuam correspondendo ao APK já enviado, que não foi alterado por este complemento do backend.
+
+
+Pipeline do commit 9c88498: higiene de segredos, testes e segurança estática do backend, compilação da imagem, SBOM e scan de vulnerabilidades aprovados. O pipeline geral termina em falha exclusivamente na etapa de assinatura Android, pois os secrets de produção estão ausentes no GitHub. O APK público permanece o artefato assinado localmente e entregue na mensagem 929. Run: https://github.com/promyr/quiz-vance-redesign/actions/runs/37206234154.
