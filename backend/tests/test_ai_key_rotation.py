@@ -131,3 +131,13 @@ def test_study_plan_prefers_gemini_with_groq_fallback(db: Session) -> None:
     candidates = build_ai_candidates(student, db, requested_provider="gemini")
     pool_candidates = [c for c in candidates if c.source == "server_pool"]
     assert [c.key_id for c in pool_candidates] == [g2.id, g1.id, q1.id, q2.id]
+
+
+def test_cross_provider_rotation_with_identical_clock(db: Session, monkeypatch) -> None:
+    from datetime import datetime, timezone
+
+    from app import admin_ai
+
+    frozen = datetime(2026, 10, 4, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr(admin_ai, "_utc_now", lambda: frozen)
+    test_cross_provider_interleaved_rotation(db)

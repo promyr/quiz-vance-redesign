@@ -25,3 +25,12 @@ O GitHub aprovou higiene de segredos e testes/análise estática do backend. O b
 
 
 Entrega pelo Gerent3Bot confirmada no tópico Atualizações, mensagem 929: https://t.me/c/3742591996/929. Tamanho confirmado pelo Telegram igual ao APK verificado. Credencial fornecida por entrada oculta, sem gravação em arquivo.
+
+
+## Complemento de segurança e rotação
+
+O scan remoto confirmou vulnerabilidades em dependências e na imagem base. Atualizadas cryptography para 50.0.2, pypdf para 6.19.0 e python-multipart para 0.0.30; imagem Python 3.14.8 com upgrade dos pacotes Debian durante o build. Os limites do scan foram preservados. Fontes verificadas: https://www.python.org/downloads/release/python-3148/, https://cryptography.io/en/50.0.2/changelog/, https://pypdf.readthedocs.io/en/latest/meta/CHANGELOG.html.
+
+Um teste intermitente de rotação foi reproduzido com relógio congelado: sucessos no mesmo instante podiam quebrar a alternância dos provedores. O registro de sucesso agora mantém timestamps estritamente crescentes em operações sequenciais. Essa correção não afirma serialização global entre transações concorrentes. O teste de regressão passou.
+
+Validação final das dependências atualizadas: 211 testes do backend aprovados, Ruff sem problemas e pip check sem incompatibilidades. Os 432 testes Flutter continuam correspondendo ao APK já enviado, que não foi alterado por este complemento do backend.

@@ -7,6 +7,7 @@ from email.utils import parsedate_to_datetime
 
 import httpx
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import models, services
@@ -269,6 +270,9 @@ def select_master_key_candidates(
 
 def mark_key_success(db: Session, row: models.AiMasterKey) -> None:
     now = _utc_now()
+    latest = _as_aware(db.query(func.max(models.AiMasterKey.last_success_at)).scalar())
+    if latest is not None and now <= latest:
+        now = latest + timedelta(microseconds=1)
     row.health_status = "healthy"
     row.failure_count = 0
     row.blocked_until = None
