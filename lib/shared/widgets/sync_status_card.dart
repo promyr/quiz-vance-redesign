@@ -55,13 +55,14 @@ class SyncStatusCard extends StatelessWidget {
             children: [
               Icon(icon, color: accentColor, size: 18),
               const SizedBox(width: 8),
-              Text(
+              Expanded(
+                  child: Text(
                 title,
                 style: TextStyle(
                   color: accentColor,
                   fontWeight: FontWeight.w800,
                 ),
-              ),
+              )),
             ],
           ),
           const SizedBox(height: 8),

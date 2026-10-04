@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from . import models, services
-from .ai_provider_config import default_model_for_provider, normalize_provider
+from .ai_provider_config import default_model_for_provider
 from .deps import app_secret
 
 ALLOWED_PROVIDERS = frozenset({"gemini", "groq"})

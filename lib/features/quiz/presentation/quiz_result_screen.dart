@@ -13,6 +13,7 @@ import '../providers/quiz_do_dia_provider.dart';
 import '../../../shared/providers/gamification_provider.dart';
 import '../../../shared/providers/user_provider.dart';
 import '../../../shared/application/offline_sync_queue.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
 import '../../../shared/widgets/achievement_toast.dart';
 import '../../../shared/widgets/sync_status_card.dart';
 import '../data/quiz_repository.dart';
@@ -57,9 +58,11 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
 
   Future<void> _persistResult() async {
     final result = widget.result;
+    final account = AccountScopedPreferences.instance.activeAccountId;
 
     final gamification = ref.read(gamificationProvider.notifier);
     final quizRepo = ref.read(quizRepositoryProvider);
+    final queue = ref.read(offlineSyncQueueProvider);
     final userStatsNotifier = ref.read(userStatsNotifierProvider.notifier);
     final errorNotebook = ref.read(errorNotebookNotifierProvider.notifier);
     final dailyNotifier = ref.read(dailyChallengeNotifierProvider.notifier);
@@ -72,6 +75,31 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
       });
     }
 
+    var queued = false;
+    try {
+      await queue.enqueueItem(
+          type: 'quiz_result',
+          idempotencyKey: result.sessionId,
+          payload: {
+            'session_id': result.sessionId,
+            'answers': result.answers
+                .map((a) => {
+                      'question_id': a.question.id,
+                      'selected_option_id': a.selectedOptionId,
+                      'is_correct': a.isCorrect
+                    })
+                .toList(),
+            'time_taken_seconds': result.timeTaken.inSeconds,
+            'total': result.total,
+            'correct': result.correct,
+            'xp_earned': result.xpEarned,
+            if (result.topic != null) 'topic': result.topic,
+          });
+      queued = true;
+    } catch (_) {
+      /* Still attempt the remote save if local storage is unavailable. */
+    }
+    if (account != AccountScopedPreferences.instance.activeAccountId) return;
     try {
       await quizRepo.submit(
         sessionId: result.sessionId,
@@ -90,7 +118,13 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
         xpEarned: result.xpEarned,
         topic: result.topic,
       );
-      await userStatsNotifier.refresh();
+      if (account != AccountScopedPreferences.instance.activeAccountId) return;
+      try {
+        await queue.acknowledge(result.sessionId, type: 'quiz_result');
+      } catch (_) {}
+      try {
+        await userStatsNotifier.refresh();
+      } catch (_) {}
       if (mounted) ref.invalidate(userStatsProvider);
       try {
         ref.invalidate(activityHistoryProvider);
@@ -104,34 +138,6 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
       });
     } catch (error) {
       debugPrint('Quiz submit error: $error');
-      var queued = false;
-      try {
-        await ref.read(offlineSyncQueueProvider).enqueueItem(
-          type: 'quiz_result',
-          idempotencyKey: result.sessionId,
-          payload: {
-            'session_id': result.sessionId,
-            'answers': result.answers
-                .map(
-                  (answer) => {
-                    'question_id': answer.question.id,
-                    'selected_option_id': answer.selectedOptionId,
-                    'is_correct': answer.isCorrect,
-                  },
-                )
-                .toList(),
-            'time_taken_seconds': result.timeTaken.inSeconds,
-            'total': result.total,
-            'correct': result.correct,
-            'xp_earned': result.xpEarned,
-            if (result.topic != null && result.topic!.isNotEmpty)
-              'topic': result.topic,
-          },
-        );
-        queued = true;
-      } catch (queueError) {
-        debugPrint('Quiz offline queue error: $queueError');
-      }
       if (!mounted) return;
       setState(() {
         _syncState = SyncStatusState.pending;

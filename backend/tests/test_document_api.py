@@ -4,13 +4,14 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from app import models, services
-from app.database import get_db
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
+
+from app import models, services
+from app.database import get_db
 
 
 def _database() -> Iterator[Session]:

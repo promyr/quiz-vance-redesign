@@ -12,6 +12,7 @@ import '../../../features/quiz/domain/question_model.dart';
 import '../../../shared/providers/gamification_provider.dart';
 import '../../../shared/providers/user_provider.dart';
 import '../../../shared/application/offline_sync_queue.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
 import '../../../shared/widgets/achievement_toast.dart';
 import '../../../shared/widgets/sync_status_card.dart';
 import '../data/simulado_repository.dart';
@@ -51,69 +52,65 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
   }
 
   Future<void> _persistResult(QuizResult result) async {
+    final account = AccountScopedPreferences.instance.activeAccountId;
+    final queue = ref.read(offlineSyncQueueProvider);
+    final repository = ref.read(simuladoRepositoryProvider);
+    final stats = ref.read(userStatsNotifierProvider.notifier);
+    final gamification = ref.read(gamificationProvider.notifier);
+    final payload = <String, dynamic>{
+      'session_id': result.sessionId,
+      'correct': result.correct,
+      'total': result.total,
+      'accuracy': result.accuracy,
+      'xp_earned': result.xpEarned,
+      'time_taken_seconds': result.timeTaken.inSeconds
+    };
     if (mounted) {
       setState(() {
         _syncState = SyncStatusState.syncing;
-        _syncMessage =
-            'Estamos salvando o simulado, atualizando estatísticas e histórico.';
+        _syncMessage = 'Salvando seu simulado...';
       });
     }
-
+    var queued = false;
     try {
-      await ref.read(gamificationProvider.notifier).recordQuizCompletion(
-            eventId: result.sessionId,
-            xpEarned: result.xpEarned,
-          );
-    } catch (error) {
-      debugPrint('Gamification error: $error');
-    }
-
-    try {
-      await ref.read(simuladoRepositoryProvider).submitResult({
-        'session_id': result.sessionId,
-        'correct': result.correct,
-        'total': result.total,
-        'accuracy': result.accuracy,
-        'xp_earned': result.xpEarned,
-        'time_taken_seconds': result.timeTaken.inSeconds,
-      });
-      await ref.read(userStatsNotifierProvider.notifier).refresh();
-      ref.invalidate(activityHistoryProvider);
-
-      if (!mounted) return;
-      setState(() {
-        _syncState = SyncStatusState.saved;
-        _syncMessage =
-            'Simulado salvo com sucesso. Estatísticas, quotas e histórico foram sincronizados.';
-      });
-    } catch (error) {
-      debugPrint('Simulado submit error: $error');
-      var queued = false;
-      try {
-        await ref.read(offlineSyncQueueProvider).enqueueItem(
+      await queue.enqueueItem(
           type: 'simulado_result',
-          idempotencyKey: result.sessionId,
-          payload: {
-            'session_id': result.sessionId,
-            'correct': result.correct,
-            'total': result.total,
-            'accuracy': result.accuracy,
-            'xp_earned': result.xpEarned,
-            'time_taken_seconds': result.timeTaken.inSeconds,
-          },
-        );
-        queued = true;
-      } catch (queueError) {
-        debugPrint('Simulado offline queue error: $queueError');
+          payload: payload,
+          idempotencyKey: result.sessionId);
+      queued = true;
+    } catch (_) {}
+    if (account != AccountScopedPreferences.instance.activeAccountId) return;
+    try {
+      await repository.submitResult(payload);
+      if (account != AccountScopedPreferences.instance.activeAccountId) return;
+      try {
+        await queue.acknowledge(result.sessionId, type: 'simulado_result');
+      } catch (_) {}
+      try {
+        await stats.refresh();
+      } catch (_) {}
+      if (mounted) {
+        ref.invalidate(activityHistoryProvider);
+        setState(() {
+          _syncState = SyncStatusState.saved;
+          _syncMessage =
+              'Simulado salvo. Estatísticas e histórico atualizados.';
+        });
       }
-      if (!mounted) return;
-      setState(() {
-        _syncState = SyncStatusState.pending;
-        _syncMessage = queued
-            ? 'Resultado salvo no aparelho. A sincronização será retomada quando a conexão voltar.'
-            : 'Não foi possível salvar o resultado. Tente novamente antes de sair.';
-      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _syncState = SyncStatusState.pending;
+          _syncMessage = queued
+              ? 'Resultado salvo no aparelho. Sincronizaremos quando a conexão voltar.'
+              : 'Não foi possível salvar. Tente novamente antes de sair.';
+        });
+      }
     }
+    try {
+      await gamification.recordQuizCompletion(
+          eventId: result.sessionId, xpEarned: result.xpEarned);
+    } catch (_) {}
   }
 
   void _onGamificationChanged(

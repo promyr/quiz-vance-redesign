@@ -54,7 +54,7 @@ jobs:
       - name: Ruff
         run: python -m ruff check app tests
       - name: Validate architecture map
-        run: python -m json.tool ../architecture_map.json > /dev/null
+        run: python -m json.tool ../docs/architecture-map.json > /dev/null
       - name: Bandit
         run: python -m bandit -r app -ll
       - name: Alembic single head
@@ -133,7 +133,8 @@ jobs:
           } > android/key.properties
       - name: Resolve release version
         run: |
-          APP_VERSION="$(awk '/^version:/ {print $2; exit}' pubspec.yaml)"
+          VERSION_FULL="$(awk '/^version:/ {print $2; exit}' pubspec.yaml)"
+          APP_VERSION="${VERSION_FULL%%+*}"
           test -n "$APP_VERSION"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
       - name: Install locked Flutter dependencies

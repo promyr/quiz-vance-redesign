@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 import os
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -103,7 +104,8 @@ def decrypt_secret(app_secret: str, value: str | None) -> str | None:
                 ).derive(secret.encode("utf-8"))
                 decrypted = Fernet(base64.urlsafe_b64encode(key)).decrypt(token)
                 return decrypted.decode("utf-8").strip() or None
-            except (InvalidToken, Exception):
+            except (InvalidToken, ValueError):
+                logging.getLogger(__name__).debug("Legacy encryption derivation did not match")
                 continue
         raise ValueError("secret_decryption_failed")
 

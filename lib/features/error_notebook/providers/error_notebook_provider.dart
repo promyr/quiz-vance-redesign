@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/providers/account_session_epoch_provider.dart';
 import '../../quiz/domain/question_model.dart';
 import '../data/error_notebook_repository.dart';
 import '../domain/error_question.dart';
@@ -7,6 +8,7 @@ import '../domain/error_question.dart';
 class ErrorNotebookNotifier extends AsyncNotifier<List<ErrorQuestion>> {
   @override
   Future<List<ErrorQuestion>> build() async {
+    ref.watch(accountSessionEpochProvider);
     final repo = ref.watch(errorNotebookRepositoryProvider);
     return repo.getErrorQuestions();
   }

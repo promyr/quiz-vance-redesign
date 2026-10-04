@@ -5,7 +5,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app import models, services
-from app.admin_ai import create_master_key, mark_key_success, select_master_key_candidates
+from app.admin_ai import (
+    create_master_key,
+    mark_key_success,
+    select_master_key_candidates,
+)
 from app.ai_gateway import build_ai_candidates
 
 

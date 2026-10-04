@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/app_config.dart';
 import 'api_endpoints.dart';
+import '../../shared/application/account_scoped_preferences.dart';
 
 const _tokenKey = 'auth_token';
 const _refreshTokenKey = 'refresh_token';
@@ -62,6 +63,15 @@ class ApiClient {
     options.headers['X-Client-App'] = AppConfig.clientAppId;
     options.headers['X-Ranking-Namespace'] = AppConfig.rankingNamespace;
     final token = await getAccessToken();
+    final expectedAccount = options.extra['expectedAccountId'];
+    if (expectedAccount != null &&
+        expectedAccount != AccountScopedPreferences.instance.activeAccountId) {
+      handler.reject(DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          message: 'A sessão da conta mudou.'));
+      return;
+    }
     final skipAuth =
         options.extra['skipAuth'] == true || _isRefreshRequest(options);
     if (!skipAuth && token != null && token.isNotEmpty) {

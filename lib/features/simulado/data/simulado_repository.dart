@@ -8,6 +8,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
 import '../../quiz/domain/question_model.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
 
 class SimuladoRepository {
   const SimuladoRepository(this._client);
@@ -71,7 +72,12 @@ class SimuladoRepository {
 
   Future<void> submitResult(Map<String, dynamic> payload) async {
     try {
-      await _client.dio.post(ApiEndpoints.simuladoSubmit, data: payload);
+      await _client.dio.post(ApiEndpoints.simuladoSubmit,
+          data: payload,
+          options: Options(extra: {
+            'expectedAccountId':
+                AccountScopedPreferences.instance.activeAccountId
+          }));
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode ?? 0;
       final detail = extractApiErrorMessage(e.response?.data);

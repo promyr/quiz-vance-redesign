@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -107,6 +108,95 @@ void main() {
     expect(await queue.getPendingItems(), hasLength(1));
   });
 
+  test('concurrent enqueue preserves both results', () async {
+    await Future.wait([
+      queue.enqueueItem(
+          type: 'quiz_result',
+          payload: {'session_id': 'one'},
+          idempotencyKey: 'one'),
+      queue.enqueueItem(
+          type: 'quiz_result',
+          payload: {'session_id': 'two'},
+          idempotencyKey: 'two')
+    ]);
+    expect((await queue.getPendingItems()).map((i) => i.id).toSet(),
+        {'one', 'two'});
+  });
+  test('transient connection failures stay pending after five attempts',
+      () async {
+    await queue.enqueueItem(
+        type: 'quiz_result',
+        payload: {'session_id': 'offline'},
+        idempotencyKey: 'offline');
+    when(() => dio.post(any(),
+            data: any(named: 'data'), options: any(named: 'options')))
+        .thenThrow(DioException(
+            requestOptions: RequestOptions(path: '/quiz/submit'),
+            type: DioExceptionType.connectionError));
+    for (var i = 0; i < 6; i++) {
+      await queue.flushQueue();
+    }
+    expect(await queue.getPendingItems(), hasLength(1));
+    expect(await queue.getDeadLetterItems(), isEmpty);
+  });
+  test('concurrent flush calls share one network request', () async {
+    await queue.enqueueItem(
+        type: 'quiz_result',
+        payload: {'session_id': 'one'},
+        idempotencyKey: 'one');
+    final response = Completer<Response<dynamic>>();
+    var calls = 0;
+    when(() => dio.post(any(),
+        data: any(named: 'data'),
+        options: any(named: 'options'))).thenAnswer((_) {
+      calls++;
+      return response.future;
+    });
+    final first = queue.flushQueue();
+    final second = queue.flushQueue();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    response.complete(Response(
+        requestOptions: RequestOptions(path: '/quiz/submit'),
+        data: {'ok': true}));
+    await Future.wait([first, second]);
+    expect(calls, 1);
+  });
+  test('switching account during flush cannot overwrite the next account queue',
+      () async {
+    final prefs = AccountScopedPreferences.instance;
+    prefs.setActiveAccountId('alice');
+    await queue.enqueueItem(
+        type: 'quiz_result',
+        payload: {'session_id': 'alice'},
+        idempotencyKey: 'alice');
+    final response = Completer<Response<dynamic>>();
+    when(() => dio.post(any(),
+        data: any(named: 'data'),
+        options: any(named: 'options'))).thenAnswer((_) => response.future);
+    final flushing = queue.flushQueue();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    prefs.setActiveAccountId('bob');
+    await queue.enqueueItem(
+        type: 'quiz_result',
+        payload: {'session_id': 'bob'},
+        idempotencyKey: 'bob');
+    response.complete(Response(
+        requestOptions: RequestOptions(path: '/quiz/submit'),
+        data: {'ok': true}));
+    await flushing;
+    expect((await queue.getPendingItems()).single.id, 'bob');
+  });
+  test('legacy flashcard payload is converted to the server contract', () async {
+    await queue.enqueueItem(type:'flashcard_review',payload:{'card_id':'12','grade':2},idempotencyKey:'card');
+    Map<String,dynamic>? sent;
+    when(()=>dio.post(any(),data:any(named:'data'),options:any(named:'options'))).thenAnswer((call) async {
+      sent=Map<String,dynamic>.from(call.namedArguments[#data] as Map);
+      return Response(requestOptions:RequestOptions(path:'/flashcards/review'),data:{'ok':true});
+    });
+    await queue.flushQueue();
+    expect(sent!['flashcard_id'],'12'); expect(sent!['grade'],'good');
+    expect(DateTime.tryParse(sent!['reviewed_at'] as String),isNotNull);
+  });
   test('moves poison item to dead-letter instead of silently dropping it',
       () async {
     await queue.enqueueItem(
@@ -123,7 +213,10 @@ void main() {
     ).thenThrow(
       DioException(
         requestOptions: RequestOptions(path: ApiEndpoints.quizSubmit),
-        type: DioExceptionType.connectionError,
+        type: DioExceptionType.badResponse,
+        response: Response(
+            requestOptions: RequestOptions(path: ApiEndpoints.quizSubmit),
+            statusCode: 422),
       ),
     );
 

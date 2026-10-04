@@ -15,7 +15,7 @@ from .admin_ai import (
     provider_retry_after_seconds,
     select_master_key_candidates,
 )
-from .ai_provider_config import normalize_provider, resolve_model_for_provider
+from .ai_provider_config import resolve_model_for_provider
 
 AiCall = Callable[..., str]
 logger = logging.getLogger(__name__)

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "application": {
+    "entrypoint": "lib/main.dart",
+    "router": "lib/app/router.dart",
+    "lifecycle": "lib/app/app.dart"
+  },
+  "modules": {
+    "quiz": "lib/features/quiz",
+    "study_plan": "lib/features/study_plan",
+    "library": "lib/features/library",
+    "offline_sync": "lib/shared/application/offline_sync_queue.dart"
+  },
+  "backend": {
+    "entrypoint": "backend/app/main.py",
+    "routers": "backend/app/routers",
+    "persistence": "backend/app/models.py",
+    "ai": "backend/app/ai_service.py"
+  },
+  "contracts": {
+    "quiz_result": "POST /quiz/submit; account + session_id idempotency",
+    "simulado_result": "POST /simulado/submit; account + session_id idempotency",
+    "flashcard_review": "POST /flashcards/review; flashcard_id + grade + reviewed_at"
+  }
+}

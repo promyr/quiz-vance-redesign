@@ -3,11 +3,16 @@ from __future__ import annotations
 import base64
 import os
 import threading
-import time
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
+
 from app import models, security, services
 from app.admin_ai import (
     AiCredentialCandidate,
@@ -17,11 +22,6 @@ from app.admin_ai import (
 from app.ai_gateway import call_ai_with_fallback
 from app.database import get_db
 from app.routers import documents
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
 
 
 def _database() -> Iterator[Session]:
@@ -197,7 +197,6 @@ def test_adversarial_concurrent_key_rotation():
 
 def test_adversarial_path_traversal_on_document_upload():
     """Simula injeção de caracteres de path traversal no nome do arquivo."""
-    from app.document_storage import DocumentStorage
 
     db = next(_database())
     attacker = _user(db, "attacker")

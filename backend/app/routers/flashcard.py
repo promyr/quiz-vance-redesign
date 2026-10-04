@@ -122,7 +122,7 @@ def review_flashcard(
             models.Flashcard.user_id == user.id,
             models.Flashcard.local_id == body.flashcard_id,
         )
-        .first()
+        .with_for_update().first()
     )
     if not card:
         try:
@@ -133,12 +133,30 @@ def review_flashcard(
                     models.Flashcard.user_id == user.id,
                     models.Flashcard.id == remote_id,
                 )
-                .first()
+                .with_for_update().first()
             )
         except Exception:
             card = None
     if not card:
         raise HTTPException(status_code=404, detail="Flashcard não encontrado")
+
+    # reviewed_at is an event version: replayed/older offline reviews must
+    # not advance the schedule again. Row locks serialize production writes.
+    reviewed_at = None
+    if body.reviewed_at:
+        try:
+            reviewed_at = datetime.fromisoformat(body.reviewed_at.replace("Z", "+00:00"))
+            if reviewed_at.tzinfo is None:
+                reviewed_at = reviewed_at.replace(tzinfo=timezone.utc)
+            reviewed_at = reviewed_at.astimezone(timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Data de revisao invalida.") from None
+        if card.last_reviewed:
+            last = card.last_reviewed
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            if reviewed_at <= last:
+                return _card_to_dict(card)
 
     grade_int = _GRADE_FACTOR.get((body.grade or "good").lower(), 2)
     new_interval, new_ease = _fsrs_simple(card.interval_days, card.easiness, grade_int)
@@ -146,7 +164,7 @@ def review_flashcard(
     card.interval_days = new_interval
     card.easiness = new_ease
     card.repetitions = int(card.repetitions or 0) + 1
-    card.last_reviewed = now
+    card.last_reviewed = reviewed_at or now
     card.due_date = (now + timedelta(days=new_interval)).date()
     db.commit()
     db.refresh(card)

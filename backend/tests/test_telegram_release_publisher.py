@@ -41,9 +41,10 @@ def test_caption_uses_current_release_notes(monkeypatch, tmp_path):
 
 
 def test_startup_publication_is_idempotent(tmp_path):
-    from app import models, release_publication
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
+    from app import models, release_publication
     engine = create_engine('sqlite://')
     models.Base.metadata.create_all(engine)
     sessions = sessionmaker(bind=engine)
@@ -65,9 +66,10 @@ def test_unrequested_release_is_not_sent():
 
 
 def test_failed_send_is_not_repeated_automatically():
-    from app import models, release_publication
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
+    from app import models, release_publication
     engine = create_engine('sqlite://')
     models.Base.metadata.create_all(engine)
     sessions = sessionmaker(bind=engine)

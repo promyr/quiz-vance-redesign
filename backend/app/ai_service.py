@@ -20,6 +20,7 @@ from .material_sanitization import (
     sanitize_reference_material,
 )
 from .notice_analysis import _safe_date_str, normalize_notice_analysis
+from .topic_coverage import topic_coverage_instruction as _topic_coverage_instruction
 
 _COMPATIBILITY_REEXPORTS = (
     extract_json_list,
@@ -319,6 +320,7 @@ def _grounding_rules_block() -> str:
     )
 
 
+
 def build_quiz_prompt(
     topic: str,
     difficulty: str,
@@ -338,15 +340,27 @@ def build_quiz_prompt(
         max_chars=150,
     )
 
+    coverage_block = _topic_coverage_instruction(topic, quantity, len(avoid or []))
+    coverage_rule = (
+        "- Respeite a distribuicao dos topicos explicitos acima; varie os subtemas dentro de cada topico."
+        if coverage_block
+        else f'- Antes de escrever qualquer questao, enumere mentalmente pelo menos 6 subtemas distintos de "{topic}" e distribua as {quantity} questoes entre eles. Nao coloque mais de 2 questoes no mesmo subtema.'
+    )
+    coverage_rule = (
+        "- Respeite a distribuicao dos topicos explicitos acima; varie os subtemas dentro de cada topico."
+        if coverage_block
+        else f'{coverage_rule}'
+    )
+
     return f"""Tarefa: gere {quantity} questoes de multipla escolha sobre \"{topic}\".
 
-{ctx_block}{avoid_block}
+{ctx_block}{avoid_block}{coverage_block}
 Dificuldade alvo: {nivel_label}
 Guia de dificuldade: {nivel_instrucao}
 
 {_grounding_rules_block()}
 Regras pedagogicas:
-- Antes de escrever qualquer questao, enumere mentalmente pelo menos 6 subtemas distintos de "{topic}" e distribua as {quantity} questoes entre eles. Nao coloque mais de 2 questoes no mesmo subtema.
+{coverage_rule}
 - Varie o tipo cognitivo de cada questao: definicao, mecanismo, comparacao, aplicacao pratica, excecao ou caso-limite, causa-efeito, critica e exemplo concreto. Nao repita o mesmo tipo cognitivo mais de 2 vezes.
 - Produza exatamente {quantity} questoes.
 - Cubra subtemas diferentes e evite perguntas redundantes.

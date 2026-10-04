@@ -22,10 +22,8 @@ from sqlalchemy.orm import Session
 from . import models
 from .document_analysis import (
     AnalysisWindow,
-    split_analysis_window,
-)
-from .document_analysis import (
     analysis_window_hash,
+    split_analysis_window,
 )
 from .document_analysis import (
     consolidate_analysis as _consolidate_analysis,

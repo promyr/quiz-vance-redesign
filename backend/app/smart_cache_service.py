@@ -12,10 +12,7 @@ import logging
 import re
 from typing import Any
 
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-
-from . import models
 
 logger = logging.getLogger(__name__)
 

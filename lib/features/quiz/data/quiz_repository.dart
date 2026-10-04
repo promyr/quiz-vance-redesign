@@ -10,6 +10,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/api_error_message.dart';
 import '../domain/question_model.dart';
+import '../../../shared/application/account_scoped_preferences.dart';
 
 class QuizRepository {
   const QuizRepository(this._client);
@@ -99,6 +100,9 @@ class QuizRepository {
   }) async {
     final response = await _client.dio.post(
       ApiEndpoints.quizSubmit,
+      options: Options(extra: {
+        'expectedAccountId': AccountScopedPreferences.instance.activeAccountId
+      }),
       data: {
         'session_id': sessionId,
         'answers': answers,

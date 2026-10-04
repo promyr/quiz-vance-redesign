@@ -86,7 +86,11 @@ class FlashcardRepository {
     required int gradeValue,
     required DateTime reviewedAt,
   }) async {
-    final payload = {'card_id': remoteId, 'grade': gradeValue};
+    final payload = {
+      'flashcard_id': remoteId,
+      'grade': FsrsGrade.values[gradeValue].name,
+      'reviewed_at': reviewedAt.toIso8601String(),
+    };
     final idempotencyKey =
         'flashcard:$remoteId:${reviewedAt.toIso8601String()}';
     try {
