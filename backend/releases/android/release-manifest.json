@@ -8,7 +8,7 @@
   "commit": "c9d08dcc06ddc12a00defb8ab95fc3d5ffe7973c",
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "release_notes": "SincronizaÃ§Ã£o automÃ¡tica de resultados pendentes com proteÃ§Ã£o contra duplicaÃ§Ãµes; revisÃ£o sugerida a partir dos erros; ediÃ§Ã£o de disciplinas e tÃ³picos do edital; distribuiÃ§Ã£o de tÃ³picos orientada no quiz; layout da sincronizaÃ§Ã£o adaptado a telas estreitas; melhorias de validaÃ§Ã£o e modularidade.",
+  "release_notes": "Sincronização automática de resultados pendentes com proteção contra duplicações; revisão sugerida a partir dos erros; edição de disciplinas e tópicos do edital; distribuição de tópicos orientada no quiz; layout da sincronização adaptado a telas estreitas; melhorias de validação e modularidade.",
   "published_at": "2026-10-04T13:16:14.123094+00:00",
   "telegram_publish_requested": false,
   "telegram_publication_receipt": {
