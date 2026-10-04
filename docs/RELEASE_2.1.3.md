@@ -19,4 +19,12 @@ Checkpoints usam armazenamento local por conta, com fila de escrita, até oito s
 
 O teste de modularidade continua com uma falha preexistente: Library tem 1115 linhas contra limite de 1000. O arquivo não foi alterado nesta entrega. Os arquivos alterados respeitam os limites existentes.
 
-A validação automatizada não substitui teste em aparelho Android físico; isso não foi realizado neste ambiente. Assinatura, tamanho, hash, download publicado e entrega pelo bot serão conferidos na publicação.
+A validação automatizada não substitui teste em aparelho Android físico; isso não foi realizado neste ambiente. Assinatura v2 e identidade do certificado foram verificadas. O APK público foi baixado integralmente: 40.541.806 bytes, SHA-256 FC2E597D2344B5C118D333A7E0B28D419B18DB32A90EF2FC02EFAAF8F9C0B0C2. O backend respondeu readiness HTTP 200 com banco disponível e anunciou 2.1.3.
+
+## Pipeline e publicação
+
+Código/APK publicados no commit 34c0099. No GitHub, o job de higiene de segredos e a etapa de testes do backend passaram. O job do backend falhou em Ruff por oito problemas preexistentes de imports/variável não utilizados; a compilação Android e o scan de imagem dependentes foram pulados. O APK Android desta entrega foi compilado e validado localmente. Não se declara o pipeline geral aprovado.
+
+Somente os arquivos revisados foram enviados pelo checkout isolado. Uma tentativa de commit no checkout principal incluiu arquivos não relacionados; seu push foi rejeitado por não ser fast-forward. O commit foi desfeito preservando todos os arquivos e uma branch local de recuperação. Nenhum desses arquivos não relacionados foi publicado nesta entrega.
+
+Entrega pelo Gerent3Bot confirmada no tópico Atualizações, mensagem 927: https://t.me/c/3742591996/927. O tamanho devolvido pelo Telegram corresponde aos 40.541.806 bytes do APK verificado. A credencial foi fornecida por entrada oculta e não foi gravada em arquivo.
