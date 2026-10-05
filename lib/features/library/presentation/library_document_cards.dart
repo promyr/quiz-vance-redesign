@@ -157,6 +157,8 @@ class _FileCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
+          MaterialChapterButton(file: file),
+          const SizedBox(height: 12),
           // Botão Gerar Pacote
           GestureDetector(
             onTap: onGeneratePackage,

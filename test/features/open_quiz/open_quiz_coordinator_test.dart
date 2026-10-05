@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/features/library/domain/library_model.dart';
@@ -43,6 +44,7 @@ void main() {
   });
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     repository = _MockOpenQuizRepository();
     aiGenerationGuard = _MockAiGenerationGuard();
     coordinator = OpenQuizCoordinator(

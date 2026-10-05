@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:quiz_vance_flutter/core/exceptions/remote_service_exception.dart';
@@ -39,6 +40,7 @@ void main() {
   ];
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     repository = _MockQuizRepository();
     aiGenerationGuard = _MockAiGenerationGuard();
     coordinator = QuizGenerationCoordinator(
@@ -196,8 +198,14 @@ void main() {
       expect(result, equals(shortText));
     });
 
-    test('fatia trechos distintos para sementes temporais diferentes em material longo', () {
-      final longText = List.generate(100, (i) => 'Paragrafo $i: conteudo detalhado de estudo sobre tema $i. ').join();
+    test(
+        'fatia trechos distintos para sementes temporais diferentes em material longo',
+        () {
+      final longText = List.generate(
+              100,
+              (i) =>
+                  'Paragrafo $i: conteudo detalhado de estudo sobre tema $i. ')
+          .join();
       expect(longText.length, greaterThan(5000));
 
       final slice0 = sliceStudyMaterialForSession(

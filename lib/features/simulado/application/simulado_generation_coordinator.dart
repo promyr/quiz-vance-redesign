@@ -1,3 +1,4 @@
+import '../../library/data/material_scope_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/content/study_material_sanitizer.dart';
@@ -42,11 +43,21 @@ class SimuladoGenerationCoordinator {
     required int durationMinutes,
     LibraryFile? selectedLibraryFile,
   }) async {
+    final scoped = useLibrary && selectedLibraryFile != null
+        ? await MaterialScopeStore().resolve(selectedLibraryFile)
+        : null;
     final selection = _resolveSelection(
       useLibrary: useLibrary,
       topic: topic,
-      selectedLibraryFile: selectedLibraryFile,
+      selectedLibraryFile: scoped?.restricted == true
+          ? scoped!.generationFile(2600)
+          : scoped?.file ?? selectedLibraryFile,
     );
+    if (scoped?.restricted == true &&
+        (selection.libraryContent?.trim().isEmpty ?? true)) {
+      throw StateError(
+          "O trecho selecionado não contém conteúdo legível. Revise os capítulos selecionados.");
+    }
     final provider = await _aiGenerationGuard.ensureReadyForGeneration();
     final questions = await _simuladoRepository.generateExam(
       quantity: quantity,

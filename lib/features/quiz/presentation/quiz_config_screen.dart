@@ -1,3 +1,4 @@
+import '../../library/presentation/material_chapter_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -413,6 +414,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
                                 ],
                               ),
                             ),
+                            MaterialChapterButton(file: _selectedLibraryFile!),
                             const SizedBox(height: 12),
                           ] else ...[
                             TextFormField(

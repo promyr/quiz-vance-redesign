@@ -1,3 +1,4 @@
+import '../../features/library/presentation/material_chapter_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -119,6 +120,8 @@ class LibrarySourceSelector extends ConsumerWidget {
                   child: manualChild,
                 ),
         ),
+        if (useLibrary && selectedFile != null)
+          MaterialChapterButton(file: selectedFile!),
       ],
     );
   }

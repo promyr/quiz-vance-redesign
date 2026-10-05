@@ -1,3 +1,4 @@
+import '../../library/data/material_scope_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/content/study_material_sanitizer.dart';
@@ -56,11 +57,21 @@ class QuizGenerationCoordinator {
     required String preferredProvider,
     LibraryFile? selectedLibraryFile,
   }) async {
+    final scoped = useLibrary && selectedLibraryFile != null
+        ? await MaterialScopeStore().resolve(selectedLibraryFile)
+        : null;
     final selection = _resolveSelection(
       useLibrary: useLibrary,
       topic: topic,
-      selectedLibraryFile: selectedLibraryFile,
+      selectedLibraryFile: scoped?.restricted == true
+          ? scoped!.generationFile(2200)
+          : scoped?.file ?? selectedLibraryFile,
     );
+    if (scoped?.restricted == true &&
+        (selection.libraryContext?.trim().isEmpty ?? true)) {
+      throw StateError(
+          "O trecho selecionado não contém conteúdo legível. Revise os capítulos selecionados.");
+    }
     _observability.trackEvent(
       'quiz.generate_requested',
       attributes: <String, Object?>{
@@ -111,7 +122,10 @@ class QuizGenerationCoordinator {
       final contextCandidates = _buildContextFallbackOrder(
         initialContext: selection.libraryContext,
         rawLibraryContent: selection.rawLibraryContent,
-      );
+      )
+          .where((value) =>
+              scoped?.restricted != true || value?.trim().isNotEmpty == true)
+          .toList();
 
       Object lastError = firstError;
 

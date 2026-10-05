@@ -1,20 +1,14 @@
 {
   "schema_version": 1,
-  "app_version": "2.1.4",
-  "artifact": "quiz-vance-2.1.4.apk",
-  "size_bytes": 40564378,
-  "apk_sha256": "A1FFEDEF3519E160A939C5884D7179E5E92527FED3C6FBB780E757A404CC42E4",
+  "app_version": "2.1.5",
+  "artifact": "quiz-vance-2.1.5.apk",
+  "size_bytes": 40628650,
+  "apk_sha256": "B0ED6E11DF031501BC55FB3841C9B3F3F27B3FEE905BF3639648DF1F238A8C1D",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
   "commit": "c9d08dcc06ddc12a00defb8ab95fc3d5ffe7973c",
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "release_notes": "Sincronização automática de resultados pendentes com proteção contra duplicações; revisão sugerida a partir dos erros; edição de disciplinas e tópicos do edital; distribuição de tópicos orientada no quiz; layout da sincronização adaptado a telas estreitas; melhorias de validação e modularidade. Backend com dependências de segurança atualizadas e rotação de chaves estabilizada.",
-  "published_at": "2026-10-04T13:16:14.123094+00:00",
-  "telegram_publish_requested": false,
-  "telegram_publication_receipt": {
-    "version": "2.1.4",
-    "status": "sent",
-    "message_id": 929,
-    "sha256": "A1FFEDEF3519E160A939C5884D7179E5E92527FED3C6FBB780E757A404CC42E4"
-  }
+  "release_notes": "Seleção de capítulos dos PDFs da Biblioteca para quizzes, simulados, questões abertas e pacotes de estudo. Seleção salva por conta, documento original preservado e recorte manual por linhas quando necessário.",
+  "published_at": "2026-10-05T23:20:24.221779+00:00",
+  "telegram_publish_requested": false
 }

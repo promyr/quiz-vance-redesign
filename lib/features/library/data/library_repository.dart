@@ -1,10 +1,11 @@
+import '../../../core/content/study_material_sanitizer.dart';
+import 'material_scope_store.dart';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../core/content/study_material_sanitizer.dart';
 import '../../../core/exceptions/remote_service_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -169,7 +170,15 @@ class LibraryRepository {
     List<String>? avoidFronts,
   }) async {
     try {
-      final context = sanitizeStudyMaterialForPrompt(file.conteudo);
+      final scoped = await MaterialScopeStore().resolve(file);
+      file = scoped.file;
+      final context = scoped.restricted
+          ? scoped.promptContext(3200)
+          : sanitizeStudyMaterialForPrompt(file.conteudo);
+      if (scoped.restricted && context.trim().isEmpty) {
+        throw StateError(
+            "O trecho selecionado não contém conteúdo legível para gerar. Revise a seleção.");
+      }
 
       final response = await _client.dio.post(
         ApiEndpoints.libraryGeneratePackage,

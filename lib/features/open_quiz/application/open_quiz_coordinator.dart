@@ -1,3 +1,4 @@
+import '../../library/data/material_scope_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/content/study_material_sanitizer.dart';
@@ -30,11 +31,21 @@ class OpenQuizCoordinator {
     required String difficulty,
     LibraryFile? selectedLibraryFile,
   }) async {
+    final scoped = useLibrary && selectedLibraryFile != null
+        ? await MaterialScopeStore().resolve(selectedLibraryFile)
+        : null;
     final selection = _resolveSelection(
       useLibrary: useLibrary,
       tema: tema,
-      selectedLibraryFile: selectedLibraryFile,
+      selectedLibraryFile: scoped?.restricted == true
+          ? scoped!.generationFile(2200)
+          : scoped?.file ?? selectedLibraryFile,
     );
+    if (scoped?.restricted == true &&
+        (selection.libraryContent?.trim().isEmpty ?? true)) {
+      throw StateError(
+          "O trecho selecionado não contém conteúdo legível. Revise os capítulos selecionados.");
+    }
     final provider = await _aiGenerationGuard.ensureReadyForGeneration();
     return _openQuizRepository.generateQuestion(
       tema: selection.tema,

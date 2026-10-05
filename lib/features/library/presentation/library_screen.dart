@@ -1,3 +1,4 @@
+import 'material_chapter_picker.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -232,10 +233,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                       width: 36,
                                       height: 36,
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary
-                                            .withOpacity(0.18),
-                                        borderRadius:
-                                            BorderRadius.circular(10),
+                                        color:
+                                            AppColors.primary.withOpacity(0.18),
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: const Icon(
                                         Icons.calendar_month_rounded,
@@ -275,10 +275,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 10, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary
-                                            .withOpacity(0.18),
-                                        borderRadius:
-                                            BorderRadius.circular(8),
+                                        color:
+                                            AppColors.primary.withOpacity(0.18),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -313,8 +312,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                           child: LinearProgressIndicator(
                                             value: pct,
                                             minHeight: 5,
-                                            backgroundColor:
-                                                AppColors.surface2,
+                                            backgroundColor: AppColors.surface2,
                                             valueColor:
                                                 const AlwaysStoppedAnimation<
                                                     Color>(
@@ -608,4 +606,3 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     }
   }
 }
-
