@@ -10,5 +10,11 @@
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
   "release_notes": "Seleção de capítulos dos PDFs da Biblioteca para quizzes, simulados, questões abertas e pacotes de estudo. Seleção salva por conta, documento original preservado e recorte manual por linhas quando necessário.",
   "published_at": "2026-10-05T23:20:24.221779+00:00",
-  "telegram_publish_requested": false
+  "telegram_publish_requested": false,
+  "telegram_publication_receipt": {
+    "version": "2.1.5",
+    "status": "sent",
+    "message_id": 943,
+    "sha256": "B0ED6E11DF031501BC55FB3841C9B3F3F27B3FEE905BF3639648DF1F238A8C1D"
+  }
 }
