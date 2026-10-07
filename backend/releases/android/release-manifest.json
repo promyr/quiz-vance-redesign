@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "app_version": "2.1.6",
-  "artifact": "quiz-vance-2.1.6.apk",
-  "size_bytes": 40684898,
-  "apk_sha256": "0E0D9BA3FF5368D2DCAC19B64BF37A30DF7A59FEA9C4FF30F7AE429032E12D6E",
+  "app_version": "2.1.7",
+  "artifact": "quiz-vance-2.1.7.apk",
+  "size_bytes": 40692082,
+  "apk_sha256": "2F2E7E3BE5355FACD901F1952376BC49BDD2BE14370EF973787F1900DB080526",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
-  "commit": "4653983a7d2804672da263c7e70cb03110241fde",
+  "commit": "dc788b6b2832431e1f307d0ff27269bea126a0ec",
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "build_number": 78,
-  "release_notes": "Questões de associação completas; PDF e progresso do plano corrigidos; estatísticas e XP sincronizados; retomada de simulados; layout e revisões de flashcards ajustados.",
-  "published_at": "2026-10-07T11:13:12.440250+00:00",
-  "telegram_publish_requested": true
+  "build_number": 79,
+  "release_notes": "Revisoes offline e XP reconciliados; protecao contra datas futuras e sincronizacao antiga; isolamento de documentos entre contas; associacoes completas e layout com fonte ampliada.",
+  "published_at": "2026-10-07T21:19:48.688237+00:00",
+  "telegram_publish_requested": false
 }
