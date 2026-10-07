@@ -13,17 +13,20 @@ def _items(value: Any) -> list[dict[str, str]]:
     result = []
     for index, item in enumerate(value):
         if isinstance(item, dict):
-            label = str(item.get("id") or item.get("label") or index + 1).strip()
+            raw_label = item.get("id", item.get("label", index + 1))
+            label = "" if raw_label is None else str(raw_label).strip()
             text = str(item.get("texto") or item.get("text") or "").strip()
         else:
             label, text = str(index + 1), str(item or "").strip()
-        if not text:
+        label = unicodedata.normalize("NFKC", label)
+        if not text or not label or any(previous["id"].casefold() == label.casefold() for previous in result):
             return []
         result.append({"id": label, "text": text})
     return result
 
 
 def _has_inline_columns(text: str) -> bool:
+    text = unicodedata.normalize("NFKC", text)
     labels = re.findall(r"(?:^|\s)\(?([A-Z]+|\d+)\s*[.)—:]\s*\S", text)
     numeric = {label for label in labels if label.isdigit()}
     roman = {label for label in labels if re.fullmatch(r"[IVXLCDM]+", label)}
@@ -40,6 +43,32 @@ def _has_inline_columns(text: str) -> bool:
     )
 
 
+def _valid_matching_references(question: dict, text: str, left: list[dict], right: list[dict]) -> bool:
+    """Validate explicit association pairs against the declared column labels."""
+    if left and right:
+        left_ids = {item["id"].upper() for item in left}
+        right_ids = {item["id"].upper() for item in right}
+    else:
+        labels = re.findall(r"(?:^|\s)\(?([A-Z]+|\d+)\s*[.)—:]\s*\S", unicodedata.normalize("NFKC", text))
+        left_ids = {label for label in labels if not label.isdigit()}
+        right_ids = {label for label in labels if label.isdigit()}
+    options = question.get("opcoes") or question.get("options") or []
+    for option in options:
+        value = option.get("text", "") if isinstance(option, dict) else str(option)
+        value = unicodedata.normalize("NFKC", value).upper()
+        if not any(label.isdigit() for label in left_ids) and re.fullmatch(r"[\d\s,;().–—-]+", value):
+            sequence = re.findall(r"\d+", value)
+            if len(sequence) != len(left_ids) or any(label not in right_ids for label in sequence):
+                return False
+            continue
+        pairs = re.findall(r"(?<![A-Z0-9])([A-Z]+|\d+)\s*[-–—=:→]\s*([A-Z]+|\d+)(?![A-Z0-9])", value)
+        if pairs and (any(a not in left_ids or b not in right_ids for a, b in pairs)
+                      or len({a for a, _ in pairs}) != len(pairs)
+                      or {a for a, _ in pairs} != left_ids):
+            return False
+    return True
+
+
 def question_structure(question: dict[str, Any], text: str) -> tuple[str, dict] | None:
     """Return a self-contained statement, or reject missing association premises.
 
@@ -53,13 +82,25 @@ def question_structure(question: dict[str, Any], text: str) -> tuple[str, dict] 
     left = _items(question.get("coluna_esquerda") or association.get("left"))
     right = _items(question.get("coluna_direita") or association.get("right"))
     propositions = _items(question.get("proposicoes") or question.get("propositions"))
-    kind = str(question.get("tipo") or question.get("type") or "").lower()
+    kind = "".join(c for c in unicodedata.normalize("NFD", str(question.get("tipo") or question.get("type") or "").strip().lower()) if not unicodedata.combining(c))
+    has_propositions = "proposicoes" in question or "propositions" in question
+    if has_propositions and not propositions:
+        return None
+    has_columns = any(key in question for key in ("coluna_esquerda", "coluna_direita")) or bool(association)
+    if has_columns and (len(left) < 2 or len(right) < 2):
+        return None
     plain = "".join(c for c in unicodedata.normalize("NFD", text.lower()) if not unicodedata.combining(c))
     is_association = kind in {"associacao", "association", "matching"} or bool(
-        re.search(r"\b(?:associe|relacione)\b.*\b(?:colunas|itens|proposicoes)\b", plain)
+        re.search(r"\b(?:associe|relacione)\b", plain)
     ) or bool(left or right or association)
     metadata: dict[str, Any] = {}
+    if (not has_propositions
+        and re.search(r"\b(?:avalie|julgue|analise)\b.*\b(?:proposicoes|afirmacoes|assertivas)\b", plain)
+        and len(re.findall(r"(?:^|\s)\(?[IVXLCDM]+\s*[.)—:]\s*\S", unicodedata.normalize("NFKC", text))) < 2):
+        return None
     if is_association:
+        if not _valid_matching_references(question, text, left, right):
+            return None
         if len(left) >= 2 and len(right) >= 2:
             metadata["association"] = {"left": left, "right": right}
             for title, items in (("Coluna I", left), ("Coluna II", right)):
@@ -88,6 +129,7 @@ def structured_question_rules() -> str:
         "- Para associação use tipo=associacao, coluna_esquerda e coluna_direita: listas de objetos com id e texto.\n"
         "- Preserve todas as proposições e ambas as colunas necessárias para resolver, sem mostrar apenas as sequências de respostas.\n"
         "- Para análise de afirmações, use proposicoes: lista de objetos com id (I, II, III) e texto integral.\n"
+        "- Use rotulos unicos e nao vazios em cada coluna; todas as referencias das alternativas devem existir nas colunas.\n"
         "- As alternativas continuam sendo sequências de associação ou combinações de proposições, com uma única correta.\n"
         "- Não invente proposições ausentes de um exercício extraído. Se estiver incompleto, descarte-o e gere outro exercício autônomo.\n"
     )

@@ -63,7 +63,7 @@ class AppBottomNav extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              height: 50 + MediaQuery.textScalerOf(context).scale(10) * 2.4,
+              padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
                 color: AppColors.surface.withOpacity(0.90),
                 borderRadius: BorderRadius.circular(24),
@@ -93,6 +93,7 @@ class AppBottomNav extends StatelessWidget {
                       semanticHint:
                           isActive ? 'Aba atual' : 'Abrir aba ${item.label}',
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           AnimatedContainer(

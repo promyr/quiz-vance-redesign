@@ -156,24 +156,23 @@ class _XPBar extends StatelessWidget {
               runSpacing: 6,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.bolt_rounded,
-                      color: AppColors.xpGold,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Nível $level · ${_getRankName(level)}',
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                Text.rich(
+                  TextSpan(children: [
+                    const WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(Icons.bolt_rounded,
+                            color: AppColors.xpGold, size: 16),
                       ),
                     ),
-                  ],
+                    TextSpan(text: 'Nível $level · ${_getRankName(level)}'),
+                  ]),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   '+$xp XP',

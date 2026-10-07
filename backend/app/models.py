@@ -415,6 +415,9 @@ class FlashcardReviewEvent(Base):
     event_key: Mapped[str] = mapped_column(String(64), nullable=False)
     reviewed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     xp_delta: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    flashcard_id: Mapped[int | None] = mapped_column(ForeignKey("flashcards.id", name="fk_review_event_flashcard", ondelete="CASCADE"), nullable=True, index=True)
+    grade: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    initial_schedule: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     __table_args__ = (UniqueConstraint("user_id", "event_key", name="uq_flashcard_review_user_event"),)
 
 

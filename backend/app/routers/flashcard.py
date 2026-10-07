@@ -132,6 +132,7 @@ def review_flashcard(
     authorization: str | None = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
 ):
+    _validated_review_time(body.reviewed_at)
     user = _require_user(authorization, db)
     # A harmless write serializes reviews for this account on SQLite as well as
     # PostgreSQL; the earlier user read must never overwrite the XP column.
@@ -167,43 +168,64 @@ def review_flashcard(
     if not card:
         raise HTTPException(status_code=404, detail="Flashcard não encontrado")
 
-    # reviewed_at is an event version: replayed/older offline reviews must
-    # not advance the schedule again. Row locks serialize production writes.
-    reviewed_at = None
-    if body.reviewed_at:
-        try:
-            reviewed_at = datetime.fromisoformat(body.reviewed_at.replace("Z", "+00:00"))
-            if reviewed_at.tzinfo is None:
-                reviewed_at = reviewed_at.replace(tzinfo=timezone.utc)
-            reviewed_at = reviewed_at.astimezone(timezone.utc)
-        except ValueError:
-            raise HTTPException(status_code=422, detail="Data de revisao invalida.") from None
-        if card.last_reviewed:
-            last = card.last_reviewed
-            if last.tzinfo is None:
-                last = last.replace(tzinfo=timezone.utc)
-            if reviewed_at <= last:
-                db.commit()
-                return {**_card_to_dict(card), 'xp_earned': 0}
-
-    grade_int = _GRADE_FACTOR.get((body.grade or "good").lower(), 2)
-    new_interval, new_ease, new_repetitions = _schedule_review(card.interval_days, card.easiness, card.repetitions, grade_int)
     now = datetime.now(timezone.utc)
-    card.interval_days = new_interval
-    card.easiness = new_ease
-    card.repetitions = new_repetitions
-    card.last_reviewed = reviewed_at or now
-    card.due_date = (card.last_reviewed + timedelta(days=new_interval)).date()
-    event_key = hashlib.sha256(f'{card.id}:{card.last_reviewed.isoformat()}'.encode()).hexdigest()
+    reviewed_at = _validated_review_time(body.reviewed_at) or now
+    grade = (body.grade or "good").lower()
+    if grade not in _GRADE_FACTOR:
+        raise HTTPException(status_code=422, detail="Nota de revisao invalida.")
+    event_key = hashlib.sha256(f'{card.id}:{reviewed_at.isoformat()}'.encode()).hexdigest()
+    first_event = db.query(models.FlashcardReviewEvent).filter_by(
+        user_id=user.id, flashcard_id=card.id
+    ).order_by(models.FlashcardReviewEvent.id).first()
+    baseline = first_event.initial_schedule if first_event else {
+        "interval": card.interval_days, "ease": card.easiness,
+        "repetitions": card.repetitions,
+        "reviewed_at": _utc(card.last_reviewed).isoformat() if card.last_reviewed else None,
+    }
     inserted = db.execute(conflict_insert(db, models.FlashcardReviewEvent).values(
-        user_id=user.id, event_key=event_key, reviewed_at=card.last_reviewed, xp_delta=5
+        user_id=user.id, event_key=event_key, reviewed_at=reviewed_at, xp_delta=5,
+        flashcard_id=card.id, grade=grade, initial_schedule=baseline,
     ).on_conflict_do_nothing(index_elements=['user_id', 'event_key']))
     earned = 5 if inserted.rowcount == 1 else 0
     if earned:
+        # Arrival order must not change either rewards or the SRS schedule.
+        events = db.query(models.FlashcardReviewEvent).filter_by(
+            user_id=user.id, flashcard_id=card.id
+        ).order_by(models.FlashcardReviewEvent.reviewed_at, models.FlashcardReviewEvent.id).all()
+        interval, ease, reps = baseline["interval"], baseline["ease"], baseline["repetitions"]
+        anchor = datetime.fromisoformat(baseline["reviewed_at"]) if baseline["reviewed_at"] else None
+        latest = anchor
+        for event in events:
+            when = _utc(event.reviewed_at)
+            # Old releases have no grades: preserve their established schedule.
+            if anchor and when <= anchor:
+                continue
+            interval, ease, reps = _schedule_review(interval, ease, reps, _GRADE_FACTOR[event.grade])
+            latest = when
+        if latest:
+            card.interval_days, card.easiness, card.repetitions = interval, ease, reps
+            card.last_reviewed = latest
+            card.due_date = (latest + timedelta(days=interval)).date()
         db.execute(text("UPDATE users SET xp = COALESCE(xp, 0) + :delta WHERE id = :uid"), {'delta': earned, 'uid': user.id})
     db.commit()
     db.refresh(card)
     return {**_card_to_dict(card), 'xp_earned': earned}
+
+
+def _utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+def _validated_review_time(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = _utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Data de revisao invalida.") from None
+    if parsed > datetime.now(timezone.utc) + timedelta(minutes=5):
+        raise HTTPException(status_code=422, detail="Data de revisao no futuro.")
+    return parsed
 
 
 class FlashcardSyncItem(BaseModel):
@@ -264,6 +286,9 @@ def sync_flashcards(
             db, user.id, synced=0, limit=limit, cursor=cursor
         )
 
+    for item in valid_items:
+        _validated_review_time(item.last_reviewed)
+    db.execute(text("UPDATE users SET xp = COALESCE(xp, 0) WHERE id = :uid"), {"uid": user.id})
     incoming_ids = [item.local_id for item in valid_items]
     existing_map: dict[str, models.Flashcard] = {
         card.local_id: card
@@ -286,11 +311,14 @@ def sync_flashcards(
             existing.front = item.front
             existing.back = item.back
             existing.topic = item.topic
-            existing.interval_days = item.interval_days
-            existing.easiness = item.easiness
-            existing.due_date = due
-            existing.repetitions = item.repetitions
-            existing.last_reviewed = last_reviewed
+            # Existing reviewed schedules are authoritative; pending offline
+            # review events reconcile them through /review, not snapshot sync.
+            if not existing.last_reviewed:
+                existing.interval_days = max(1, min(36500, item.interval_days))
+                existing.easiness = max(1.3, min(4.0, item.easiness))
+                existing.due_date = due
+                existing.repetitions = max(0, item.repetitions)
+                existing.last_reviewed = last_reviewed
         else:
             db.add(
                 models.Flashcard(

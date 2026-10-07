@@ -464,6 +464,12 @@ def generate_quiz(
             status_code=422, detail="O campo 'topic' não pode ser vazio."
         )
     user = _require_user(authorization, db)
+    if body.document_id is not None:
+        document = db.query(models.StudyDocument).filter_by(
+            id=body.document_id, user_id=user.id
+        ).first()
+        if document is None:
+            raise HTTPException(status_code=404, detail="Documento nao encontrado.")
     premium_user = _is_premium(user, db)
     if not premium_user:
         _check_quiz_limit(user, db)

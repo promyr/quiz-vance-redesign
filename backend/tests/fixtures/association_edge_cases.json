@@ -1,0 +1,654 @@
+[
+  {
+    "name": "canonical-two-columns",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "Evaporação"
+        },
+        {
+          "id": "II",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": true
+  },
+  {
+    "name": "english-association-alias",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0,
+      "association": {
+        "left": [
+          {
+            "id": "I",
+            "texto": "Evaporação"
+          },
+          {
+            "id": "II",
+            "texto": "Condensação"
+          }
+        ],
+        "right": [
+          {
+            "id": "1",
+            "texto": "Líquido → gás"
+          },
+          {
+            "id": "2",
+            "texto": "Gás → líquido"
+          }
+        ]
+      }
+    },
+    "expected": true
+  },
+  {
+    "name": "english-text-alias",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "text": "Evaporação"
+        },
+        {
+          "id": "II",
+          "text": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "text": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "text": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": true
+  },
+  {
+    "name": "label-alias",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "texto": "Evaporação",
+          "label": "I"
+        },
+        {
+          "texto": "Condensação",
+          "label": "II"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "texto": "Líquido → gás",
+          "label": "1"
+        },
+        {
+          "texto": "Gás → líquido",
+          "label": "2"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": true
+  },
+  {
+    "name": "duplicate-left-labels",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "Evaporação"
+        },
+        {
+          "id": "I",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "duplicate-right-labels",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "Evaporação"
+        },
+        {
+          "id": "II",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "1",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "missing-left-labels-roman-options",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "texto": "Evaporação"
+        },
+        {
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "blank-label",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": " ",
+          "texto": "Evaporação"
+        },
+        {
+          "id": "II",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "empty-left-column",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "empty-right-column",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "Evaporação"
+        },
+        {
+          "id": "II",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "singleton-left-column",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "Evaporação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "unequal-columns-with-unused-distractor",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "Evaporação"
+        },
+        {
+          "id": "II",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        },
+        {
+          "id": "3",
+          "texto": "Extra distrator"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": true
+  },
+  {
+    "name": "blank-premise",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "   "
+        },
+        {
+          "id": "II",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "correct-answer-references-missing-label",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "Evaporação"
+        },
+        {
+          "id": "II",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-3; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "accented-kind-with-missing-columns",
+    "input": {
+      "pergunta": "Faça a correspondência.",
+      "tipo": "associação",
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "matching-kind-with-missing-columns",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "matching",
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": false
+  },
+  {
+    "name": "flattened-roman-numeric-inline",
+    "input": {
+      "pergunta": "Associe: I) Evaporação II) Condensação\n1) Líquido → gás 2) Gás → líquido",
+      "tipo": "associacao",
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": true
+  },
+  {
+    "name": "unicode-roman-inline",
+    "input": {
+      "pergunta": "Associe: Ⅰ) Evaporação Ⅱ) Condensação\n1) Líquido → gás 2) Gás → líquido",
+      "tipo": "associacao",
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": true
+  },
+  {
+    "name": "long-unicode-premise",
+    "input": {
+      "pergunta": "Associe as colunas.",
+      "tipo": "associacao",
+      "coluna_esquerda": [
+        {
+          "id": "I",
+          "texto": "α + β ≤ γ — água 🌊\nConteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. Conteúdo extenso. "
+        },
+        {
+          "id": "II",
+          "texto": "Condensação"
+        }
+      ],
+      "coluna_direita": [
+        {
+          "id": "1",
+          "texto": "Líquido → gás"
+        },
+        {
+          "id": "2",
+          "texto": "Gás → líquido"
+        }
+      ],
+      "opcoes": [
+        "I-1; II-2",
+        "I-2; II-1"
+      ],
+      "correta_index": 0
+    },
+    "expected": true
+  },
+  {
+    "name": "propositions-canonical",
+    "input": {
+      "pergunta": "Avalie as proposições.",
+      "proposicoes": [
+        {
+          "id": "I",
+          "texto": "O gelo é sólido."
+        },
+        {
+          "id": "II",
+          "texto": "A água pode evaporar."
+        }
+      ],
+      "opcoes": [
+        "Apenas I",
+        "I e II"
+      ],
+      "correta_index": 1
+    },
+    "expected": true
+  },
+  {
+    "name": "propositions-english-alias",
+    "input": {
+      "pergunta": "Avalie as proposições.",
+      "opcoes": [
+        "Apenas I",
+        "I e II"
+      ],
+      "correta_index": 1,
+      "propositions": [
+        {
+          "id": "I",
+          "texto": "O gelo é sólido."
+        },
+        {
+          "id": "II",
+          "texto": "A água pode evaporar."
+        }
+      ]
+    },
+    "expected": true
+  },
+  {
+    "name": "propositions-blank-item",
+    "input": {
+      "pergunta": "Avalie as proposições.",
+      "proposicoes": [
+        {
+          "id": "I",
+          "texto": "O gelo é sólido."
+        },
+        {
+          "id": "II",
+          "texto": " "
+        }
+      ],
+      "opcoes": [
+        "Apenas I",
+        "I e II"
+      ],
+      "correta_index": 1
+    },
+    "expected": false
+  },
+  {
+    "name": "propositions-empty-list",
+    "input": {
+      "pergunta": "Avalie as proposições.",
+      "proposicoes": [],
+      "opcoes": [
+        "Apenas I",
+        "I e II"
+      ],
+      "correta_index": 1
+    },
+    "expected": false
+  },
+  {
+    "name": "propositions-duplicate-label",
+    "input": {
+      "pergunta": "Avalie as proposições.",
+      "proposicoes": [
+        {
+          "id": "I",
+          "texto": "O gelo é sólido."
+        },
+        {
+          "id": "I",
+          "texto": "A água pode evaporar."
+        }
+      ],
+      "opcoes": [
+        "Apenas I",
+        "I e II"
+      ],
+      "correta_index": 1
+    },
+    "expected": false
+  },
+  {
+    "name": "propositions-long-multiline",
+    "input": {
+      "pergunta": "Avalie as proposições.",
+      "proposicoes": [
+        {
+          "id": "I",
+          "texto": "O gelo é sólido.\nAfirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. Afirmação extensa. "
+        },
+        {
+          "id": "II",
+          "texto": "A água pode evaporar."
+        }
+      ],
+      "opcoes": [
+        "Apenas I",
+        "I e II"
+      ],
+      "correta_index": 1
+    },
+    "expected": true
+  }
+]

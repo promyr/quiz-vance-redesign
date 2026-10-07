@@ -68,3 +68,24 @@ def test_mentions_of_premises_do_not_replace_labeled_columns():
     text = ai_service.normalize_quiz_questions([question])[0]['text']
     assert 'Coluna I\nI — água\nII — gelo' in text
     assert 'Coluna II\n1 — água\n2 — gelo' in text
+
+
+def test_recorded_association_edge_cases_keep_valid_questions_and_reject_incomplete_ones():
+    import json
+    from pathlib import Path
+
+    cases = json.loads((Path(__file__).parent / "fixtures/association_edge_cases.json").read_text(encoding="utf-8"))
+    for case in cases:
+        result = ai_service.normalize_quiz_questions([case["input"]])
+        assert bool(result) == case["expected"], case["name"]
+        assert complete_cached_questions(complete_cached_questions(result)) == complete_cached_questions(result), case["name"]
+
+
+def test_numeric_association_sequences_validate_right_column_references():
+    question = {"pergunta": "Associe as colunas.", "tipo": "associação", "coluna_esquerda": [{"id": "I", "texto": "Um"}, {"id": "II", "texto": "Dois"}], "coluna_direita": [{"id": "1", "texto": "One"}, {"id": "2", "texto": "Two"}], "opcoes": ["1 - 2", "2 - 1"], "correta_index": 0}
+    assert len(ai_service.normalize_quiz_questions([question])) == 1
+    question["opcoes"][0] = "3, 2"
+    assert ai_service.normalize_quiz_questions([question]) == []
+    question["opcoes"][0] = "1, 2"
+    question["coluna_esquerda"][0]["id"] = None
+    assert ai_service.normalize_quiz_questions([question]) == []
