@@ -9,7 +9,13 @@
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
   "build_number": 79,
-  "release_notes": "Revisoes offline e XP reconciliados; protecao contra datas futuras e sincronizacao antiga; isolamento de documentos entre contas; associacoes completas e layout com fonte ampliada.",
+  "release_notes": "Revisões offline e XP reconciliados; proteção contra datas futuras e sincronização antiga; isolamento de documentos entre contas; associações completas e layout com fonte ampliada.",
   "published_at": "2026-10-07T21:19:48.688237+00:00",
-  "telegram_publish_requested": false
+  "telegram_publish_requested": false,
+  "telegram_publication_receipt": {
+    "version": "2.1.7",
+    "status": "sent",
+    "message_id": 958,
+    "sha256": "2F2E7E3BE5355FACD901F1952376BC49BDD2BE14370EF973787F1900DB080526"
+  }
 }
