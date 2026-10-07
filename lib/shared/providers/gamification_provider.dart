@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/network/api_client.dart';
+import '../../core/network/api_endpoints.dart';
 
 import '../../features/conquistas/data/achievement_repository.dart';
 import '../../features/conquistas/domain/achievement_catalog.dart';
@@ -281,6 +283,23 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
 
   Future<void> recordFlashcardReview({int xpEarned = 5}) async {
     await addXp(xpEarned);
+    // Review writes its fixed reward remotely. Reconcile the authoritative
+    // balance, including achievements, without counting the review twice.
+    final account = _preferences.activeAccountId;
+    try {
+      final response =
+          await ref.read(apiClientProvider).dio.get(ApiEndpoints.userStats);
+      final payload = response.data as Map;
+      final xp = payload['total_xp'] ?? payload['xp'];
+      if (xp is num && _preferences.activeAccountId == account) {
+        await _preferences.setInt(_xpKey, xp.toInt());
+        await _preferences.setInt(_levelKey, _calculateLevel(xp.toInt()));
+        state.whenData((current) => state = AsyncData(current.copyWith(
+            totalXp: xp.toInt(), level: _calculateLevel(xp.toInt()))));
+      }
+    } catch (_) {
+      // Offline reward remains local until the queued review is acknowledged.
+    }
 
     final today = DateTime.now().toIso8601String().substring(0, 10);
     await _updateDailyStreak(today);

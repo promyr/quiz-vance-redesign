@@ -20,6 +20,7 @@ from .material_sanitization import (
     sanitize_reference_material,
 )
 from .notice_analysis import _safe_date_str, normalize_notice_analysis
+from .question_structure import structured_question_rules as _structured_question_rules
 from .topic_coverage import topic_coverage_instruction as _topic_coverage_instruction
 
 _COMPATIBILITY_REEXPORTS = (
@@ -320,7 +321,6 @@ def _grounding_rules_block() -> str:
     )
 
 
-
 def build_quiz_prompt(
     topic: str,
     difficulty: str,
@@ -359,6 +359,7 @@ Dificuldade alvo: {nivel_label}
 Guia de dificuldade: {nivel_instrucao}
 
 {_grounding_rules_block()}
+{_structured_question_rules()}
 Regras pedagogicas:
 {coverage_rule}
 - Varie o tipo cognitivo de cada questao: definicao, mecanismo, comparacao, aplicacao pratica, excecao ou caso-limite, causa-efeito, critica e exemplo concreto. Nao repita o mesmo tipo cognitivo mais de 2 vezes.
@@ -377,7 +378,7 @@ Teste de validade:
 - Remova mentalmente o documento-fonte.
 - Se a pergunta deixar de fazer sentido, descarte e gere outra.
 
-{_json_only_rules_block("array de objetos com pergunta, subtema, opcoes, correta_index, explicacao, capitulo, secao, pagina, topico e trecho_fonte")}
+{_json_only_rules_block("array de objetos com pergunta, subtema, opcoes, correta_index, explicacao, capitulo, secao, pagina, topico e trecho_fonte; campos opcionais tipo, coluna_esquerda, coluna_direita e proposicoes")}
 [
   {{
     "pergunta": "...",
@@ -428,6 +429,7 @@ Dificuldade alvo: {nivel_label}
 Guia de dificuldade: {nivel_instrucao}
 
 {_grounding_rules_block()}
+{_structured_question_rules()}
 Regras de simulado:
 - Produza exatamente {quantity} questoes.
 - Estilo inspirado em bancas como FGV, FCC, Vunesp e CESPE, sem copiar nenhuma banca real.
@@ -441,7 +443,7 @@ Regras de simulado:
 Teste de validade:
 - A questao precisa continuar valida para qualquer candidato do tema mesmo sem ver o material-fonte.
 
-{_json_only_rules_block("array de objetos com pergunta, subtema, opcoes, correta_index e explicacao")}
+{_json_only_rules_block("array de objetos com pergunta, subtema, opcoes, correta_index e explicacao; campos opcionais tipo, coluna_esquerda, coluna_direita e proposicoes")}
 [
   {{
     "pergunta": "...",
@@ -855,6 +857,8 @@ def normalize_quiz_questions(
     """
     import uuid
 
+    from .question_structure import question_structure
+
     result: list[dict[str, Any]] = []
     for i, question in enumerate(raw_questions):
         if not isinstance(question, dict):
@@ -863,6 +867,11 @@ def normalize_quiz_questions(
         pergunta = str(question.get("pergunta") or "").strip()
         if not pergunta:
             continue
+
+        structured = question_structure(question, pergunta)
+        if structured is None:
+            continue
+        pergunta, structure_metadata = structured
 
         opcoes_raw = question.get("opcoes") or []
         if not isinstance(opcoes_raw, list) or len(opcoes_raw) < 2:
@@ -933,6 +942,7 @@ def normalize_quiz_questions(
         }
         if source is not None:
             entry["source"] = source
+        entry.update(structure_metadata)
 
         result.append(entry)
 

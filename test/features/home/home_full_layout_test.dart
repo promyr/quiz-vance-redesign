@@ -104,8 +104,9 @@ void main() {
             final image = await render.toImage(pixelRatio: 1);
             final bytes =
                 await image.toByteData(format: ui.ImageByteFormat.png);
-            await File('output_apk/home-layout-320-font160.png')
-                .writeAsBytes(bytes!.buffer.asUint8List());
+            final screenshot = File('output_apk/home-layout-320-font160.png');
+            await screenshot.parent.create(recursive: true);
+            await screenshot.writeAsBytes(bytes!.buffer.asUint8List());
             image.dispose();
           });
         }

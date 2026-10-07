@@ -16,6 +16,18 @@ class SimuladoReviewScreen extends StatefulWidget {
 
 class _SimuladoReviewScreenState extends State<SimuladoReviewScreen> {
   int _currentIndex = 0;
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _showQuestion(int index) {
+    setState(() => _currentIndex = index);
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +153,7 @@ class _SimuladoReviewScreenState extends State<SimuladoReviewScreen> {
             const SizedBox(height: 18),
             Expanded(
               child: SingleChildScrollView(
+                controller: _scrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,7 +363,7 @@ class _SimuladoReviewScreenState extends State<SimuladoReviewScreen> {
                     Expanded(
                       child: _ActionButton(
                         label: 'Anterior',
-                        onTap: () => setState(() => _currentIndex--),
+                        onTap: () => _showQuestion(_currentIndex - 1),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -363,7 +376,7 @@ class _SimuladoReviewScreenState extends State<SimuladoReviewScreen> {
                           : 'Voltar ao resultado',
                       onTap: () {
                         if (_currentIndex + 1 < wrongAnswers.length) {
-                          setState(() => _currentIndex++);
+                          _showQuestion(_currentIndex + 1);
                           return;
                         }
                         context.pop();

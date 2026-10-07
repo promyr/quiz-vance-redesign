@@ -22,6 +22,26 @@ class _Plans extends Mock implements StudyPlanRepository {}
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  testWidgets('documento indisponível bloqueia geração sem contexto e permite retry',
+      (tester) async {
+    final quiz = _QuizRepository();
+    final documents = _Plans();
+    when(() => documents.getDocumentContent(987)).thenAnswer((_) async => '');
+    await tester.pumpWidget(ProviderScope(overrides: [
+      quizRepositoryProvider.overrideWithValue(quiz),
+      studyPlanRepositoryProvider.overrideWithValue(documents),
+    ], child: const MaterialApp(home: QuizSessionScreen(
+        questions: [], generationParams: QuizGenerationParams(
+            topic: 'Porcentagens', difficulty: 'intermediario',
+            aiProvider: null, documentId: 987)))));
+    await tester.pumpAndSettle();
+    expect(find.text('Tentar novamente'), findsOneWidget);
+    verifyNever(() => quiz.generate(
+        topic: any(named: 'topic'), difficulty: any(named: 'difficulty'),
+        quantity: any(named: 'quantity'), aiProvider: any(named: 'aiProvider'),
+        conteudo: any(named: 'conteudo'), documentName: any(named: 'documentName'),
+        documentId: any(named: 'documentId')));
+  });
   final first = StudyPlanItem(
       sessionId: 'first',
       dia: 'Hoje',

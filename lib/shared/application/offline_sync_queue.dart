@@ -229,6 +229,7 @@ class OfflineSyncQueue {
     if (item.type == 'flashcard_review') {
       final grade = payload['grade'];
       payload = {
+        ...payload,
         'flashcard_id': payload['flashcard_id'] ?? payload['card_id'],
         'grade': grade is num
             ? ['again', 'hard', 'good', 'easy'][grade.toInt().clamp(0, 3)]

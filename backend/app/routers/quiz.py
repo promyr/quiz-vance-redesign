@@ -24,6 +24,9 @@ from ..ai_gateway import build_ai_candidates, call_ai_with_fallback
 from ..ai_provider_config import normalize_provider
 from ..database import get_db
 from ..deps import require_user as _require_user
+from ..question_structure import complete_cached_questions
+from ..quiz_scoring import claim_answer_receipts, increment_daily, score_answers
+from ..quiz_scoring import signed_questions as _signed_questions
 from ..rate_limit import rate_limit
 from ..smart_cache_service import SmartQuestionCache
 
@@ -479,7 +482,7 @@ def generate_quiz(
             )
             seen_set = {t.strip().lower() for t in avoid_texts}
             valid_cached = [
-                q for q in cached_candidates
+                q for q in complete_cached_questions(cached_candidates)
                 if q.get("text", "").strip().lower() not in seen_set
             ]
             if len(valid_cached) >= quantity:
@@ -556,26 +559,26 @@ def generate_quiz(
     # Persiste fingerprints após reservar a cota para evitar contabilizar falhas.
     _store_seen_questions(db, user.id, tk, questions)
 
-    return {"questions": questions, "topic": body.topic, "difficulty": body.difficulty}
+    return {"questions": _signed_questions(questions, user.id, "quiz"), "topic": body.topic, "difficulty": body.difficulty}
 
 
 # ── /quiz/submit ──────────────────────────────────────────────────────────────
 
 
 class QuizAnswerIn(BaseModel):
-    question_id: str
-    selected_option_id: str | None = None
+    question_id: str = Field(min_length=1, max_length=2048)
+    selected_option_id: str | None = Field(default=None, max_length=200)
     is_correct: bool = False
 
 
 class QuizSubmitIn(BaseModel):
-    session_id: str | None = None
+    session_id: str | None = Field(default=None, max_length=120)
     topic: str | None = Field(default=None, max_length=200)
     total: int = Field(default=0, ge=0, le=500)
     correct: int = Field(default=0, ge=0, le=500)
     xp_earned: int = Field(default=0, ge=0, le=100_000)
     time_taken_seconds: int = Field(default=0, ge=0)
-    answers: list[QuizAnswerIn] = []
+    answers: list[QuizAnswerIn] = Field(default_factory=list)
 
 
 @router.post("/quiz/submit")
@@ -583,6 +586,16 @@ def submit_quiz(
     body: QuizSubmitIn,
     authorization: str | None = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
+):
+    return _submit_quiz(body, authorization, db, _feature="quiz")
+
+
+def _submit_quiz(
+    body: QuizSubmitIn,
+    authorization: str | None,
+    db: Session,
+    *,
+    _feature: str = "quiz",
 ):
     user = _require_user(authorization, db)
     if body.correct > body.total:
@@ -592,10 +605,6 @@ def submit_quiz(
         )
 
     event_id = str(body.session_id or uuid.uuid4())
-    # M7 — cap duplo: respeita o limite do campo e evita que correct*10 ultrapasse 100k.
-    xp_from_correct = min(body.correct * 10, 100_000)
-    xp = max(0, min(body.xp_earned, 100_000) if body.xp_earned else xp_from_correct)
-
     # Idempotente via event_id
     exists = (
         db.query(models.QuizStatsEvent)
@@ -606,42 +615,25 @@ def submit_quiz(
         .first()
     )
     if exists:
-        return {"ok": True, "xp_earned": xp}
+        return {"ok": True, "xp_earned": int(exists.xp_delta or 0)}
+
+    correct = score_answers(body.answers, body.total, user.id, _feature)
+    xp = correct * (5 if _feature == "simulado" else 10)
 
     try:
         ev = models.QuizStatsEvent(
             user_id=user.id,
             event_id=event_id,
             questoes_delta=body.total,
-            acertos_delta=body.correct,
+            acertos_delta=correct,
             xp_delta=xp,
-            correta=body.correct,
+            correta=correct,
         )
         db.add(ev)
-        # Atualiza daily stats no mesmo commit para evitar estado parcial.
-        today = datetime.now(timezone.utc).date()
-        daily = (
-            db.query(models.QuizStatsDaily)
-            .filter(
-                models.QuizStatsDaily.user_id == user.id,
-                models.QuizStatsDaily.day_key == today,
-            )
-            .first()
-        )
-        if daily:
-            daily.questoes = int(daily.questoes or 0) + body.total
-            daily.acertos = int(daily.acertos or 0) + body.correct
-            daily.xp_ganho = int(daily.xp_ganho or 0) + xp
-        else:
-            db.add(
-                models.QuizStatsDaily(
-                    user_id=user.id,
-                    day_key=today,
-                    questoes=body.total,
-                    acertos=body.correct,
-                    xp_ganho=xp,
-                )
-            )
+        # Flush claims the unique event before any reward/aggregate write.
+        db.flush()
+        claim_answer_receipts(db, user.id, event_id, body.answers)
+        increment_daily(db, user.id, total=body.total, correct=correct, xp=xp)
         db.execute(
             text("UPDATE users SET xp = COALESCE(xp, 0) + :delta WHERE id = :uid"),
             {"delta": xp, "uid": user.id},
@@ -822,7 +814,7 @@ def generate_simulado(
                 detail="Limite semanal de simulados atingido.",
             )
 
-    return {"questions": questions, "topic": body.topic, "difficulty": body.difficulty}
+    return {"questions": _signed_questions(questions, user.id, "simulado"), "topic": body.topic, "difficulty": body.difficulty}
 
 
 # ── /simulado/submit ──────────────────────────────────────────────────────────
@@ -836,6 +828,7 @@ class SimuladoSubmitIn(BaseModel):
     time_taken_seconds: int = Field(default=0, ge=0)
     topic: str | None = Field(default=None, max_length=200)
     session_id: str | None = None
+    answers: list[QuizAnswerIn] = Field(default_factory=list)
 
 
 @router.post("/simulado/submit")
@@ -852,8 +845,9 @@ def submit_simulado(
         correct=body.correct,
         xp_earned=body.xp_earned,
         time_taken_seconds=body.time_taken_seconds,
+        answers=body.answers,
     )
-    return submit_quiz(submit_body, authorization, db)
+    return _submit_quiz(submit_body, authorization, db, _feature="simulado")
 
 
 @router.get("/simulado/history")

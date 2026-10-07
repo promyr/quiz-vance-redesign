@@ -399,6 +399,25 @@ class QuizStatsEvent(Base):
     )
 
 
+class QuizAnswerCredit(Base):
+    __tablename__ = "quiz_answer_credits"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    __table_args__ = (UniqueConstraint("user_id", "question_key", name="uq_quiz_answer_credit_user_question"),)
+
+
+class FlashcardReviewEvent(Base):
+    __tablename__ = "flashcard_review_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    xp_delta: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    __table_args__ = (UniqueConstraint("user_id", "event_key", name="uq_flashcard_review_user_event"),)
+
+
 class Flashcard(Base):
     __tablename__ = "flashcards"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

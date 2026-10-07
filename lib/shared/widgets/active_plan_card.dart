@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,11 +7,44 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/study_plan/data/study_plan_repository.dart';
 
-class ActivePlanCard extends ConsumerWidget {
+class ActivePlanCard extends ConsumerStatefulWidget {
   const ActivePlanCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ActivePlanCard> createState() => _ActivePlanCardState();
+}
+
+class _ActivePlanCardState extends ConsumerState<ActivePlanCard>
+    with WidgetsBindingObserver {
+  Timer? _dayTimer;
+  String _day = DateTime.now().toIso8601String().substring(0, 10);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _dayTimer = Timer.periodic(const Duration(minutes: 1), (_) => _refreshDay());
+  }
+
+  void _refreshDay() {
+    final day = DateTime.now().toIso8601String().substring(0, 10);
+    if (mounted && day != _day) setState(() => _day = day);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshDay();
+  }
+
+  @override
+  void dispose() {
+    _dayTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final activePlanAsync = ref.watch(activePlanProvider);
 
     return activePlanAsync.when(
@@ -177,6 +212,20 @@ class ActivePlanCard extends ConsumerWidget {
                   child: const Text('Revisar'),
                 ),
               ],
+            ),
+          );
+        }
+
+        if (todaySessions.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: ListTile(
+              title: const Text('Nenhuma sessão programada para hoje'),
+              subtitle: Text(plan.title),
+              trailing: TextButton(
+                onPressed: () => context.push('/today-plan'),
+                child: const Text('Ver Plano'),
+              ),
             ),
           );
         }

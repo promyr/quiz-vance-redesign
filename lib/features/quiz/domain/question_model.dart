@@ -44,7 +44,8 @@ class QuestionSource {
         section: json['section']?.toString(),
         page: (json['page'] as num?)?.toInt(),
         topic: json['topic']?.toString(),
-        excerpt: json['excerpt']?.toString() ?? json['trecho_fonte']?.toString(),
+        excerpt:
+            json['excerpt']?.toString() ?? json['trecho_fonte']?.toString(),
       );
 
   /// Nome do documento/apostila de onde a questão foi extraída.
@@ -113,10 +114,7 @@ class Question {
     final rawSource = json['source'];
     return Question(
       id: json['id']?.toString() ?? '',
-      text: json['text']?.toString() ??
-          json['question']?.toString() ??
-          json['pergunta']?.toString() ??
-          '',
+      text: _completeQuestionText(json),
       options: options,
       correctOptionId: _resolveCorrectOptionId(
         rawCorrect: rawCorrect,
@@ -179,7 +177,9 @@ class Question {
     }
     final topicName = (topic?.trim().isNotEmpty == true)
         ? topic!.trim()
-        : (fallbackTopic?.trim().isNotEmpty == true ? fallbackTopic!.trim() : 'deste assunto');
+        : (fallbackTopic?.trim().isNotEmpty == true
+            ? fallbackTopic!.trim()
+            : 'deste assunto');
     final letter = correctOptionLetter;
     final optText = correctOption?.text.trim() ?? '';
     if (letter != null && optText.isNotEmpty) {
@@ -189,6 +189,44 @@ class Question {
     }
     return 'Gabarito oficial correspondente aos tópicos fundamentais de $topicName.';
   }
+}
+
+/// Keep association columns and assertions in the statement. All quiz,
+/// simulation and review screens already render this statement, including
+/// restored offline sessions. The canonical backend also flattens these fields;
+/// checking complete labeled blocks avoids duplicating the canonical response.
+String _completeQuestionText(Map<String, dynamic> json) {
+  var text =
+      (json['text'] ?? json['question'] ?? json['pergunta'] ?? '').toString();
+  final association = json['association'];
+  final columns = association is Map ? association : const <String, dynamic>{};
+  final sections = <String, dynamic>{
+    'Coluna I': json['coluna_esquerda'] ?? columns['left'],
+    'Coluna II': json['coluna_direita'] ?? columns['right'],
+    'Proposições': json['proposicoes'] ?? json['propositions'],
+  };
+  for (final section in sections.entries) {
+    final raw = section.value;
+    if (raw is! List || raw.isEmpty) continue;
+    final lines = <String>[];
+    for (var i = 0; i < raw.length; i++) {
+      final item = raw[i];
+      final content =
+          (item is Map ? item['text'] ?? item['texto'] ?? '' : item ?? '')
+              .toString()
+              .trim();
+      if (content.isEmpty) continue;
+      final label = item is Map
+          ? (item['id'] ?? item['label'] ?? '${i + 1}').toString()
+          : '${i + 1}';
+      lines.add('$label — $content');
+    }
+    final block = '${section.key}\n${lines.join('\n')}';
+    if (lines.isNotEmpty && !text.contains(block)) {
+      text += '\n\n$block';
+    }
+  }
+  return text;
 }
 
 class QuestionAnswer {

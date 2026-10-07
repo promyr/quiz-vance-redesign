@@ -579,10 +579,10 @@ def run_extraction_job(
         db.flush()
 
         joined_text = "\n\n".join(page["text"] for page in pages if page["text"])
+        document.extracted_text = joined_text
         storage_key = document.storage_key
         document.storage_key = None
         if document.purpose == "library":
-            document.extracted_text = joined_text
             document.status = "ready"
             document.progress = 100
             document.updated_at = _now()

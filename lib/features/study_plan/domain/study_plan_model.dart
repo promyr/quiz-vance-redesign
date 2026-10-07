@@ -431,6 +431,7 @@ class StudyPlan {
 
     // 2. Sessões correspondentes ao dia da semana recorrente
     final recurrentSessions = items.where((i) {
+      if (i.scheduledDate != null && i.scheduledDate!.isNotEmpty) return false;
       final itemDia = i.dia.trim().toLowerCase();
       return itemDia == weekdayName || itemDia.startsWith(weekdayName.substring(0, 3));
     }).toList();

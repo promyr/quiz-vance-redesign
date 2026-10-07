@@ -79,7 +79,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
   Future<void> _grade(List<Flashcard> cards, FsrsGrade grade) async {
     final card = cards[_currentIndex];
 
-    await ref.read(flashcardRepositoryProvider).review(
+    final reviewedCard = await ref.read(flashcardRepositoryProvider).review(
           card: card,
           grade: grade,
         );
@@ -100,7 +100,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
       currentIndex: _currentIndex,
       reviewedCount: _reviewedCount,
       cycleTotalCount: _cycleTotalCount,
-      reviewedCard: card,
+      reviewedCard: reviewedCard,
     );
 
     if (progressed.activeCards.isEmpty && progressed.nextCycleCards.isEmpty) {
@@ -112,7 +112,8 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
         );
         final targetItem = itemIndex >= 0
             ? activePlan.items[itemIndex]
-            : activePlan.items.firstWhere((i) => !i.isCompleted, orElse: () => activePlan.items.first);
+            : activePlan.items.firstWhere((i) => !i.isCompleted,
+                orElse: () => activePlan.items.first);
 
         ref.read(studyPlanCoordinatorProvider).updateSessionResult(
               planId: activePlan.id,
@@ -271,7 +272,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                                 return Transform(
                                   transform: Matrix4.identity()
                                     ..setEntry(3, 2, 0.001)
-                                    ..rotateY(angle),
+                                    ..rotateY(angle - (isBack ? 3.14159 : 0)),
                                   alignment: Alignment.center,
                                   child: Container(
                                     width: double.infinity,
@@ -371,25 +372,15 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                                                 ),
                                               ),
                                               const SizedBox(height: 12),
-                                              Transform(
-                                                transform: isBack
-                                                    ? (Matrix4.identity()
-                                                      ..rotateY(3.14159))
-                                                    : Matrix4.identity(),
-                                                alignment: Alignment.center,
-                                                child: Text(
-                                                  isBack
-                                                      ? card.back
-                                                      : card.front,
-                                                  style: const TextStyle(
-                                                    color:
-                                                        AppColors.textPrimary,
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w700,
-                                                    height: 1.5,
-                                                  ),
-                                                  textAlign: TextAlign.center,
+                                              Text(
+                                                isBack ? card.back : card.front,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w700,
+                                                  height: 1.5,
                                                 ),
+                                                textAlign: TextAlign.center,
                                               ),
                                               if (!isBack) ...[
                                                 const SizedBox(height: 20),

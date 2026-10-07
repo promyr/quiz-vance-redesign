@@ -216,14 +216,20 @@ def get_document_content(
             status_code=409,
             detail="O documento ainda nao terminou de processar.",
         )
-    if document.purpose != "library":
+    text = str(document.extracted_text or "")
+    if not text.strip():
+        pages = db.query(models.StudyDocumentPage).filter(
+            models.StudyDocumentPage.document_id == document.id
+        ).order_by(models.StudyDocumentPage.page_number).all()
+        text = "\n\n".join(page.text for page in pages if page.text.strip())
+    if not text.strip():
         raise HTTPException(
-            status_code=422,
-            detail="Conteudo integral disponivel somente para a biblioteca.",
+            status_code=409,
+            detail="O texto deste PDF esta indisponivel. Reprocesse ou envie o documento novamente.",
         )
     return {
         "document_id": document.id,
-        "text": str(document.extracted_text or ""),
+        "text": text,
         "page_count": document.page_count,
     }
 

@@ -72,7 +72,9 @@ const _slides = [
 // ── Widget principal ───────────────────────────────────────────────────────
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({super.key, this.onCompleted});
+
+  final Future<void> Function()? onCompleted;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -101,6 +103,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _finish() async {
     await markOnboardingShown();
+    if (!mounted) return;
+    await widget.onCompleted?.call();
     if (mounted) context.go('/');
   }
 

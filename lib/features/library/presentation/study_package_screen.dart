@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../data/material_scope_store.dart';
+import '../../quiz/domain/quiz_generation_params.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../features/flashcard/data/flashcard_repository.dart';
@@ -73,7 +75,7 @@ class StudyPackageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const AppBottomNav(currentIndex: 3),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
       body: SafeArea(
         child: Column(
           children: [
@@ -292,11 +294,38 @@ class StudyPackageScreen extends ConsumerWidget {
                     _ActionButton(
                       label: 'Iniciar Quiz com este Material',
                       icon: Icons.quiz_rounded,
-                      onPressed: () {
+                      onPressed: () async {
                         final tema = package.topicosPrincipais.isNotEmpty
                             ? package.topicosPrincipais.first
                             : package.titulo;
-                        context.go('/quiz', extra: {'tema': tema});
+                        try {
+                          final scoped =
+                              await MaterialScopeStore().resolve(file);
+                          final content = scoped.promptContext(2200);
+                          if (content.trim().isEmpty) {
+                            throw StateError(
+                                'O material não contém texto legível.');
+                          }
+                          if (!context.mounted) return;
+                          context.pushNamed('quizSession', extra: {
+                            'generationParams': QuizGenerationParams(
+                              topic: tema,
+                              difficulty: 'intermediario',
+                              aiProvider: null,
+                              conteudo: content,
+                              documentId: file.id,
+                            ),
+                            'infiniteMode': false,
+                          });
+                        } catch (_) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(const SnackBar(
+                              content: Text(
+                                  'Não foi possível preparar o material. Revise os capítulos selecionados.'),
+                            ));
+                          }
+                        }
                       },
                     ),
                     const SizedBox(height: 12),

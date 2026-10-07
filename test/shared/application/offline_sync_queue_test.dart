@@ -108,6 +108,34 @@ void main() {
     expect(await queue.getPendingItems(), hasLength(1));
   });
 
+  test('offline local flashcard keeps content required to sync its reward',
+      () async {
+    await queue.enqueueItem(
+        type: 'flashcard_review',
+        payload: {
+          'flashcard_id': 'local-42',
+          'grade': 'good',
+          'reviewed_at': '2026-10-06T12:00:00Z',
+          'front': 'Proposição',
+          'back': 'Justificativa',
+          'topic': 'Matemática',
+        },
+        idempotencyKey: 'review-42');
+    Map<String, dynamic>? sent;
+    when(() => dio.post(ApiEndpoints.flashcardsReview,
+        data: any(named: 'data'),
+        options: any(named: 'options'))).thenAnswer((invocation) async {
+      sent = Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
+      return Response(
+          requestOptions: RequestOptions(path: ApiEndpoints.flashcardsReview),
+          data: {'xp_earned': 5});
+    });
+    expect(await queue.flushQueue(), 1);
+    expect(sent!['front'], 'Proposição');
+    expect(sent!['back'], 'Justificativa');
+    expect(sent!['topic'], 'Matemática');
+  });
+
   test('concurrent enqueue preserves both results', () async {
     await Future.wait([
       queue.enqueueItem(
@@ -186,16 +214,25 @@ void main() {
     await flushing;
     expect((await queue.getPendingItems()).single.id, 'bob');
   });
-  test('legacy flashcard payload is converted to the server contract', () async {
-    await queue.enqueueItem(type:'flashcard_review',payload:{'card_id':'12','grade':2},idempotencyKey:'card');
-    Map<String,dynamic>? sent;
-    when(()=>dio.post(any(),data:any(named:'data'),options:any(named:'options'))).thenAnswer((call) async {
-      sent=Map<String,dynamic>.from(call.namedArguments[#data] as Map);
-      return Response(requestOptions:RequestOptions(path:'/flashcards/review'),data:{'ok':true});
+  test('legacy flashcard payload is converted to the server contract',
+      () async {
+    await queue.enqueueItem(
+        type: 'flashcard_review',
+        payload: {'card_id': '12', 'grade': 2},
+        idempotencyKey: 'card');
+    Map<String, dynamic>? sent;
+    when(() => dio.post(any(),
+        data: any(named: 'data'),
+        options: any(named: 'options'))).thenAnswer((call) async {
+      sent = Map<String, dynamic>.from(call.namedArguments[#data] as Map);
+      return Response(
+          requestOptions: RequestOptions(path: '/flashcards/review'),
+          data: {'ok': true});
     });
     await queue.flushQueue();
-    expect(sent!['flashcard_id'],'12'); expect(sent!['grade'],'good');
-    expect(DateTime.tryParse(sent!['reviewed_at'] as String),isNotNull);
+    expect(sent!['flashcard_id'], '12');
+    expect(sent!['grade'], 'good');
+    expect(DateTime.tryParse(sent!['reviewed_at'] as String), isNotNull);
   });
   test('moves poison item to dead-letter instead of silently dropping it',
       () async {

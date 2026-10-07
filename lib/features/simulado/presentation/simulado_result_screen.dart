@@ -17,6 +17,7 @@ import '../../../shared/widgets/achievement_toast.dart';
 import '../../../shared/widgets/sync_status_card.dart';
 import '../data/simulado_repository.dart';
 import '../domain/simulado_review.dart';
+import '../data/simulado_recovery_store.dart';
 
 class SimuladoResultScreen extends ConsumerStatefulWidget {
   const SimuladoResultScreen({super.key, required this.result});
@@ -51,6 +52,20 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
     super.dispose();
   }
 
+  Future<void> _clearAttempt(String sessionId) async {
+    final account = AccountScopedPreferences.instance.activeAccountId;
+    try {
+      final store = SimuladoRecoveryStore();
+      final saved = await store.load();
+      if (account == AccountScopedPreferences.instance.activeAccountId &&
+          saved?.sessionId == sessionId) {
+        await store.clear();
+      }
+    } catch (_) {
+      // A falha no checkpoint não deve impedir a persistência do resultado.
+    }
+  }
+
   Future<void> _persistResult(QuizResult result) async {
     final account = AccountScopedPreferences.instance.activeAccountId;
     final queue = ref.read(offlineSyncQueueProvider);
@@ -63,7 +78,14 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
       'total': result.total,
       'accuracy': result.accuracy,
       'xp_earned': result.xpEarned,
-      'time_taken_seconds': result.timeTaken.inSeconds
+      'time_taken_seconds': result.timeTaken.inSeconds,
+      'answers': result.answers
+          .map((answer) => {
+                'question_id': answer.question.id,
+                'selected_option_id': answer.selectedOptionId,
+                'is_correct': answer.isCorrect,
+              })
+          .toList(),
     };
     if (mounted) {
       setState(() {
@@ -78,10 +100,12 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
           payload: payload,
           idempotencyKey: result.sessionId);
       queued = true;
+      await _clearAttempt(result.sessionId);
     } catch (_) {}
     if (account != AccountScopedPreferences.instance.activeAccountId) return;
     try {
       await repository.submitResult(payload);
+      await _clearAttempt(result.sessionId);
       if (account != AccountScopedPreferences.instance.activeAccountId) return;
       try {
         await queue.acknowledge(result.sessionId, type: 'simulado_result');

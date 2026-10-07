@@ -603,6 +603,15 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(activePlanProvider, (_, next) {
+      final updated = next.valueOrNull;
+      if (_phase == _PlanPhase.viewing &&
+          updated != null &&
+          updated.id == _plan?.id &&
+          !identical(updated, _plan)) {
+        setState(() => _plan = updated);
+      }
+    });
     return switch (_phase) {
       _PlanPhase.config => _buildConfigPhase(),
       _PlanPhase.review => _buildReviewPhase(),

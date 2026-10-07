@@ -11,13 +11,12 @@ extension _InitialQuizGeneration on _QuizSessionScreenState {
     try {
       var content = _contentPrepared ? _preparedContent : params.conteudo;
       if (!_contentPrepared && content == null && params.documentId != null) {
-        try {
-          content = await ref
-              .read(studyPlanRepositoryProvider)
-              .getDocumentContent(params.documentId!);
-        } catch (_) {
-          // O tópico do plano continua suficiente quando o PDF está indisponível.
-        }
+        content = await ref
+            .read(studyPlanRepositoryProvider)
+            .getDocumentContent(params.documentId!);
+      }
+      if (params.documentId != null && (content == null || content.trim().isEmpty)) {
+        throw const FormatException('document content unavailable');
       }
       if (!mounted || !_sameAccount) return;
       if (!_contentPrepared) {

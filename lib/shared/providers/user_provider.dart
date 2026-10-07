@@ -239,6 +239,8 @@ class UserStatsNotifier extends AsyncNotifier<UserStats> {
         .read(userStatsCacheServiceProvider)
         .incrementFlashcardsTodayCount(amount: amount);
     state = AsyncData(current.copyWith(flashcardsToday: nextCount));
+    // The preceding review now updates the backend reward balance too.
+    await refresh();
   }
 
   Future<UserStats> _mergeLocalFlashcards(UserStats stats) async {
@@ -246,7 +248,10 @@ class UserStatsNotifier extends AsyncNotifier<UserStats> {
         .read(userStatsCacheServiceProvider)
         .readFlashcardsTodayCount();
     if (localCount == 0) return stats;
-    return stats.copyWith(flashcardsToday: localCount);
+    return stats.copyWith(
+        flashcardsToday: localCount > stats.flashcardsToday
+            ? localCount
+            : stats.flashcardsToday);
   }
 }
 

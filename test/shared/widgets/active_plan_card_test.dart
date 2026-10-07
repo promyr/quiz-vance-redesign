@@ -6,6 +6,26 @@ import 'package:quiz_vance_flutter/features/study_plan/domain/study_plan_model.d
 import 'package:quiz_vance_flutter/shared/widgets/active_plan_card.dart';
 
 void main() {
+  test('sessao datada concluida nao reaparece em outra semana', () {
+    final plan = StudyPlan(
+      objetivo: 'Concurso',
+      tempoDiario: 30,
+      items: [
+        StudyPlanItem(
+          dia: 'Segunda',
+          scheduledDate: '2026-09-28',
+          tema: 'Direito',
+          atividade: 'Quiz',
+          duracaoMin: 30,
+          prioridade: 1,
+          concluido: true,
+        ),
+      ],
+    );
+    expect(plan.getSessionsForDate(DateTime(2026, 9, 28)), hasLength(1));
+    expect(plan.getSessionsForDate(DateTime(2026, 10, 5)), isEmpty);
+  });
+
   testWidgets('criacao de plano fica apenas na Biblioteca', (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [activePlanProvider.overrideWith((ref) async => null)],

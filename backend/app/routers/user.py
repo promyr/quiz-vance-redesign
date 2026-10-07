@@ -366,6 +366,16 @@ def get_user_stats(
     total_questoes = int(stats_row.total_questoes or 0)
     total_acertos = int(stats_row.total_acertos or 0)
     total_xp = int(user.xp or 0)
+    review_start = datetime.combine(today_key, datetime.min.time())
+    review_end = review_start + timedelta(days=1)
+    cards_today, flashcard_xp_today = db.query(
+        func.count(models.FlashcardReviewEvent.id),
+        func.coalesce(func.sum(models.FlashcardReviewEvent.xp_delta), 0),
+    ).filter(
+        models.FlashcardReviewEvent.user_id == user.id,
+        models.FlashcardReviewEvent.reviewed_at >= review_start,
+        models.FlashcardReviewEvent.reviewed_at < review_end,
+    ).one()
     quiz_used_today = usage_by_feature.get("quiz_generate", 0)
     quiz_limit_today = -1 if is_premium else _FREE_QUIZ_DAILY_LIMIT
     simulado_used_week = usage_by_feature.get("simulado_generate", 0)
@@ -386,7 +396,8 @@ def get_user_stats(
         ),
         "today_questoes": int(stats_row.today_questoes or 0),
         "today_acertos": int(stats_row.today_acertos or 0),
-        "today_xp": int(stats_row.today_xp or 0),
+        "today_xp": int(stats_row.today_xp or 0) + int(flashcard_xp_today or 0),
+        "flashcards_today": int(cards_today or 0),
         "accuracy": round(total_acertos / total_questoes * 100, 1)
         if total_questoes
         else 0.0,

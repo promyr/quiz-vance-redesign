@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../data/simulado_recovery_store.dart';
 
 import '../../../core/exceptions/premium_limit_exception.dart';
 import '../../../core/network/api_error_message.dart';
@@ -31,6 +32,22 @@ class SimuladoConfigScreen extends ConsumerStatefulWidget {
 }
 
 class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
+  late Future<SimuladoCheckpoint?> _pendingAttempt;
+  @override
+  void initState() {
+    super.initState();
+    _pendingAttempt = SimuladoRecoveryStore().load();
+    SimuladoRecoveryStore.revision.addListener(_reloadAttempt);
+  }
+
+  void _reloadAttempt() {
+    if (mounted) {
+      setState(() {
+        _pendingAttempt = SimuladoRecoveryStore().load();
+      });
+    }
+  }
+
   final _topicCtrl = TextEditingController();
 
   String _difficulty = 'mixed';
@@ -51,11 +68,21 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
 
   @override
   void dispose() {
+    SimuladoRecoveryStore.revision.removeListener(_reloadAttempt);
     _topicCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _start() async {
+    if (await SimuladoRecoveryStore().load() != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Retome ou finalize a tentativa salva antes de gerar outro simulado.'),
+        ));
+      }
+      return;
+    }
     setState(() => _loading = true);
     try {
       final result =
@@ -152,6 +179,36 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    FutureBuilder<SimuladoCheckpoint?>(
+                      future: _pendingAttempt,
+                      builder: (context, snapshot) {
+                        final saved = snapshot.data;
+                        if (saved == null) return const SizedBox.shrink();
+                        return Card(
+                            child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Você tem uma tentativa salva'),
+                                const SizedBox(height: 8),
+                                const Text(
+                                    'Retome as questões e respostas sem consumir outra geração. O prazo original continua contando.'),
+                                const SizedBox(height: 8),
+                                FilledButton.icon(
+                                  icon: const Icon(Icons.play_arrow_rounded),
+                                  label: const Text('Retomar simulado'),
+                                  onPressed: () => context
+                                      .goNamed('simuladoSession', extra: {
+                                    'questions': saved.questions,
+                                    'durationSeconds': saved.durationSeconds,
+                                    'checkpoint': saved,
+                                  }),
+                                ),
+                              ]),
+                        ));
+                      },
+                    ),
                     // Card informativo
                     Container(
                       padding: const EdgeInsets.all(14),

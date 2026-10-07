@@ -4,16 +4,20 @@ Flashcard CRUD and sync endpoints for the Flutter client.
 
 from __future__ import annotations
 
+import hashlib
+import math
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
 from ..deps import require_user as _require_user
+from ..quiz_scoring import conflict_insert
 
 router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
@@ -88,25 +92,38 @@ def create_flashcard(
 
 
 class FlashcardReviewIn(BaseModel):
-    flashcard_id: str
+    flashcard_id: str = Field(min_length=1, max_length=64)
     grade: str
     reviewed_at: str | None = None
+    front: str | None = Field(default=None, max_length=20000)
+    back: str | None = Field(default=None, max_length=20000)
+    topic: str | None = Field(default=None, max_length=120)
+    interval_days: int = Field(default=1, ge=1, le=36500)
+    easiness: float = Field(default=2.5, ge=1.3, le=4.0)
+    repetitions: int = Field(default=0, ge=0, le=100000)
 
 
 _GRADE_FACTOR = {"again": 0, "hard": 1, "good": 2, "easy": 3}
 
 
-def _fsrs_simple(interval: int, easiness: float, grade_int: int) -> tuple[int, float]:
-    if grade_int < 2:
-        return 1, max(1.3, easiness - 0.2)
-    new_ease = max(
-        1.3, easiness + (0.1 - (3 - grade_int) * (0.08 + (3 - grade_int) * 0.02))
-    )
-    if interval <= 1:
-        new_interval = 1 if grade_int == 2 else 4
+def _schedule_review(interval: int, easiness: float, repetitions: int, grade_int: int) -> tuple[int, float, int]:
+    """Same contract as mobile spaced_repetition.scheduleFlashcardReview.
+
+    Dart rounds positive ties up; Python's built-in round uses banker's rounding.
+    """
+    ease = max(1.3, min(4.0, easiness))
+    if grade_int == 0:
+        reps, ease, interval = 0, max(1.3, ease - 0.2), 1
+    elif grade_int == 1:
+        reps, ease = repetitions + 1, max(1.3, ease - 0.15)
+        interval = max(1, math.floor(interval * 1.2 + 0.5))
+    elif grade_int == 2:
+        reps = repetitions + 1
+        interval = 1 if reps == 1 else 6 if reps == 2 else math.floor(interval * ease + 0.5)
     else:
-        new_interval = round(interval * new_ease)
-    return new_interval, new_ease
+        reps, ease = repetitions + 1, min(4.0, ease + 0.15)
+        interval = 4 if reps == 1 else math.floor(interval * ease * 1.3 + 0.5)
+    return max(1, min(36500, interval)), ease, reps
 
 
 @router.post("/review")
@@ -116,6 +133,9 @@ def review_flashcard(
     db: Session = Depends(get_db),
 ):
     user = _require_user(authorization, db)
+    # A harmless write serializes reviews for this account on SQLite as well as
+    # PostgreSQL; the earlier user read must never overwrite the XP column.
+    db.execute(text("UPDATE users SET xp = COALESCE(xp, 0) WHERE id = :uid"), {"uid": user.id})
     card = (
         db.query(models.Flashcard)
         .filter(
@@ -137,6 +157,13 @@ def review_flashcard(
             )
         except Exception:
             card = None
+    if not card and (body.front or '').strip() and (body.back or '').strip():
+        card = models.Flashcard(user_id=user.id, local_id=body.flashcard_id,
+            front=body.front.strip(), back=body.back.strip(), topic=body.topic,
+            due_date=datetime.now(timezone.utc).date(), interval_days=body.interval_days,
+            easiness=body.easiness, repetitions=body.repetitions)
+        db.add(card)
+        db.flush()
     if not card:
         raise HTTPException(status_code=404, detail="Flashcard não encontrado")
 
@@ -156,19 +183,27 @@ def review_flashcard(
             if last.tzinfo is None:
                 last = last.replace(tzinfo=timezone.utc)
             if reviewed_at <= last:
-                return _card_to_dict(card)
+                db.commit()
+                return {**_card_to_dict(card), 'xp_earned': 0}
 
     grade_int = _GRADE_FACTOR.get((body.grade or "good").lower(), 2)
-    new_interval, new_ease = _fsrs_simple(card.interval_days, card.easiness, grade_int)
+    new_interval, new_ease, new_repetitions = _schedule_review(card.interval_days, card.easiness, card.repetitions, grade_int)
     now = datetime.now(timezone.utc)
     card.interval_days = new_interval
     card.easiness = new_ease
-    card.repetitions = int(card.repetitions or 0) + 1
+    card.repetitions = new_repetitions
     card.last_reviewed = reviewed_at or now
-    card.due_date = (now + timedelta(days=new_interval)).date()
+    card.due_date = (card.last_reviewed + timedelta(days=new_interval)).date()
+    event_key = hashlib.sha256(f'{card.id}:{card.last_reviewed.isoformat()}'.encode()).hexdigest()
+    inserted = db.execute(conflict_insert(db, models.FlashcardReviewEvent).values(
+        user_id=user.id, event_key=event_key, reviewed_at=card.last_reviewed, xp_delta=5
+    ).on_conflict_do_nothing(index_elements=['user_id', 'event_key']))
+    earned = 5 if inserted.rowcount == 1 else 0
+    if earned:
+        db.execute(text("UPDATE users SET xp = COALESCE(xp, 0) + :delta WHERE id = :uid"), {'delta': earned, 'uid': user.id})
     db.commit()
     db.refresh(card)
-    return _card_to_dict(card)
+    return {**_card_to_dict(card), 'xp_earned': earned}
 
 
 class FlashcardSyncItem(BaseModel):

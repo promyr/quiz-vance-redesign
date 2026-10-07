@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/providers/user_provider.dart';
 import '../../../shared/widgets/app_bottom_nav.dart';
+import '../../flashcard/data/flashcard_repository.dart';
 
 class EstudarScreen extends ConsumerStatefulWidget {
   const EstudarScreen({super.key});
@@ -20,6 +21,20 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
   @override
   Widget build(BuildContext context) {
     final statsAsync = ref.watch(userStatsNotifierProvider);
+    final cardsAsync = ref.watch(reviewFlashcardsProvider);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final flashcardLabel = cardsAsync.when(
+      data: (cards) {
+        if (cards.isEmpty) return 'Nenhum salvo';
+        final due = cards.where((card) => !card.dueDate.isAfter(today)).length;
+        return due == 0
+            ? 'Revisão contínua'
+            : '$due pendente${due == 1 ? '' : 's'}';
+      },
+      loading: () => 'Carregando…',
+      error: (_, __) => 'Ver cartões',
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -191,7 +206,7 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                                       runSpacing: 6,
                                       children: [
                                         _Chip(label: '⏱ ~14 min'),
-                                        _Chip(label: '✦ +6 XP/questão'),
+                                        _Chip(label: '✦ +10 XP/acerto'),
                                         if (quotaLabel != null)
                                           _Chip(label: quotaLabel),
                                       ],
@@ -254,36 +269,55 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
               ),
             ),
 
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-              sliver: SliverGrid.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1.0,
-                children: [
-                  _ModeCard(
-                    emoji: '🗂️',
-                    title: 'Flashcards',
-                    subtitle: 'Repetição espaçada SRS',
-                    chipLabel: '12 pendentes',
-                    onTap: () => context.go('/flashcards'),
-                  ),
-                  _ModeCard(
-                    emoji: '✍️',
-                    title: 'Dissertativo',
-                    subtitle: 'Questões abertas com IA',
-                    chipLabel: '1/1 semana',
-                    onTap: () => context.push('/open-quiz'),
-                  ),
-                  _ModeCard(
-                    emoji: '📝',
-                    title: 'Simulado',
-                    subtitle: 'Exame cronometrado',
-                    chipLabel: '~45 min',
-                    onTap: () => context.go('/simulado'),
-                  ),
-                ],
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: LayoutBuilder(builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 320 &&
+                          MediaQuery.textScalerOf(context).scale(14) <= 18.2
+                      ? 2
+                      : 1;
+                  final width =
+                      (constraints.maxWidth - (columns - 1) * 10) / columns;
+                  final modes = <Widget>[
+                    _ModeCard(
+                      emoji: '🗂️',
+                      title: 'Flashcards',
+                      subtitle: 'Repetição espaçada SRS',
+                      chipLabel: flashcardLabel,
+                      onTap: () => context.go('/flashcards'),
+                    ),
+                    _ModeCard(
+                      emoji: '✍️',
+                      title: 'Dissertativo',
+                      subtitle: 'Questões abertas com IA',
+                      chipLabel: statsAsync.maybeWhen(
+                        data: (stats) => stats.isPremium
+                            ? 'Ilimitado'
+                            : stats.openQuizRestanteSemana != null &&
+                                    stats.openQuizLimiteSemana != null
+                                ? '${stats.openQuizRestanteSemana}/${stats.openQuizLimiteSemana} semana'
+                                : 'Questões abertas',
+                        orElse: () => 'Questões abertas',
+                      ),
+                      onTap: () => context.push('/open-quiz'),
+                    ),
+                    _ModeCard(
+                      emoji: '📝',
+                      title: 'Simulado',
+                      subtitle: 'Exame cronometrado',
+                      chipLabel: '~45 min',
+                      onTap: () => context.go('/simulado'),
+                    ),
+                  ];
+                  return Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: modes
+                        .map((mode) => SizedBox(width: width, child: mode))
+                        .toList(),
+                  );
+                }),
               ),
             ),
 
@@ -432,10 +466,11 @@ class _ModeCard extends StatelessWidget {
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(emoji, style: const TextStyle(fontSize: 28)),
-            const Spacer(),
+            const SizedBox(height: 16),
             Text(
               title,
               style: const TextStyle(
@@ -451,8 +486,6 @@ class _ModeCard extends StatelessWidget {
                 color: AppColors.textMuted,
                 fontSize: 11,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 8),
             Container(

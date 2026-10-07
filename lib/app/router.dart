@@ -28,6 +28,7 @@ import '../features/simulado/presentation/simulado_config_screen.dart';
 import '../features/simulado/presentation/simulado_result_screen.dart';
 import '../features/simulado/presentation/simulado_review_screen.dart';
 import '../features/simulado/presentation/simulado_screen.dart';
+import '../features/simulado/data/simulado_recovery_store.dart';
 import '../features/stats/presentation/stats_screen.dart';
 import '../features/study_plan/presentation/study_plan_screen.dart';
 import '../features/study_plan/presentation/today_plan_screen.dart';
@@ -163,7 +164,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         name: 'onboarding',
-        builder: (context, state) => const OnboardingScreen(),
+        builder: (context, state) => OnboardingScreen(
+          onCompleted: () async {
+            ref.invalidate(onboardingGateProvider);
+            await ref.read(onboardingGateProvider.future);
+          },
+        ),
       ),
       GoRoute(
         path: '/login',
@@ -243,6 +249,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final extra = state.extra as Map<String, dynamic>?;
               return SimuladoScreen(
+                checkpoint: extra?['checkpoint'] as SimuladoCheckpoint?,
                 questions: (extra?['questions'] as List<dynamic>? ?? const [])
                     .whereType<Question>()
                     .toList(),
