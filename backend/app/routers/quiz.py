@@ -24,7 +24,9 @@ from ..ai_gateway import build_ai_candidates, call_ai_with_fallback
 from ..ai_provider_config import normalize_provider
 from ..database import get_db
 from ..deps import require_user as _require_user
+from ..grade_validation import review_grade
 from ..question_structure import complete_cached_questions
+from ..question_validation import verify_questions_with_ai
 from ..quiz_scoring import claim_answer_receipts, increment_daily, score_answers
 from ..quiz_scoring import signed_questions as _signed_questions
 from ..rate_limit import rate_limit
@@ -356,91 +358,61 @@ def _store_seen_questions(
         db.rollback()
 
 
-# ── Helpers de deduplicação de flashcards ────────────────────────────────────
-
-_FLASHCARD_SEEN_MAX = 150  # max fingerprints stored per user/topic
-_FLASHCARD_AVOID_LIMIT = 20  # max fronts sent to AI as avoid list
-
-
-def _fc_fingerprint(front: str) -> str:
-    """SHA-1[:16] of normalised flashcard front text."""
-    norm = re.sub(r"\s+", " ", (front or "").strip().lower())
-    return hashlib.sha256(norm.encode("utf-8")).hexdigest()[:16]
-
-
-def _load_seen_flashcard_fronts(db: Session, user_id: int, topic_key: str) -> list[str]:
-    """Return up to _FLASHCARD_AVOID_LIMIT recently-seen flashcard fronts for this user/topic."""
-    rows = (
-        db.query(models.FlashcardSeenSuggestion.front_text)
-        .filter(
-            models.FlashcardSeenSuggestion.user_id == user_id,
-            models.FlashcardSeenSuggestion.topic_key == topic_key,
-        )
-        .order_by(models.FlashcardSeenSuggestion.id.desc())
-        .limit(_FLASHCARD_AVOID_LIMIT)
-        .all()
-    )
-    return [r[0] for r in rows]
-
-
-def _store_seen_flashcards(
-    db: Session, user_id: int, topic_key: str, fronts: list[str]
-) -> None:
-    """Persist flashcard fronts as seen (upsert, evict oldest beyond cap)."""
-    if not fronts:
-        return
-    try:
-        for front in fronts:
-            fp = _fc_fingerprint(front)
-            exists = (
-                db.query(models.FlashcardSeenSuggestion)
-                .filter_by(user_id=user_id, fingerprint=fp)
-                .first()
-            )
-            if not exists:
-                db.add(
-                    models.FlashcardSeenSuggestion(
-                        user_id=user_id,
-                        topic_key=topic_key,
-                        fingerprint=fp,
-                        front_text=front[:200],
-                    )
-                )
-
-        db.commit()
-
-        # Evict oldest beyond cap
-        count = (
-            db.query(func.count(models.FlashcardSeenSuggestion.id))
-            .filter(
-                models.FlashcardSeenSuggestion.user_id == user_id,
-                models.FlashcardSeenSuggestion.topic_key == topic_key,
-            )
-            .scalar()
-        ) or 0
-        if count > _FLASHCARD_SEEN_MAX:
-            excess = count - _FLASHCARD_SEEN_MAX
-            oldest_ids = (
-                db.query(models.FlashcardSeenSuggestion.id)
-                .filter(
-                    models.FlashcardSeenSuggestion.user_id == user_id,
-                    models.FlashcardSeenSuggestion.topic_key == topic_key,
-                )
-                .order_by(models.FlashcardSeenSuggestion.created_at.asc())
-                .limit(excess)
-                .all()
-            )
-            ids_to_del = [row[0] for row in oldest_ids]
-            db.query(models.FlashcardSeenSuggestion).filter(
-                models.FlashcardSeenSuggestion.id.in_(ids_to_del)
-            ).delete(synchronize_session=False)
-            db.commit()
-    except Exception as exc:
-        logger.warning("flashcard/seen store error: %s", exc)
-        db.rollback()
-
-
 # ── /quiz/generate ────────────────────────────────────────────────────────────
+
+
+def _review_question_batch(user, db, provider, questions):
+    def review(**prompts):
+        return _call_ai_for_user(
+            user, db, requested_provider=provider, **prompts
+        )[0]
+
+    return verify_questions_with_ai(questions, review)
+
+
+def _generate_verified_batch(
+    user, db, *, feature, topic, difficulty, quantity, context, provider,
+    avoid, initial=None, document_name=None, document_id=None,
+):
+    """Deliver an exact reviewed batch, with at most two generation attempts."""
+    accepted = list(initial or [])[:quantity]
+    seen = {q['text'].strip().casefold() for q in accepted}
+    builder = ai.build_simulado_prompt if feature == 'simulado' else ai.build_quiz_prompt
+    for _attempt in range(2):
+        if len(accepted) == quantity:
+            return accepted
+        prompt = builder(
+            topic, difficulty, quantity-len(accepted), context,
+            avoid=list(avoid)+[q['text'] for q in accepted],
+        )
+        raw, _provider = _call_ai_for_user(
+            user, db, requested_provider=provider,
+            system_prompt=ai._SYSTEM_QUIZ, user_prompt=prompt,
+        )
+        normalized = ai.normalize_quiz_questions(
+            ai.filter_metadata_questions(ai.extract_json_list(raw)),
+            document_name=document_name, document_id=document_id,
+        )
+        candidates = []
+        pending = set()
+        for question in normalized:
+            key = question['text'].strip().casefold()
+            if key not in seen and key not in pending:
+                pending.add(key)
+                candidates.append(question)
+        for question in _review_question_batch(user, db, provider, candidates):
+            if len(accepted) == quantity:
+                break
+            key = question['text'].strip().casefold()
+            seen.add(key)
+            accepted.append(question)
+    if len(accepted) != quantity:
+        raise HTTPException(
+            502,
+            'A IA não produziu a quantidade solicitada de questões verificadas. '
+            'Nenhuma sessão foi iniciada; tente novamente.',
+        )
+    return accepted
 
 
 class QuizGenerateIn(BaseModel):
@@ -500,48 +472,30 @@ def generate_quiz(
         except Exception as exc:
             logger.warning("SmartQuestionCache read error: %s", exc)
 
-    if not questions:
-        prompt = ai.build_quiz_prompt(
-            body.topic, body.difficulty, quantity, body.context, avoid=avoid_texts
+    try:
+        if questions:
+            questions = _review_question_batch(user, db, body.provider, questions)
+        questions = _generate_verified_batch(
+            user, db, feature='quiz', topic=body.topic, difficulty=body.difficulty,
+            quantity=quantity, context=body.context, provider=body.provider,
+            avoid=avoid_texts, initial=questions, document_name=body.document_name,
+            document_id=body.document_id,
         )
-        try:
-            raw_text, _provider = _call_ai_for_user(
-                user,
-                db,
-                requested_provider=body.provider,
-                system_prompt=ai._SYSTEM_QUIZ,
-                user_prompt=prompt,
-            )
-            raw_questions = ai.extract_json_list(raw_text)
-            raw_questions = ai.filter_metadata_questions(raw_questions)
-            questions = ai.normalize_quiz_questions(
-                raw_questions,
-                document_name=body.document_name,
-                document_id=body.document_id,
-            )
-            # Salva no cache coletivo para futuras requisições
-            if questions and not body.context and not body.document_id:
-                try:
-                    SmartQuestionCache.store_questions(
-                        db,
-                        topic=body.topic,
-                        difficulty=body.difficulty,
-                        questions=questions,
-                    )
-                except Exception as exc:
-                    logger.warning("SmartQuestionCache store error: %s", exc)
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.warning("quiz/generate AI error: %s", exc)
-            _raise_ai_provider_failure(
-                "gerar questoes", normalize_provider(body.provider), exc
-            )
-
-    if not questions:
-        raise HTTPException(
-            status_code=502,
-            detail="A IA não retornou questões válidas. Tente novamente.",
+        # Salva no cache coletivo para futuras requisições
+        if questions and not body.context and not body.document_id:
+            try:
+                SmartQuestionCache.store_questions(
+                    db, topic=body.topic, difficulty=body.difficulty,
+                    questions=questions,
+                )
+            except Exception as exc:
+                logger.warning("SmartQuestionCache store error: %s", exc)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("quiz/generate AI error: %s", exc)
+        _raise_ai_provider_failure(
+            "gerar questoes", normalize_provider(body.provider), exc
         )
 
     if premium_user:
@@ -774,20 +728,12 @@ def generate_simulado(
     tk = "simulado:" + _topic_key(topic_raw)
     avoid_texts = _load_seen_questions(db, user.id, tk)
 
-    prompt = ai.build_simulado_prompt(
-        body.topic, body.difficulty, quantity, body.context, avoid=avoid_texts
-    )
     try:
-        raw_text, _provider = _call_ai_for_user(
-            user,
-            db,
-            requested_provider=body.provider,
-            system_prompt=ai._SYSTEM_QUIZ,
-            user_prompt=prompt,
+        questions = _generate_verified_batch(
+            user, db, feature='simulado', topic=body.topic, difficulty=body.difficulty,
+            quantity=quantity, context=body.context, provider=body.provider,
+            avoid=avoid_texts,
         )
-        raw_questions = ai.extract_json_list(raw_text)
-        raw_questions = ai.filter_metadata_questions(raw_questions)
-        questions = ai.normalize_quiz_questions(raw_questions)
     except HTTPException:
         raise
     except Exception as exc:
@@ -968,6 +914,17 @@ def grade_open_answer(
             user_prompt=prompt,
         )
         data = ai.extract_json_object(raw_text)
+
+        def review(**prompts):
+            return _call_ai_for_user(user, db, **prompts)[0]
+
+        data = review_grade(
+            pergunta=body.pergunta,
+            resposta_esperada=body.resposta_esperada,
+            resposta_aluno=body.resposta_aluno[:2000],
+            proposed_grade=data,
+            review_call=review,
+        )
     except HTTPException:
         raise
     except Exception as exc:
@@ -976,15 +933,7 @@ def grade_open_answer(
             status_code=502, detail="Erro ao avaliar resposta. Tente novamente."
         )
 
-    nota = int(data.get("nota") or 50)
-    return {
-        "nota": nota,
-        "correto": bool(data.get("correto", nota >= 70)),
-        "feedback": data.get("feedback") or "Avaliação concluída.",
-        "pontos_fortes": data.get("pontos_fortes") or [],
-        "pontos_melhorar": data.get("pontos_melhorar") or [],
-        "criterios": data.get("criterios") or {},
-    }
+    return data
 
 
 # ── /study-plan/generate ──────────────────────────────────────────────────────
@@ -1138,14 +1087,7 @@ def generate_library_package(
     user = _require_user(authorization, db)
     topic = (body.topic or body.titulo or "").strip() or "Material da biblioteca"
     context = body.context or body.conteudo
-    topic_key = re.sub(r"\s+", "_", topic.lower())[:80]
-
-    # Load seen flashcard fronts for avoid list
-    seen_fronts = _load_seen_flashcard_fronts(db, user.id, topic_key)
-
-    prompt = ai.build_library_prompt(
-        topic, body.level, context, avoid_fronts=seen_fronts
-    )
+    prompt = ai.build_library_prompt(topic, body.level, context)
     try:
         raw_text, _provider = _call_ai_for_user(
             user,
@@ -1169,27 +1111,8 @@ def generate_library_package(
         context=context,
     )
 
-    # Store new flashcard fronts as seen
-    new_flashcards = sanitized.get("sugestoes_flashcards") or []
-    if new_flashcards:
-        flashcard_fronts = [
-            fc.get("front", "") for fc in new_flashcards if fc.get("front")
-        ]
-        _store_seen_flashcards(db, user.id, topic_key, flashcard_fronts)
-    if (
-        sanitized.get("_strict_relevance")
-        and not sanitized.get("topicos_principais")
-        and not sanitized.get("sugestoes_flashcards")
-        and not sanitized.get("sugestoes_questoes")
-    ):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "A IA nao retornou conteudo aderente ao material selecionado. "
-                "Tente outro arquivo ou um recorte menor."
-            ),
-        )
-    sanitized.pop("_strict_relevance", None)
+    sanitized.pop("sugestoes_flashcards", None)
+    sanitized.pop("flashcards", None)
     return sanitized
 
 

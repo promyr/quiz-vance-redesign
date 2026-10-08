@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/network/api_client.dart';
-import '../../core/network/api_endpoints.dart';
 
 import '../../features/conquistas/data/achievement_repository.dart';
 import '../../features/conquistas/domain/achievement_catalog.dart';
@@ -93,7 +91,7 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
     final localAchievements =
         await _preferences.getStringList(_achievementsKey) ?? <String>[];
 
-    unawaited(_syncAchievementsFromBackend(localAchievements));
+    unawaited(_syncAchievementsFromBackend());
 
     return GamificationState(
       totalXp: await _preferences.getInt(_xpKey) ?? 0,
@@ -105,10 +103,13 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
     );
   }
 
-  Future<void> _syncAchievementsFromBackend(List<String> currentLocal) async {
+  Future<void> _syncAchievementsFromBackend() async {
+    final account = _preferences.activeAccountId;
     try {
       final remoteCodes = await _achievementRepo.getAchievements();
-      if (remoteCodes.isEmpty) return;
+      if (remoteCodes.isEmpty || account != _preferences.activeAccountId) {
+        return;
+      }
 
       final remoteNames = remoteCodes
           .map((code) {
@@ -122,13 +123,24 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
           .map(achievementDisplayName)
           .toList(growable: false);
 
-      final merged = {...currentLocal, ...remoteNames}.toList(growable: false);
-      if (merged.length == currentLocal.length) return;
+      // Network retrieval may finish after a new local achievement was earned.
+      // Merge the latest persisted/state values rather than the boot snapshot.
+      final latestLocal =
+          await _preferences.getStringList(_achievementsKey) ?? <String>[];
+      if (account != _preferences.activeAccountId) return;
+      final merged = {
+        ...latestLocal,
+        ...?state.valueOrNull?.unlockedAchievements,
+        ...remoteNames
+      }.toList(growable: false);
+      if (merged.length == latestLocal.length) return;
 
       await _preferences.setStringList(_achievementsKey, merged);
+      if (account != _preferences.activeAccountId) return;
       state.whenData(
-        (current) =>
-            state = AsyncData(current.copyWith(unlockedAchievements: merged)),
+        (current) => state = AsyncData(current.copyWith(
+            unlockedAchievements:
+                {...current.unlockedAchievements, ...merged}.toList())),
       );
     } catch (_) {
       // Falha silenciosa; o estado local continua valido.
@@ -279,30 +291,6 @@ class GamificationNotifier extends AsyncNotifier<GamificationState> {
       updated.removeRange(0, updated.length - 500);
     }
     await _preferences.setStringList(_processedQuizEventsKey, updated);
-  }
-
-  Future<void> recordFlashcardReview({int xpEarned = 5}) async {
-    await addXp(xpEarned);
-    // Review writes its fixed reward remotely. Reconcile the authoritative
-    // balance, including achievements, without counting the review twice.
-    final account = _preferences.activeAccountId;
-    try {
-      final response =
-          await ref.read(apiClientProvider).dio.get(ApiEndpoints.userStats);
-      final payload = response.data as Map;
-      final xp = payload['total_xp'] ?? payload['xp'];
-      if (xp is num && _preferences.activeAccountId == account) {
-        await _preferences.setInt(_xpKey, xp.toInt());
-        await _preferences.setInt(_levelKey, _calculateLevel(xp.toInt()));
-        state.whenData((current) => state = AsyncData(current.copyWith(
-            totalXp: xp.toInt(), level: _calculateLevel(xp.toInt()))));
-      }
-    } catch (_) {
-      // Offline reward remains local until the queued review is acknowledged.
-    }
-
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    await _updateDailyStreak(today);
   }
 
   Future<void> _updateDailyStreak(String todayStr) async {

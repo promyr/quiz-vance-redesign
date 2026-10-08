@@ -46,15 +46,15 @@ class ActivityHistoryScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  const Expanded(
+                      child: Text(
                     '📋 Histórico',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                     ),
-                  ),
-                  const Spacer(),
+                  )),
                   IconButton(
                     onPressed: () => ref.invalidate(activityHistoryProvider),
                     icon: const Icon(
@@ -276,7 +276,7 @@ class _ActivityCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${entry.correct} acertos de ${entry.total} questões',
+                  '${entry.correct} ${entry.correct == 1 ? 'acerto' : 'acertos'} de ${entry.total} ${entry.total == 1 ? 'questão' : 'questões'}',
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 13,
@@ -284,7 +284,9 @@ class _ActivityCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Row(
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
                     const Icon(
                       Icons.close_rounded,
@@ -293,7 +295,7 @@ class _ActivityCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 2),
                     Text(
-                      '${entry.wrong} erros',
+                      '${entry.wrong} ${entry.wrong == 1 ? 'erro' : 'erros'}',
                       style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,

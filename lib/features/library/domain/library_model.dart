@@ -1,6 +1,11 @@
 /// Arquivo armazenado na biblioteca de estudos do usuário.
 class LibraryFile {
   final int id;
+
+  /// Processed server PDFs are stored under a negative local ID.
+  /// Positive IDs identify local-only imports and must not be sent to the server.
+  int? get remoteDocumentId => id < 0 ? -id : null;
+
   final String nome;
   final String? categoria;
   final String conteudo;
@@ -34,12 +39,11 @@ class LibraryFile {
 }
 
 /// Pacote de estudo gerado automaticamente a partir de um arquivo.
-/// Contém: resumo, tópicos, flashcards, questões sugeridas e checklist.
+/// Contém: resumo, tópicos, questões sugeridas e checklist.
 class StudyPackage {
   final String titulo;
   final String resumoCurto;
   final List<String> topicosPrincipais;
-  final List<Map<String, String>> flashcards; // [{front, back}]
   final List<Map<String, dynamic>> questoes; // lista de quiz questions
   final List<String> checklistEstudo;
 
@@ -47,7 +51,6 @@ class StudyPackage {
     required this.titulo,
     required this.resumoCurto,
     required this.topicosPrincipais,
-    required this.flashcards,
     required this.questoes,
     required this.checklistEstudo,
   });
@@ -59,13 +62,6 @@ class StudyPackage {
             j['resumo_curto'] as String? ?? j['resumo'] as String? ?? '',
         topicosPrincipais: List<String>.from(
           j['topicos_principais'] ?? j['pontos_chave'] ?? [],
-        ),
-        flashcards: List<Map<String, String>>.from(
-          ((j['sugestoes_flashcards'] ?? j['flashcards']) as List<dynamic>? ??
-                  [])
-              .map(
-            (e) => Map<String, String>.from(e as Map),
-          ),
         ),
         questoes: List<Map<String, dynamic>>.from(
           (j['sugestoes_questoes'] ?? j['questoes_revisao'])
@@ -82,7 +78,6 @@ class StudyPackage {
         'titulo': titulo,
         'resumo_curto': resumoCurto,
         'topicos_principais': topicosPrincipais,
-        'sugestoes_flashcards': flashcards,
         'sugestoes_questoes': questoes,
         'checklist_de_estudo': checklistEstudo,
       };

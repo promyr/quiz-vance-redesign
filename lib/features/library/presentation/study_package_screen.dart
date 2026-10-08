@@ -6,9 +6,7 @@ import '../data/material_scope_store.dart';
 import '../../quiz/domain/quiz_generation_params.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../features/flashcard/data/flashcard_repository.dart';
 import '../../../shared/widgets/app_bottom_nav.dart';
-import '../application/study_package_actions_coordinator.dart';
 import '../domain/library_model.dart';
 
 /// Tela de visualização de pacote de estudo gerado.
@@ -16,9 +14,8 @@ import '../domain/library_model.dart';
 /// Exibe:
 /// - Título e resumo do pacote
 /// - Tópicos principais
-/// - Flashcards gerados
 /// - Checklist de estudo
-/// - Botões de ação (estudar flashcards, iniciar quiz)
+/// - Botões de ação (iniciar quiz)
 class StudyPackageScreen extends ConsumerWidget {
   const StudyPackageScreen({
     required this.package,
@@ -28,48 +25,6 @@ class StudyPackageScreen extends ConsumerWidget {
 
   final StudyPackage package;
   final LibraryFile file;
-
-  /// Salva os flashcards do pacote no SQLite e navega para a tela de flashcards.
-  Future<void> _saveAndStudyFlashcards(
-      BuildContext context, WidgetRef ref) async {
-    if (package.flashcards.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nenhum flashcard neste pacote.')),
-      );
-      return;
-    }
-
-    try {
-      await ref
-          .read(studyPackageActionsCoordinatorProvider)
-          .saveFlashcards(package: package);
-
-      // Invalida o provider para recarregar os flashcards atualizados
-      ref.invalidate(dueFlashcardsProvider);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('${package.flashcards.length} flashcards adicionados! ✅'),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        context.goNamed('flashcardsReview');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-                'Não foi possível salvar os flashcards. Tente novamente.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -232,64 +187,6 @@ class StudyPackageScreen extends ConsumerWidget {
                         ),
                     const SizedBox(height: 28),
 
-                    // Flashcards Gerados
-                    if (package.flashcards.isNotEmpty) ...[
-                      const _SectionLabel('Flashcards Gerados'),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${package.flashcards.length} cards — Toque para salvar e estudar',
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      GestureDetector(
-                        onTap: () => _saveAndStudyFlashcards(context, ref),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface2,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.primary.withOpacity(0.4),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${package.flashcards.length} Flashcards',
-                                    style: const TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Toque para salvar e revisar',
-                                    style: TextStyle(
-                                      color: AppColors.textMuted,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const Icon(
-                                Icons.arrow_forward_rounded,
-                                color: AppColors.primary,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                    ],
-
                     // Botões de Ação
                     _ActionButton(
                       label: 'Iniciar Quiz com este Material',
@@ -313,7 +210,7 @@ class StudyPackageScreen extends ConsumerWidget {
                               difficulty: 'intermediario',
                               aiProvider: null,
                               conteudo: content,
-                              documentId: file.id,
+                              documentId: file.remoteDocumentId,
                             ),
                             'infiniteMode': false,
                           });
@@ -332,7 +229,9 @@ class StudyPackageScreen extends ConsumerWidget {
                     GestureDetector(
                       onTap: () => context.go('/library'),
                       child: Container(
-                        height: 48,
+                        constraints: const BoxConstraints(minHeight: 48),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: AppColors.surface2,
                           borderRadius: BorderRadius.circular(12),
@@ -381,7 +280,8 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        height: 48,
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           gradient: AppColors.primaryGradient,
           borderRadius: BorderRadius.circular(12),
@@ -398,14 +298,16 @@ class _ActionButton extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.white, size: 18),
             const SizedBox(width: 8),
-            Text(
+            Flexible(
+                child: Text(
               label,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
-            ),
+            )),
           ],
         ),
       ),

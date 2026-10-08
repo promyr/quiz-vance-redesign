@@ -208,10 +208,10 @@ class AdaptiveHeroCard extends StatelessWidget {
       return (
         'Sprint da Tarde',
         'Consolidação Rápida',
-        'Revise flashcards inteligentes ou faça um simulado curto de fixação.',
+        'Revise as questões erradas ou faça um simulado curto de fixação.',
         Icons.bolt_rounded,
         AppColors.accent,
-        () => context.push('/flashcards'),
+        () => context.push('/simulado'),
       );
     }
 

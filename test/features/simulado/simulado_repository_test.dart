@@ -11,6 +11,7 @@ class _MockApiClient extends Mock implements ApiClient {}
 class _MockDio extends Mock implements Dio {}
 
 void main() {
+  setUpAll(() => registerFallbackValue(Options()));
   late _MockApiClient apiClient;
   late _MockDio dio;
   late SimuladoRepository repository;
@@ -28,6 +29,7 @@ void main() {
       () => dio.post(
         ApiEndpoints.simuladoGenerate,
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenAnswer(
       (_) async => Response(
@@ -58,6 +60,7 @@ void main() {
       () => dio.post(
         ApiEndpoints.simuladoGenerate,
         data: captureAny(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).captured.single as Map<String, dynamic>;
 
@@ -69,6 +72,7 @@ void main() {
       () => dio.post(
         ApiEndpoints.simuladoGenerate,
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenThrow(
       DioException(

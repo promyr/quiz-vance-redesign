@@ -13,6 +13,7 @@ class _MockApiClient extends Mock implements ApiClient {}
 class _MockDio extends Mock implements Dio {}
 
 void main() {
+  setUpAll(() => registerFallbackValue(Options()));
   late _MockApiClient apiClient;
   late _MockDio dio;
   late QuizRepository repository;
@@ -31,6 +32,7 @@ void main() {
       () => dio.post(
         ApiEndpoints.quizGenerate,
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenThrow(
       DioException(
@@ -70,6 +72,7 @@ void main() {
       () => dio.post(
         ApiEndpoints.quizGenerate,
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenThrow(
       DioException(
@@ -104,6 +107,7 @@ void main() {
       () => dio.post(
         ApiEndpoints.quizGenerate,
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenThrow(
       DioException(
@@ -140,6 +144,7 @@ void main() {
       () => dio.post(
         ApiEndpoints.quizGenerate,
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenThrow(
       DioException(

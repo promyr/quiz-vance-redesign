@@ -31,6 +31,8 @@ class QuizRepository {
     try {
       final response = await _client.dio.post(
         ApiEndpoints.quizGenerate,
+        // Geração e revisão de até dois lotes têm tempo maior que uma consulta.
+        options: Options(receiveTimeout: const Duration(minutes: 5)),
         data: {
           'topic': topic,
           'difficulty': difficulty,

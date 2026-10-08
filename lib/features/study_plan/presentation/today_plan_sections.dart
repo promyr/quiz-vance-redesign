@@ -6,7 +6,6 @@ class _StudySessionCard extends StatelessWidget {
     required this.isLoading,
     required this.onToggleComplete,
     required this.onStartQuiz,
-    required this.onStartFlashcards,
     required this.onReadMaterial,
     required this.onReschedule,
   });
@@ -15,7 +14,6 @@ class _StudySessionCard extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onToggleComplete;
   final VoidCallback onStartQuiz;
-  final VoidCallback onStartFlashcards;
   final VoidCallback onReadMaterial;
   final VoidCallback onReschedule;
 
@@ -190,14 +188,6 @@ class _StudySessionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: _SessionActionButton(
-                  icon: Icons.style_rounded,
-                  label: 'Flashcards',
-                  color: AppColors.success,
-                  onTap: isLoading ? null : onStartFlashcards,
-                ),
-              ),
               if (session.sourceDocumentIds.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 _IconButtonSmall(

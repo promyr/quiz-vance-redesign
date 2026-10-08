@@ -157,7 +157,7 @@ class StudyPlanRepository {
     return updatedPlan;
   }
 
-  /// Atualiza o status e resultados de uma sessão específica no plano (ex: pós Quiz ou Flashcards).
+  /// Atualiza o status e resultados de uma sessão específica no plano (ex: pós Quiz ou leitura).
   Future<StudyPlan> updateSessionResult({
     required String planId,
     required String sessionId,
@@ -649,16 +649,8 @@ class StudyPlanRepository {
             foco.contains(':') ? foco.split(':').first.trim() : foco;
         final topic = foco.contains(':') ? foco.split(':').last.trim() : tarefa;
 
-        // Determinar o modo recomendado alternando ou baseando no texto
-        final mode = tarefa.toLowerCase().contains('quest') ||
-                tarefa.toLowerCase().contains('quiz')
-            ? StudyRecommendedMode.quiz
-            : (tarefa.toLowerCase().contains('flash') ||
-                    tarefa.toLowerCase().contains('memoriz')
-                ? StudyRecommendedMode.flashcard
-                : (diaIndex % 2 == 0
-                    ? StudyRecommendedMode.quiz
-                    : StudyRecommendedMode.flashcard));
+        // Legacy card activities now use the quiz for the same subject.
+        const mode = StudyRecommendedMode.quiz;
 
         items.add(
           StudyPlanItem(

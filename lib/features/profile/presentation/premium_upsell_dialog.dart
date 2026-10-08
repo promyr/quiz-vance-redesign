@@ -287,7 +287,7 @@ const _benefits = [
     subtitle: 'Monte sessões longas, com mais contexto e menos atrito.',
   ),
   _Benefit(
-    'Flashcards e revisões inteligentes',
+    'Revisão de questões erradas',
     subtitle: 'Revisões agendadas no momento ideal para fixar o conteúdo.',
   ),
   _Benefit(

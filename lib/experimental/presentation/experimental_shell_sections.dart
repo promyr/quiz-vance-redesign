@@ -67,7 +67,7 @@ class _TodayScreen extends StatelessWidget {
             _ActionRow(
               title: 'Pacote do tema fraco',
               subtitle:
-                  'Resumo, quiz e flashcards do mesmo assunto numa sequencia unica.',
+                  'Resumo, quiz e revisao do mesmo assunto numa sequencia unica.',
               trailing: 'Biblioteca',
             ),
             _ActionRow(
@@ -84,7 +84,7 @@ class _TodayScreen extends StatelessWidget {
           badge: '2 urgentes',
           children: <Widget>[
             _ActionRow(
-              title: '12 flashcards vencem hoje',
+              title: '12 questoes para revisar hoje',
               subtitle: 'Vale encaixar um bloco de 9 minutos antes das 18h.',
               trailing: 'urgente',
             ),
@@ -122,11 +122,11 @@ class _StudyScreen extends StatelessWidget {
         ),
         SizedBox(height: 12),
         _ModuleCard(
-          title: 'Flashcards de recuperacao',
+          title: 'Questoes de recuperacao',
           badge: '12 vencidos',
           description:
-              'Repeticao espacada com anti-repeticao de sugestoes ja vistas.',
-          metrics: <String>['9 min', 'SRS', 'leve'],
+              'Revisao das questoes erradas com foco nos pontos fracos.',
+          metrics: <String>['9 min', 'Revisao', 'leve'],
         ),
         SizedBox(height: 12),
         _ModuleCard(
@@ -169,7 +169,7 @@ class _LibraryScreen extends StatelessWidget {
             _ActionRow(
               title: 'Direito Administrativo: atos',
               subtitle:
-                  'Resumo enxuto, 18 flashcards e quiz prontos para abrir em sequencia.',
+                  'Resumo enxuto, questoes e quiz prontos para abrir em sequencia.',
               trailing: 'abrir',
             ),
             _ActionRow(

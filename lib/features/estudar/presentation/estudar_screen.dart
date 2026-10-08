@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/providers/user_provider.dart';
 import '../../../shared/widgets/app_bottom_nav.dart';
-import '../../flashcard/data/flashcard_repository.dart';
 
 class EstudarScreen extends ConsumerStatefulWidget {
   const EstudarScreen({super.key});
@@ -21,21 +20,6 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
   @override
   Widget build(BuildContext context) {
     final statsAsync = ref.watch(userStatsNotifierProvider);
-    final cardsAsync = ref.watch(reviewFlashcardsProvider);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final flashcardLabel = cardsAsync.when(
-      data: (cards) {
-        if (cards.isEmpty) return 'Nenhum salvo';
-        final due = cards.where((card) => !card.dueDate.isAfter(today)).length;
-        return due == 0
-            ? 'Revisão contínua'
-            : '$due pendente${due == 1 ? '' : 's'}';
-      },
-      loading: () => 'Carregando…',
-      error: (_, __) => 'Ver cartões',
-    );
-
     return Scaffold(
       backgroundColor: AppColors.background,
       bottomNavigationBar: const AppBottomNav(currentIndex: 1),
@@ -281,13 +265,6 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                       (constraints.maxWidth - (columns - 1) * 10) / columns;
                   final modes = <Widget>[
                     _ModeCard(
-                      emoji: '🗂️',
-                      title: 'Flashcards',
-                      subtitle: 'Repetição espaçada SRS',
-                      chipLabel: flashcardLabel,
-                      onTap: () => context.go('/flashcards'),
-                    ),
-                    _ModeCard(
                       emoji: '✍️',
                       title: 'Dissertativo',
                       subtitle: 'Questões abertas com IA',
@@ -352,7 +329,7 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                       ),
                       _AfterItem(
                         color: AppColors.success,
-                        text: 'Erros viram flashcard de revisão no mesmo dia',
+                        text: 'Revise as questões erradas no caderno de erros',
                       ),
                       _AfterItem(
                         color: AppColors.primaryLight,

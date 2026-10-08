@@ -218,12 +218,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: statsAsync.when(
                 data: (stats) {
                   final bool stackCards = screenWidth < 390 || textScale > 1.15;
-                  final double card1Width = stackCards
-                      ? screenWidth - 40
-                      : (screenWidth - 52) * 0.38;
-                  final double card2Width = stackCards
-                      ? screenWidth - 40
-                      : (screenWidth - 52) * 0.62;
+                  final double card1Width =
+                      stackCards ? screenWidth - 40 : (screenWidth - 52) * 0.38;
+                  final double card2Width =
+                      stackCards ? screenWidth - 40 : (screenWidth - 52) * 0.62;
 
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
@@ -429,14 +427,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     iconColor: AppColors.xpGold,
                     onTap: () => context.go('/simulado'),
                   ),
-                  BentoTile(
-                    icon: Icons.style_rounded,
-                    title: 'Flashcards SRS',
-                    subtitle: 'Repetição espaçada',
-                    badgeText: 'MEMÓRIA',
-                    iconColor: AppColors.success,
-                    onTap: () => context.go('/flashcards'),
-                  ),
                 ],
               ),
             ),
@@ -474,14 +464,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             onTap: () => context.go('/quiz'),
                           ),
                           const SizedBox(height: 12),
-                          _SmartQueueItem(
-                            number: 2,
-                            title: 'Flashcards de Revisão',
-                            subtitle: 'Revise cards pendentes do seu deck',
-                            badgeLabel: 'Cards',
-                            badgeColor: AppColors.success,
-                            onTap: () => context.go('/flashcards'),
-                          ),
                         ],
                       ),
                     ),

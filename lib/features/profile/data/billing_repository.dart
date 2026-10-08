@@ -127,7 +127,7 @@ class BillingRepository {
       features: [
         'Quizzes e questões ilimitadas com IA',
         'Simulados completos com gabarito comentado',
-        'Flashcards e revisões espaçadas inteligentes',
+        'Revisão de questões erradas',
         'Plano de estudo semanal personalizado',
         'Correção de respostas abertas e dissertativas',
       ],

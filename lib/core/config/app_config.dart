@@ -18,6 +18,6 @@ abstract class AppConfig {
   static const String appName = 'Quiz Vance';
   static const String appVersion = String.fromEnvironment(
     'APP_VERSION',
-    defaultValue: '2.1.7',
+    defaultValue: '2.1.8',
   );
 }

@@ -17,23 +17,13 @@ Lideres moldam normas, incentivos e colaboracao entre equipes.
       criadoEm: DateTime(2026, 3, 26),
     );
 
-    test('removes flashcards and questions about metadata', () {
+    test('removes questions about metadata', () {
       final package = StudyPackage(
         titulo: 'Comportamento Organizacional',
         resumoCurto: 'Resumo valido.',
         topicosPrincipais: const [
           'Motivacao no trabalho',
           'ISBN e ficha catalografica',
-        ],
-        flashcards: const [
-          {
-            'front': 'O que e motivacao no trabalho?',
-            'back': 'E a energia que orienta o comportamento profissional.',
-          },
-          {
-            'front': 'Qual e o ISBN do livro?',
-            'back': '978-85-0000-000-0',
-          },
         ],
         questoes: const [
           {
@@ -63,8 +53,6 @@ Lideres moldam normas, incentivos e colaboracao entre equipes.
       );
 
       expect(sanitized.topicosPrincipais, ['Motivacao no trabalho']);
-      expect(sanitized.flashcards, hasLength(1));
-      expect(sanitized.flashcards.first['front'], contains('motivacao'));
       expect(sanitized.questoes, hasLength(1));
       expect(
         sanitized.questoes.first['pergunta'],
@@ -85,12 +73,6 @@ Lideres moldam normas, incentivos e colaboracao entre equipes.
         titulo: 'Direito Penal',
         resumoCurto: 'Resumo.',
         topicosPrincipais: const ['Tipicidade'],
-        flashcards: const [
-          {
-            'front': 'O que e tipicidade?',
-            'back': 'E a adequacao da conduta ao tipo penal.',
-          },
-        ],
         questoes: const [],
         checklistEstudo: const ['Revisar conceitos basicos'],
       );
@@ -100,26 +82,14 @@ Lideres moldam normas, incentivos e colaboracao entre equipes.
         file: manualFile,
       );
 
-      expect(sanitized.flashcards, hasLength(1));
       expect(sanitized.topicosPrincipais, ['Tipicidade']);
     });
 
-    test('preserves non-metadata flashcards when strict relevance drops all',
-        () {
+    test('preserves checklist when relevance drops all', () {
       final package = StudyPackage(
         titulo: 'Comportamento Organizacional',
         resumoCurto: 'Resumo valido.',
         topicosPrincipais: const ['Engajamento de equipes'],
-        flashcards: const [
-          {
-            'front': 'Como alinhar incentivos internos?',
-            'back': 'Metas claras e reconhecimento fortalecem o engajamento.',
-          },
-          {
-            'front': 'Qual e o ISBN do livro?',
-            'back': '978-85-0000-000-0',
-          },
-        ],
         questoes: const [],
         checklistEstudo: const ['Mapear fatores de engajamento'],
       );
@@ -128,12 +98,8 @@ Lideres moldam normas, incentivos e colaboracao entre equipes.
         package: package,
         file: file,
       );
-
-      expect(sanitized.flashcards, hasLength(1));
-      expect(
-        sanitized.flashcards.first['front'],
-        equals('Como alinhar incentivos internos?'),
-      );
+      expect(sanitized.checklistEstudo, package.checklistEstudo);
+      expect(sanitized.toJson().containsKey('sugestoes_flashcards'), isFalse);
     });
   });
 }

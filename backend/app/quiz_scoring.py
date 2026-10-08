@@ -100,8 +100,11 @@ def claim_answer_receipts(db, user_id: int, event_id: str, answers: list):
                 question_key=hashlib.sha256(answer.question_id.encode()).hexdigest(),
             )
             .on_conflict_do_nothing(index_elements=["user_id", "question_key"])
+            .returning(models.QuizAnswerCredit.id)
         )
-        if db.execute(statement).rowcount != 1:
+        # INSERT rowcount may be -1 even after a successful write. RETURNING
+        # distinguishes an actual inserted receipt from ON CONFLICT DO NOTHING.
+        if db.execute(statement).scalar_one_or_none() is None:
             raise HTTPException(
                 422,
                 "Esta questão já foi contabilizada. Gere um novo quiz para uma nova sessão.",

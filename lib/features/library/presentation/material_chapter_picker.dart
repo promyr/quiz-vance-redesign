@@ -193,7 +193,7 @@ class _ChapterDialogState extends State<_ChapterDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                   const Text(
-                      'A escolha vale para resumos, flashcards e questões. O PDF original permanece completo.'),
+                      'A escolha vale para resumos e questões. O PDF original permanece completo.'),
                   const SizedBox(height: 12),
                   if (_error != null)
                     Text(_error!,

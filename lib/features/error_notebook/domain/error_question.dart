@@ -12,6 +12,7 @@ class ErrorQuestion {
     this.timesFailed = 1,
     this.consecutiveCorrect = 0,
     this.isMastered = false,
+    this.failedSessionIds = const [],
   });
 
   final String id;
@@ -21,6 +22,7 @@ class ErrorQuestion {
   final int timesFailed;
   final int consecutiveCorrect;
   final bool isMastered;
+  final List<String> failedSessionIds;
 
   ErrorQuestion copyWith({
     String? id,
@@ -30,6 +32,7 @@ class ErrorQuestion {
     int? timesFailed,
     int? consecutiveCorrect,
     bool? isMastered,
+    List<String>? failedSessionIds,
   }) {
     return ErrorQuestion(
       id: id ?? this.id,
@@ -39,6 +42,7 @@ class ErrorQuestion {
       timesFailed: timesFailed ?? this.timesFailed,
       consecutiveCorrect: consecutiveCorrect ?? this.consecutiveCorrect,
       isMastered: isMastered ?? this.isMastered,
+      failedSessionIds: failedSessionIds ?? this.failedSessionIds,
     );
   }
 
@@ -51,6 +55,7 @@ class ErrorQuestion {
       'times_failed': timesFailed,
       'consecutive_correct': consecutiveCorrect,
       'is_mastered': isMastered,
+      'failed_session_ids': failedSessionIds,
     };
   }
 
@@ -70,6 +75,9 @@ class ErrorQuestion {
       timesFailed: json['times_failed'] as int? ?? 1,
       consecutiveCorrect: json['consecutive_correct'] as int? ?? 0,
       isMastered: json['is_mastered'] as bool? ?? false,
+      failedSessionIds:
+          (json['failed_session_ids'] as List?)?.whereType<String>().toList() ??
+              const [],
     );
   }
 }

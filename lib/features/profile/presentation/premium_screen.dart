@@ -95,7 +95,7 @@ PremiumHeroContent buildPremiumHeroContent({
   return const PremiumHeroContent(
     title: 'Quiz Vance Premium',
     subtitle:
-        'Quizzes ilimitados com IA, simulados completos, flashcards e plano de estudo por apenas R\$ 14,90/mês.',
+        'Quizzes ilimitados com IA, simulados completos e plano de estudo por apenas R\$ 14,90/mês.',
     badgeLabel: 'Oferta Especial',
     gradient: AppColors.primaryGradient,
   );

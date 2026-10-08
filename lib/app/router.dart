@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/login_screen.dart';
 import '../features/conquistas/presentation/conquistas_screen.dart';
-import '../features/flashcard/presentation/flashcard_hub_screen.dart';
-import '../features/flashcard/presentation/flashcard_screen.dart';
 import '../features/history/presentation/activity_history_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/library/domain/library_model.dart';
@@ -226,18 +224,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      GoRoute(
-        path: '/flashcards',
-        name: 'flashcards',
-        builder: (context, state) => const FlashcardHubScreen(),
-        routes: [
-          GoRoute(
-            path: 'review',
-            name: 'flashcardsReview',
-            builder: (context, state) => const FlashcardScreen(),
-          ),
-        ],
-      ),
+      GoRoute(path: '/flashcards', redirect: (_, __) => '/estudar'),
+      GoRoute(path: '/flashcards/review', redirect: (_, __) => '/estudar'),
       GoRoute(
         path: '/simulado',
         name: 'simulado',

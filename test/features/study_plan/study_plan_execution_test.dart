@@ -47,7 +47,7 @@ void main() {
           atividade: 'Estudar com Flashcards',
           duracaoMin: 20,
           prioridade: 2,
-          recommendedMode: StudyRecommendedMode.flashcard,
+          recommendedMode: StudyRecommendedMode.quiz,
           status: StudySessionStatus.pending,
           sourceDocumentIds: const [102],
         ),
@@ -139,7 +139,8 @@ void main() {
       expect(updated.score, equals(80.0));
     });
 
-    test('6. Persistência de progresso em andamento (StudySessionProgress)', () {
+    test('6. Persistência de progresso em andamento (StudySessionProgress)',
+        () {
       final progress = StudySessionProgress(
         sessionId: 'session_001',
         planId: plan.id,

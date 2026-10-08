@@ -15,11 +15,8 @@ abstract class ApiEndpoints {
   static const String quizHistory = '/quiz/history';
   static const String quizClearSeenQuestions = '/quiz/seen-questions';
 
-  // Flashcards
-  static const String flashcardsDue = '/flashcards';
+  // Only used to settle queued reviews made before cards were retired.
   static const String flashcardsReview = '/flashcards/review';
-  static const String flashcardsCreate = '/flashcards/create';
-  static const String flashcardsBulkSync = '/flashcards/sync';
 
   // Simulado
   static const String simuladoGenerate = '/simulado/generate';

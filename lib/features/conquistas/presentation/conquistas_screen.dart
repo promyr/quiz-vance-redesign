@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/providers/user_provider.dart';
+import '../../../shared/providers/gamification_provider.dart';
 import '../domain/achievement_catalog.dart';
 
 class ConquistasScreen extends ConsumerWidget {
@@ -13,6 +14,19 @@ class ConquistasScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(userStatsNotifierProvider);
+    final localAchievements =
+        ref.watch(gamificationProvider).valueOrNull?.unlockedAchievements ??
+            const <String>[];
+    bool unlockedFor(AchievementDefinition achievement, UserStats stats) =>
+        localAchievements.contains(achievementDisplayName(achievement)) ||
+        localAchievements.contains(achievement.code) ||
+        stats.achievements.contains(achievementDisplayName(achievement)) ||
+        stats.achievements.contains(achievement.code) ||
+        isAchievementUnlocked(achievement,
+            totalQuizzes: stats.totalQuizzes,
+            streak: stats.streak,
+            level: stats.level,
+            xp: stats.xp);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -62,13 +76,7 @@ class ConquistasScreen extends ConsumerWidget {
               data: (stats) {
                 final unlocked = achievementCatalog
                     .where(
-                      (achievement) => isAchievementUnlocked(
-                        achievement,
-                        totalQuizzes: stats.totalQuizzes,
-                        streak: stats.streak,
-                        level: stats.level,
-                        xp: stats.xp,
-                      ),
+                      (achievement) => unlockedFor(achievement, stats),
                     )
                     .toList();
                 final totalXp = unlocked.fold<int>(
@@ -78,15 +86,16 @@ class ConquistasScreen extends ConsumerWidget {
 
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-                  child: Row(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       _ChipLabel(
                         label:
                             '${unlocked.length}/${achievementCatalog.length} desbloqueadas',
                       ),
-                      const SizedBox(width: 8),
                       _ChipLabel(
-                        label: '$totalXp XP',
+                        label: '$totalXp XP em conquistas',
                         textColor: AppColors.xpGold,
                       ),
                     ],
@@ -112,13 +121,7 @@ class ConquistasScreen extends ConsumerWidget {
                     child: Column(
                       children: achievementCatalog.asMap().entries.map((entry) {
                         final achievement = entry.value;
-                        final unlocked = isAchievementUnlocked(
-                          achievement,
-                          totalQuizzes: stats.totalQuizzes,
-                          streak: stats.streak,
-                          level: stats.level,
-                          xp: stats.xp,
-                        );
+                        final unlocked = unlockedFor(achievement, stats);
                         return _AchievementCard(
                           achievement: achievement,
                           isUnlocked: unlocked,

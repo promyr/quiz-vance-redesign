@@ -16,11 +16,13 @@ class ErrorNotebookNotifier extends AsyncNotifier<List<ErrorQuestion>> {
   Future<void> recordWrongQuestions({
     required List<QuestionAnswer> wrongAnswers,
     required String topic,
+    String? sessionId,
   }) async {
     final repo = ref.read(errorNotebookRepositoryProvider);
     await repo.recordWrongQuestions(
       wrongAnswers: wrongAnswers,
       topic: topic,
+      sessionId: sessionId,
     );
     ref.invalidateSelf();
   }

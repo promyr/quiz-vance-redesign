@@ -167,7 +167,6 @@ class LibraryRepository {
   Future<StudyPackage> generatePackage({
     required LibraryFile file,
     String? aiProvider,
-    List<String>? avoidFronts,
   }) async {
     try {
       final scoped = await MaterialScopeStore().resolve(file);
@@ -188,8 +187,6 @@ class LibraryRepository {
           'context': context,
           if (aiProvider != null && aiProvider.isNotEmpty)
             'provider': aiProvider,
-          if (avoidFronts != null && avoidFronts.isNotEmpty)
-            'avoid_fronts': avoidFronts,
         },
       );
 

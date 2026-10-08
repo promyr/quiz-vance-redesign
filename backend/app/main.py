@@ -7,7 +7,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import and_, func, or_, text
 from sqlalchemy.exc import IntegrityError
@@ -120,7 +120,14 @@ async def security_headers(request: Request, call_next):
 app.include_router(auth_router.router)
 app.include_router(user_router.router)
 app.include_router(quiz_router.router)
-app.include_router(flashcard_router.router)
+# Settle offline reviews from older APKs; card creation/decks/sync are retired.
+app.include_router(
+    APIRouter(routes=[
+        route for route in flashcard_router.router.routes
+        if route.path == '/flashcards/review'
+    ]),
+    include_in_schema=False,
+)
 app.include_router(admin_ai_router.router)
 app.include_router(documents_router.router)
 app.include_router(health_router.router)

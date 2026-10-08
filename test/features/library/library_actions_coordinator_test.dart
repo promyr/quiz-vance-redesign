@@ -26,7 +26,6 @@ void main() {
     titulo: 'Biologia',
     resumoCurto: 'Resumo',
     topicosPrincipais: const ['Celulas'],
-    flashcards: const [],
     questoes: const [],
     checklistEstudo: const ['Revisar'],
   );

@@ -134,7 +134,7 @@ void main() {
     expect(captured['provider'], 'gemini');
   });
 
-  test('generatePackage filters metadata flashcards from backend payload',
+  test('generatePackage ignores retired cards and keeps study material',
       () async {
     final fileWithContent = LibraryFile(
       id: 2,
@@ -183,8 +183,7 @@ Lideres moldam normas, incentivos e colaboracao entre equipes.
 
     final package = await repository.generatePackage(file: fileWithContent);
 
-    expect(package.flashcards, hasLength(1));
-    expect(package.flashcards.first['front'], contains('motivacao'));
+    expect(package.toJson().containsKey('sugestoes_flashcards'), isFalse);
     expect(package.topicosPrincipais, ['Motivacao']);
     expect(package.checklistEstudo, ['Revisar cultura']);
   });

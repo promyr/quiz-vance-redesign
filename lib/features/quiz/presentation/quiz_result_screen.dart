@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import '../../../core/network/api_error_message.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -141,11 +143,17 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
       if (!mounted) return;
       setState(() {
         _syncState = SyncStatusState.pending;
-        _syncMessage = queued
-            ? 'Resultado salvo no seu aparelho! Sincronizaremos com a nuvem quando a conexão voltar.'
-            : 'Não foi possível salvar o resultado. Tente novamente antes de sair.';
+        final rejected = error is DioException && error.response != null;
+        final detail =
+            rejected ? extractApiErrorMessage(error.response?.data) : null;
+        _syncMessage = rejected
+            ? 'O servidor não aceitou o resultado. ${detail ?? 'Tente novamente mais tarde.'} ${queued ? 'Seu resultado permanece salvo neste aparelho.' : ''}'
+            : queued
+                ? 'Resultado salvo no seu aparelho! Sincronizaremos com a nuvem quando a conexão voltar.'
+                : 'Não foi possível salvar o resultado. Tente novamente antes de sair.';
       });
     }
+    if (account != AccountScopedPreferences.instance.activeAccountId) return;
     try {
       final currentDaily = ref.read(dailyChallengeNotifierProvider).valueOrNull;
       if (currentDaily != null &&
@@ -162,6 +170,7 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
         await errorNotebook.recordWrongQuestions(
           wrongAnswers: wrongAnswers,
           topic: result.topic ?? '',
+          sessionId: result.sessionId,
         );
       } catch (error) {
         debugPrint('ErrorNotebook error: $error');

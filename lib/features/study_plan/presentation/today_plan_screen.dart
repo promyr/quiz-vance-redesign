@@ -159,10 +159,6 @@ class _TodayPlanScreenState extends ConsumerState<TodayPlanScreen> {
     });
   }
 
-  void _startFlashcardsForSession(StudyPlan plan, StudyPlanItem session) {
-    context.go('/flashcards');
-  }
-
   Future<void> _readMaterialForSession(StudyPlanItem session) async {
     if (session.sourceDocumentIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -527,9 +523,8 @@ class _TodayPlanScreenState extends ConsumerState<TodayPlanScreen> {
                                 ? null
                                 : () {
                                     if (firstPending.recommendedMode ==
-                                        StudyRecommendedMode.flashcard) {
-                                      _startFlashcardsForSession(
-                                          plan, firstPending);
+                                        StudyRecommendedMode.reading) {
+                                      _readMaterialForSession(firstPending);
                                     } else {
                                       _startQuizForSession(plan, firstPending);
                                     }
@@ -649,8 +644,8 @@ class _TodayPlanScreenState extends ConsumerState<TodayPlanScreen> {
                             children: [
                               OutlinedButton.icon(
                                 icon: const Icon(Icons.style_rounded, size: 16),
-                                label: const Text('Revisar Flashcards'),
-                                onPressed: () => context.go('/flashcards'),
+                                label: const Text('Fazer Quiz'),
+                                onPressed: () => context.go('/quiz'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AppColors.primary,
                                   side:
@@ -691,8 +686,6 @@ class _TodayPlanScreenState extends ConsumerState<TodayPlanScreen> {
                           },
                           onStartQuiz: () =>
                               _startQuizForSession(plan, session),
-                          onStartFlashcards: () =>
-                              _startFlashcardsForSession(plan, session),
                           onReadMaterial: () =>
                               _readMaterialForSession(session),
                           onReschedule: () => _rescheduleSession(plan, session),

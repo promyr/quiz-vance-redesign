@@ -25,6 +25,7 @@ class SimuladoRepository {
     try {
       final response = await _client.dio.post(
         ApiEndpoints.simuladoGenerate,
+        options: Options(receiveTimeout: const Duration(minutes: 5)),
         data: {
           'quantity': quantity,
           'difficulty': difficulty,

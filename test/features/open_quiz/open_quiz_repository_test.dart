@@ -13,6 +13,7 @@ class _MockApiClient extends Mock implements ApiClient {}
 class _MockDio extends Mock implements Dio {}
 
 void main() {
+  setUpAll(() => registerFallbackValue(Options()));
   late _MockApiClient apiClient;
   late _MockDio dio;
   late OpenQuizRepository repository;
@@ -66,6 +67,7 @@ void main() {
       () => dio.post(
         ApiEndpoints.quizOpenGrade,
         data: any(named: 'data'),
+        options: any(named: 'options'),
       ),
     ).thenThrow(
       DioException(

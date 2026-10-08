@@ -449,15 +449,7 @@ CREATIVE_CAMPAIGN_THEMES = [
         cta="Use /baixar, entra no app e fecha uma rodada agora.",
         image_name="promo_missao_15_minutos.png",
     ),
-    CreativeCampaignTheme(
-        key="flashcards_cirurgicos",
-        topic_key="comece_aqui",
-        title="Flashcards cirurgicos",
-        hook="Revisao boa nao precisa ser caos: precisa de ritmo, contexto e repeticao inteligente.",
-        body="O app organiza frente, verso e reforco visual para voce revisar sem ficar pulando entre mil telas.",
-        cta="Instale pelo /baixar e testa um ciclo de flashcards hoje.",
-        image_name="promo_flashcards_cirurgicos.png",
-    ),
+
     CreativeCampaignTheme(
         key="streak_visivel",
         topic_key="resultados",
@@ -481,7 +473,7 @@ CREATIVE_CAMPAIGN_THEMES = [
         topic_key="comece_aqui",
         title="Rotina sem caos",
         hook="Menos aba aberta, menos improviso e mais estudo com direcao dentro do app.",
-        body="Se voce esta cansado de organizar tudo na mao, centraliza quiz, flashcards e progresso em um fluxo unico.",
+        body="Se voce esta cansado de organizar tudo na mao, centraliza quiz, simulados e progresso em um fluxo unico.",
         cta="Comece em /comecar, instale via /baixar e sente a diferenca no primeiro uso.",
         image_name="promo_rotina_sem_caos.png",
     ),
@@ -587,7 +579,7 @@ INSTRUCTIONAL_VISUAL_POSTS = [
         topic_key="comece_aqui",
         text=_compact_lines(
             "Fluxo visual do primeiro uso no app.",
-            "Entre, configure provider/modelo/chave e so depois gere questoes ou flashcards.",
+            "Entre, configure provider/modelo/chave e so depois gere questoes ou simulados.",
             "Quando tiver contexto real, o app rende muito melhor.",
         ),
         image_path=_app_asset_path("assets", "telegram_posts", "primeiro_uso.png"),
@@ -627,7 +619,7 @@ INSTRUCTIONAL_DETAILED_POSTS = [
         topic_key="comece_aqui",
         text=_compact_lines(
             "Operacao geral recomendada para o primeiro estudo no app.",
-            "1. Entre na conta. 2. Abra Configuracoes. 3. Ajuste provider, modelo e API key. 4. Volte para Quiz ou Flashcards. 5. Informe um topico real ou anexe material antes de gerar conteudo.",
+            "1. Entre na conta. 2. Abra Configuracoes. 3. Ajuste provider, modelo e API key. 4. Volte para Quiz ou Simulados. 5. Informe um topico real ou anexe material antes de gerar conteudo.",
             "6. Responda as questoes, revise erros e acompanhe a evolucao. Se quiser prova social e dicas, volte para a comunidade e acompanhe os topicos.",
             "Atalho mental: conta criada, IA configurada, contexto definido, estudo liberado.",
         ),
@@ -669,7 +661,7 @@ def build_operational_refresh_pack() -> dict[str, Any]:
         ],
         "daily_posts": [
             "08:00: Campanha visual com tema rotativo e CTA de entrada no app via /baixar.",
-            "11:00: Nova campanha com mockup do app destacando quiz, flashcards ou progresso.",
+            "11:00: Nova campanha com mockup do app destacando quiz, simulados ou progresso.",
             "14:00: Gancho promocional com tema diferente para puxar teste imediato no Android.",
             "17:00: Criativo visual reforcando rotina, foco e prova social dentro do app.",
             "20:00: Fechamento do dia com campanha de conversao, resultado e chamada para voltar ao grupo.",
@@ -678,7 +670,7 @@ def build_operational_refresh_pack() -> dict[str, Any]:
             "Cadastro: /baixar, instalar APK, abrir o app, tocar em Criar conta, preencher Nome completo/ID/Senha/Data de nascimento e depois Fazer login.",
             "Configuracoes: antes de estudar com IA, escolher Provider IA, revisar Modelo padrao e abrir Configurar chaves por provider.",
             "API key: usar Criar chave Gemini ou Groq, depois colar em API key e finalizar em Salvar chave.",
-            "Operacao geral: entrar no app, configurar provider/modelo/chave e entao usar Quiz ou Flashcards pelo menu.",
+            "Operacao geral: entrar no app, configurar provider/modelo/chave e entao usar Quiz ou Simulados pelo menu.",
         ],
     }
 

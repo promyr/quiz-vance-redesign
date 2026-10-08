@@ -526,7 +526,7 @@ def get_plans():
                     "5 quizzes por dia",
                     "1 simulado por semana",
                     "1 questão dissertativa por semana",
-                    "Flashcards ilimitados",
+                    "Revisão de questões erradas",
                     "Modo Infinito bloqueado",
                     "Histórico limitado (7 dias)",
                 ],

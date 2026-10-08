@@ -1,7 +1,7 @@
 name: quiz_vance_flutter
 description: Quiz Vance - Plataforma de estudos com IA, SRS e gamificação.
 publish_to: none
-version: 2.1.7+79
+version: 2.1.8+80
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

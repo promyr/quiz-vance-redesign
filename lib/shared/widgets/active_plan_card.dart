@@ -23,7 +23,8 @@ class _ActivePlanCardState extends ConsumerState<ActivePlanCard>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _dayTimer = Timer.periodic(const Duration(minutes: 1), (_) => _refreshDay());
+    _dayTimer =
+        Timer.periodic(const Duration(minutes: 1), (_) => _refreshDay());
   }
 
   void _refreshDay() {
@@ -117,7 +118,7 @@ class _ActivePlanCardState extends ConsumerState<ActivePlanCard>
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Continuar ${activeProgress.selectedMode == "FLASHCARDS" ? "Flashcards" : "Quiz"}',
+                  'Continuar ${activeProgress.selectedMode == "READING" ? "Leitura" : "Quiz"}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,

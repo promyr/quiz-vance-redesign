@@ -216,26 +216,6 @@ class LocalStorage {
     );
   }
 
-  /// Returns all flashcard front texts to be used as an avoid list for generation.
-  /// Useful for deduplication during library package generation.
-  Future<List<String>> getAllFlashcardFronts() async {
-    try {
-      final rows = await _select(
-        '''
-        SELECT DISTINCT front FROM flashcards
-        WHERE account_id = ? AND front IS NOT NULL AND front != ""
-        ''',
-        [_currentAccountId],
-      );
-      return rows
-          .map((row) => (row['front'] as String?)?.trim() ?? '')
-          .where((f) => f.isNotEmpty)
-          .toList();
-    } catch (_) {
-      return [];
-    }
-  }
-
   Future<int> upsertFlashcard(Map<String, dynamic> card) async {
     final payload = <String, dynamic>{
       'remote_id': _trimmedString(card['remote_id']),
@@ -489,6 +469,36 @@ class LocalStorage {
     );
     if (scoped && resolvedKey != key) {
       await _delete('user_cache', where: 'key = ?', whereArgs: [key]);
+    }
+  }
+
+  /// Read and replace a cache record without yielding between SQLite operations.
+  /// Concurrent read/modify/write callers cannot overwrite each other's update.
+  Future<void> updateCacheValue(
+    String key,
+    String Function(String? current) update, {
+    bool scoped = true,
+  }) async {
+    final resolvedKey = _scopedCacheKey(key, scoped: scoped);
+    final db = _database;
+    db.execute('BEGIN IMMEDIATE');
+    try {
+      var rows = db
+          .select('SELECT value FROM user_cache WHERE key = ?', [resolvedKey]);
+      if (rows.isEmpty && scoped && resolvedKey != key) {
+        rows = db.select('SELECT value FROM user_cache WHERE key = ?', [key]);
+      }
+      final value =
+          update(rows.isEmpty ? null : rows.first['value'] as String?);
+      db.execute('INSERT OR REPLACE INTO user_cache (key, value) VALUES (?, ?)',
+          [resolvedKey, value]);
+      if (scoped && resolvedKey != key) {
+        db.execute('DELETE FROM user_cache WHERE key = ?', [key]);
+      }
+      db.execute('COMMIT');
+    } catch (_) {
+      db.execute('ROLLBACK');
+      rethrow;
     }
   }
 

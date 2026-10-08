@@ -107,7 +107,7 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             statsAsync.maybeWhen(
               data: (stats) => GridView.count(
-                crossAxisCount: 3,
+                crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
@@ -124,22 +124,16 @@ class ProfileScreen extends ConsumerWidget {
                     value: '${stats.totalQuizzes}',
                     color: AppColors.primary,
                   ),
-                  _StatTile(
-                    label: 'Cards hoje',
-                    value: '${stats.flashcardsToday}',
-                    color: AppColors.success,
-                  ),
                 ],
               ),
               orElse: () => GridView.count(
-                crossAxisCount: 3,
+                crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 childAspectRatio: 1.02,
                 children: const [
-                  StatTileSkeleton(),
                   StatTileSkeleton(),
                   StatTileSkeleton(),
                 ],

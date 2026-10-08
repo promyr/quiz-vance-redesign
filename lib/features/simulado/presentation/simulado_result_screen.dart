@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:fl_chart/fl_chart.dart';
+import 'package:dio/dio.dart';
+import '../../../core/network/api_error_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,16 +123,22 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
               'Simulado salvo. Estatísticas e histórico atualizados.';
         });
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         setState(() {
           _syncState = SyncStatusState.pending;
-          _syncMessage = queued
-              ? 'Resultado salvo no aparelho. Sincronizaremos quando a conexão voltar.'
-              : 'Não foi possível salvar. Tente novamente antes de sair.';
+          final rejected = error is DioException && error.response != null;
+          final detail =
+              rejected ? extractApiErrorMessage(error.response?.data) : null;
+          _syncMessage = rejected
+              ? 'O servidor não aceitou o resultado. ${detail ?? 'Tente novamente mais tarde.'} ${queued ? 'Seu resultado permanece salvo neste aparelho.' : ''}'
+              : queued
+                  ? 'Resultado salvo no aparelho. Sincronizaremos quando a conexão voltar.'
+                  : 'Não foi possível salvar. Tente novamente antes de sair.';
         });
       }
     }
+    if (account != AccountScopedPreferences.instance.activeAccountId) return;
     try {
       await gamification.recordQuizCompletion(
           eventId: result.sessionId, xpEarned: result.xpEarned);

@@ -79,13 +79,7 @@ class StatsScreen extends ConsumerWidget {
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
                       children: [
-                        GridView.count(
-                          crossAxisCount: 2,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.1,
+                        _MetricsLayout(
                           children: [
                             _MetricCard(
                               title: 'XP total',
@@ -133,14 +127,15 @@ class StatsScreen extends ConsumerWidget {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
+                                  const Flexible(
+                                      child: Text(
                                     'Progresso do dia',
                                     style: TextStyle(
                                       color: AppColors.textPrimary,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
                                     ),
-                                  ),
+                                  )),
                                   Text(
                                     '${stats.todayQuizzes}/$_dailyGoal',
                                     style: const TextStyle(
@@ -194,9 +189,10 @@ class StatsScreen extends ConsumerWidget {
                           ),
                           child: Column(
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Taxa de acerto',
@@ -216,29 +212,6 @@ class StatsScreen extends ConsumerWidget {
                                               ? AppColors.success
                                               : AppColors.accent)
                                           : AppColors.textMuted,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Flashcards hoje',
-                                    style: TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${stats.flashcardsToday}',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -301,14 +274,15 @@ class StatsScreen extends ConsumerWidget {
                                   size: 16,
                                 ),
                                 SizedBox(width: 8),
-                                Text(
+                                Flexible(
+                                    child: Text(
                                   'Ver histórico de atividades',
                                   style: TextStyle(
                                     color: AppColors.textSecondary,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                   ),
-                                ),
+                                )),
                               ],
                             ),
                           ),
@@ -375,12 +349,15 @@ class _FeedbackCard extends StatelessWidget {
   Widget build(BuildContext context) {
     late final String message;
 
-    if (stats.streak >= 7) {
+    if (stats.totalQuizzes == 0) {
+      message =
+          'Ainda não há resultados sincronizados. Conclua um quiz e confira a sincronização do resultado.';
+    } else if (stats.streak >= 7) {
       message = 'Excelente ritmo. Ja vale subir a dificuldade.';
     } else if (stats.todayQuizzes >= 10) {
       message = 'Bom volume hoje. Feche o dia com uma revisao curta.';
     } else if (stats.taxaAcerto != null && stats.taxaAcerto! < 50) {
-      message = 'Sua taxa caiu. Revise fundamentos antes do proximo quiz.';
+      message = 'Revise os fundamentos para melhorar sua taxa de acerto.';
     } else {
       message = 'Consistência vence intensidade. Mantenha o estudo diário.';
     }
@@ -465,6 +442,26 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+class _MetricsLayout extends StatelessWidget {
+  const _MetricsLayout({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, constraints) {
+        final twoColumns = constraints.maxWidth >=
+            340 * MediaQuery.textScalerOf(context).scale(1);
+        final width =
+            twoColumns ? (constraints.maxWidth - 12) / 2 : constraints.maxWidth;
+        return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: children
+                .map((child) => SizedBox(width: width, child: child))
+                .toList());
+      });
+}
+
 class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.title,
@@ -491,7 +488,7 @@ class _MetricCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             title,

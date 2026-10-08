@@ -742,45 +742,29 @@ def build_library_prompt(
     avoid_fronts: list[str] | None = None,
 ) -> str:
     ctx_block = _material_context_block(context, limit=3500)
-    avoid_block = _avoid_items_block(
-        "Flashcards ja gerados - nao repita nem faca variacoes muito proximas",
-        avoid_fronts,
-        limit=20,
-        max_chars=120,
-    )
-
     return f"""Tarefa: gere um pacote de estudo sobre \"{topic}\" para nivel {level}.
 
-{ctx_block}{avoid_block}
+{ctx_block}
 {_grounding_rules_block()}
 Workflow interno silencioso:
 - Primeiro identifique os conceitos nucleares realmente sustentados pelo material.
 - Depois descarte ruido editorial e trechos bibliograficos.
-- So entao monte resumo, topicos, flashcards, questoes e checklist.
+- So entao monte resumo, topicos, questoes e checklist.
 
 Regras do pacote:
 - O pacote deve ser util para revisao rapida e estudo orientado.
 - Cada topico principal deve representar um conceito central, nao um detalhe editorial.
-- Flashcards devem ter frente curta, clara e autoexplicativa.
-- O verso do flashcard deve ser objetivo, correto e sem citar o documento.
-- Evite pares quase duplicados.
 - Questoes devem ter 4 alternativas plausiveis e apenas 1 correta.
 - O enunciado deve ser autonomo, sem mencionar texto, capitulo, pagina ou autor.
 - O checklist deve ter itens curtos, acionaveis e ligados ao conteudo.
 - Se nao houver base segura para algum bloco, devolva lista vazia nesse bloco em vez de inventar.
 - Prefira poucos itens muito bons a muitos itens genericos.
 
-{_json_only_rules_block("objeto com titulo, resumo_curto, topicos_principais, sugestoes_flashcards, sugestoes_questoes e checklist_de_estudo")}
+{_json_only_rules_block("objeto com titulo, resumo_curto, topicos_principais, sugestoes_questoes e checklist_de_estudo")}
 {{
   "titulo": "...",
   "resumo_curto": "Resumo curto e objetivo do conteudo",
   "topicos_principais": ["topico 1", "topico 2", "topico 3"],
-  "sugestoes_flashcards": [
-    {{
-      "front": "Pergunta curta",
-      "back": "Resposta objetiva"
-    }}
-  ],
   "sugestoes_questoes": [
     {{
       "pergunta": "...",
@@ -829,9 +813,14 @@ def filter_metadata_questions(questions: list[dict]) -> list[dict]:
     """Remove questoes que perguntem sobre metadados, autoria ou estrutura editorial."""
     filtered = []
     for q in questions:
+        if not isinstance(q, dict):
+            continue
+        raw_options = q.get("opcoes") or q.get("options") or []
+        if not isinstance(raw_options, list):
+            continue
         pergunta = str(q.get("pergunta") or q.get("text") or "").lower()
         opcoes_text = " ".join(
-            str(o) for o in (q.get("opcoes") or q.get("options") or [])
+            str(o) for o in raw_options
         ).lower()
         combined = f"{pergunta} {opcoes_text}"
         if _METADATA_QUESTION_RE.search(combined):
@@ -864,8 +853,27 @@ def normalize_quiz_questions(
         if not isinstance(question, dict):
             continue
 
-        pergunta = str(question.get("pergunta") or "").strip()
+        raw_statement = question.get("pergunta")
+        if not isinstance(raw_statement, str):
+            continue
+        pergunta = raw_statement.strip()
         if not pergunta:
+            continue
+
+        opcoes_raw = question.get("opcoes") or []
+        if not isinstance(opcoes_raw, list) or len(opcoes_raw) < 2:
+            continue
+
+        try:
+            correta_idx = int(str(question["correta_index"]).strip())
+        except (KeyError, ValueError, TypeError):
+            continue
+        if not 0 <= correta_idx < len(opcoes_raw):
+            continue
+        if any(not isinstance(option, str) for option in opcoes_raw):
+            continue
+        clean_options = [_OPTION_PREFIX_RE.sub("", option).strip() for option in opcoes_raw]
+        if any(not option for option in clean_options) or len({option.casefold() for option in clean_options}) != len(clean_options):
             continue
 
         structured = question_structure(question, pergunta)
@@ -873,21 +881,15 @@ def normalize_quiz_questions(
             continue
         pergunta, structure_metadata = structured
 
-        opcoes_raw = question.get("opcoes") or []
-        if not isinstance(opcoes_raw, list) or len(opcoes_raw) < 2:
-            continue
+        from .question_validation import semantic_question_is_valid
 
-        try:
-            correta_idx = int(str(question.get("correta_index", 0)).strip())
-        except Exception:
-            correta_idx = 0
-        correta_idx = max(0, min(correta_idx, len(opcoes_raw) - 1))
+        if not semantic_question_is_valid({**question, "pergunta": pergunta, "opcoes": clean_options}):
+            continue
 
         options: list[dict[str, Any]] = []
         correct_id: str | None = None
 
-        for j, option_text in enumerate(opcoes_raw[:4]):
-            clean = _OPTION_PREFIX_RE.sub("", str(option_text or "")).strip()
+        for j, clean in enumerate(clean_options):
             option_id = f"opt_{i}_{j}"
             is_correct = j == correta_idx
             if is_correct:
@@ -899,10 +901,6 @@ def normalize_quiz_questions(
                     "isCorrect": is_correct,
                 }
             )
-
-        if correct_id is None and options:
-            correct_id = options[0]["id"]
-            options[0]["isCorrect"] = True
 
         # Build optional source metadata ──────────────────────────────────────
         raw_trecho = question.get("trecho_fonte") or question.get("excerpt")

@@ -482,7 +482,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         emoji: '📂',
         title: 'Biblioteca vazia',
         subtitle:
-            'Adicione seu primeiro material de estudo para gerar quizzes e flashcards personalizados.',
+            'Adicione seu primeiro material de estudo para gerar quizzes personalizados.',
       ),
     );
   }

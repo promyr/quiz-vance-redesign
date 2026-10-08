@@ -73,6 +73,7 @@ class OpenQuizRepository {
     try {
       final response = await _client.dio.post(
         ApiEndpoints.quizOpenGrade,
+        options: Options(receiveTimeout: const Duration(minutes: 3)),
         data: {
           'pergunta': question.pergunta,
           'resposta_esperada': question.respostaEsperada,

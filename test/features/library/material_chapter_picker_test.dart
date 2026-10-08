@@ -37,7 +37,8 @@ void main() {
     expect(scoped.file.conteudo, contains('multiplicação'));
     expect(file.conteudo, contains('contratos'));
   });
-  testWidgets('seleção cabe em tela estreita com fonte ampliada', (tester) async {
+  testWidgets('seleção cabe em tela estreita com fonte ampliada',
+      (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     tester.platformDispatcher.textScaleFactorTestValue = 1.6;

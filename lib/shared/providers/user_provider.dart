@@ -59,7 +59,6 @@ class UserStats {
     this.todayQuizzes = 0,
     this.todayCorrect = 0,
     this.todayXp = 0,
-    this.flashcardsToday = 0,
     this.xpToNextLevel = 100,
     this.achievements = const [],
     this.taxaAcerto,
@@ -103,7 +102,6 @@ class UserStats {
       todayQuizzes: _readInt(data, ['today_quizzes', 'today_questoes']),
       todayCorrect: _readInt(data, ['today_correct', 'today_acertos']),
       todayXp: _readInt(data, ['today_xp']),
-      flashcardsToday: _readInt(data, ['flashcards_due', 'flashcards_today']),
       xpToNextLevel: _readIntOrNull(data, ['xp_to_next_level']) ??
           _computeXpToNextLevel(finalXp),
       achievements: achievements.isNotEmpty
@@ -139,7 +137,6 @@ class UserStats {
   final int todayQuizzes;
   final int todayCorrect;
   final int todayXp;
-  final int flashcardsToday;
   final int xpToNextLevel;
   final List<String> achievements;
   final double? taxaAcerto;
@@ -161,7 +158,6 @@ class UserStats {
     int? todayQuizzes,
     int? todayCorrect,
     int? todayXp,
-    int? flashcardsToday,
     int? xpToNextLevel,
     List<String>? achievements,
     double? taxaAcerto,
@@ -182,7 +178,6 @@ class UserStats {
       todayQuizzes: todayQuizzes ?? this.todayQuizzes,
       todayCorrect: todayCorrect ?? this.todayCorrect,
       todayXp: todayXp ?? this.todayXp,
-      flashcardsToday: flashcardsToday ?? this.flashcardsToday,
       xpToNextLevel: xpToNextLevel ?? this.xpToNextLevel,
       achievements: achievements ?? this.achievements,
       taxaAcerto: taxaAcerto ?? this.taxaAcerto,
@@ -225,33 +220,12 @@ class UserStatsNotifier extends AsyncNotifier<UserStats> {
           )
         : parsed;
 
-    return _mergeLocalFlashcards(finalStats);
+    return finalStats;
   }
 
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(_fetch);
-  }
-
-  Future<void> incrementFlashcardsToday({int amount = 1}) async {
-    final current = state.valueOrNull ?? await _fetch();
-    final nextCount = await ref
-        .read(userStatsCacheServiceProvider)
-        .incrementFlashcardsTodayCount(amount: amount);
-    state = AsyncData(current.copyWith(flashcardsToday: nextCount));
-    // The preceding review now updates the backend reward balance too.
-    await refresh();
-  }
-
-  Future<UserStats> _mergeLocalFlashcards(UserStats stats) async {
-    final localCount = await ref
-        .read(userStatsCacheServiceProvider)
-        .readFlashcardsTodayCount();
-    if (localCount == 0) return stats;
-    return stats.copyWith(
-        flashcardsToday: localCount > stats.flashcardsToday
-            ? localCount
-            : stats.flashcardsToday);
   }
 }
 

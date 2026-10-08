@@ -13,6 +13,23 @@ class ErrorNotebookRepository {
 
   final LocalStorage _storage;
 
+  List<ErrorQuestion> _decode(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map(ErrorQuestion.fromJson)
+        .toList();
+  }
+
+  Future<void> _update(
+      List<ErrorQuestion> Function(List<ErrorQuestion>) update) {
+    return _storage.updateCacheValue(_kErrorNotebookStorageKey, (raw) {
+      final items = update(_decode(raw));
+      return jsonEncode(items.map((item) => item.toJson()).toList());
+    });
+  }
+
   /// Retorna todas as questões do Caderno de Erros.
   Future<List<ErrorQuestion>> getErrorQuestions({
     bool includeMastered = false,
@@ -40,69 +57,73 @@ class ErrorNotebookRepository {
   Future<void> recordWrongQuestions({
     required List<QuestionAnswer> wrongAnswers,
     required String topic,
+    String? sessionId,
   }) async {
     if (wrongAnswers.isEmpty) return;
 
-    final existing = await getErrorQuestions(includeMastered: true);
-    final map = <String, ErrorQuestion>{
-      for (final q in existing) q.id: q,
-    };
+    await _update((existing) {
+      final map = <String, ErrorQuestion>{
+        for (final q in existing) q.id: q,
+      };
 
-    for (final answer in wrongAnswers) {
-      if (answer.isCorrect) continue;
+      for (final answer in wrongAnswers) {
+        if (answer.isCorrect) continue;
 
-      final questionId = answer.question.id;
-      final current = map[questionId];
+        final questionId = answer.question.id;
+        final current = map[questionId];
+        if (sessionId != null &&
+            current?.failedSessionIds.contains(sessionId) == true) {
+          continue;
+        }
+        final sessions = [
+          ...?current?.failedSessionIds,
+          if (sessionId != null) sessionId
+        ];
 
-      if (current != null) {
-        map[questionId] = current.copyWith(
-          timesFailed: current.timesFailed + 1,
-          failedAt: DateTime.now(),
-          consecutiveCorrect: 0,
-          isMastered: false, // Errou de novo — zera sequência de acertos e desmarca domínio
-        );
-      } else {
-        map[questionId] = ErrorQuestion(
-          id: questionId,
-          topic: topic.isNotEmpty ? topic : 'Geral',
-          question: answer.question,
-          failedAt: DateTime.now(),
-          timesFailed: 1,
-          consecutiveCorrect: 0,
-          isMastered: false,
-        );
+        if (current != null) {
+          map[questionId] = current.copyWith(
+            timesFailed: current.timesFailed + 1,
+            failedSessionIds: sessions,
+            failedAt: DateTime.now(),
+            consecutiveCorrect: 0,
+            isMastered:
+                false, // Errou de novo — zera sequência de acertos e desmarca domínio
+          );
+        } else {
+          map[questionId] = ErrorQuestion(
+            id: questionId,
+            topic: topic.isNotEmpty ? topic : 'Geral',
+            question: answer.question,
+            failedAt: DateTime.now(),
+            timesFailed: 1,
+            failedSessionIds: sessions,
+            consecutiveCorrect: 0,
+            isMastered: false,
+          );
+        }
       }
-    }
 
-    final updatedList = map.values.toList();
-    final jsonString = jsonEncode(updatedList.map((e) => e.toJson()).toList());
-    await _storage.setCacheValue(_kErrorNotebookStorageKey, jsonString);
+      return map.values.toList();
+    });
   }
 
   /// Registra acerto na revisão. Marca como Dominada apenas com 2 acertos consecutivos (Curva de Ebbinghaus).
   Future<void> markQuestionMastered(String questionId) async {
-    final existing = await getErrorQuestions(includeMastered: true);
-    final updatedList = existing.map((q) {
-      if (q.id == questionId) {
-        final newStreak = q.consecutiveCorrect + 1;
-        return q.copyWith(
-          consecutiveCorrect: newStreak,
-          isMastered: newStreak >= 2,
-        );
-      }
-      return q;
-    }).toList();
-
-    final jsonString = jsonEncode(updatedList.map((e) => e.toJson()).toList());
-    await _storage.setCacheValue(_kErrorNotebookStorageKey, jsonString);
+    await _update((existing) => existing.map((q) {
+          if (q.id == questionId) {
+            final newStreak = q.consecutiveCorrect + 1;
+            return q.copyWith(
+              consecutiveCorrect: newStreak,
+              isMastered: newStreak >= 2,
+            );
+          }
+          return q;
+        }).toList());
   }
 
   /// Remove todas as questões que já foram dominadas do Caderno de Erros.
   Future<void> clearMastered() async {
-    final existing = await getErrorQuestions(includeMastered: true);
-    final remaining = existing.where((q) => !q.isMastered).toList();
-    final jsonString = jsonEncode(remaining.map((e) => e.toJson()).toList());
-    await _storage.setCacheValue(_kErrorNotebookStorageKey, jsonString);
+    await _update((existing) => existing.where((q) => !q.isMastered).toList());
   }
 }
 

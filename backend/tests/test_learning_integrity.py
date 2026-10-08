@@ -51,6 +51,48 @@ def trusted_answer(uid, *, selected="A", feature="quiz"):
     }
 
 
+def test_fresh_receipt_accepts_insert_when_driver_rowcount_is_unknown(store):
+    """Some INSERT drivers return -1; a returned inserted row is authoritative."""
+    engine, uid = store
+    with Session(engine) as db:
+        original_execute = db.execute
+
+        class UnknownCount:
+            rowcount = -1
+
+            def __init__(self, result):
+                self.result = result
+
+            def __getattr__(self, name):
+                return getattr(self.result, name)
+
+        def execute(statement, *args, **kwargs):
+            result = original_execute(statement, *args, **kwargs)
+            if (
+                getattr(getattr(statement, "table", None), "name", None)
+                == "quiz_answer_credits"
+            ):
+                return UnknownCount(result)
+            return result
+
+        db.execute = execute
+        body = quiz.QuizSubmitIn(
+            session_id="unknown-count",
+            total=1,
+            correct=1,
+            answers=[trusted_answer(uid)],
+        )
+        assert quiz.submit_quiz(body, "student", db)["xp_earned"] == 10
+        assert quiz.submit_quiz(body, "student", db)["xp_earned"] == 10
+        with pytest.raises(HTTPException) as error:
+            quiz.submit_quiz(
+                body.model_copy(update={"session_id": "duplicate"}), "student", db
+            )
+        assert error.value.status_code == 422
+        daily = db.scalars(select(models.QuizStatsDaily)).one()
+        assert (daily.questoes, daily.acertos, daily.xp_ganho) == (1, 1, 10)
+
+
 def test_unanswered_claim_and_arbitrary_simulado_xp_are_rejected(store):
     engine, uid = store
     with Session(engine) as db:
@@ -201,14 +243,29 @@ def test_real_generation_route_to_submission_receipt_contract(
     raw = [
         {
             "pergunta": f"Qual é o resultado de 2 mais {i}?",
-            "opcoes": ["Correta", "Errada", "Outra", "Nenhuma"],
+            "opcoes": [str(2 + i), str(3 + i), str(4 + i), str(5 + i)],
             "correta_index": 0,
         }
         for i in range(5)
     ]
-    monkeypatch.setattr(
-        quiz, "_call_ai_for_user", lambda *args, **kwargs: (json.dumps(raw), "qa")
-    )
+
+    def provider(*args, **kwargs):
+        if "revisor independente" in kwargs.get("system_prompt", "").lower():
+            items = json.loads(kwargs["user_prompt"])
+            return json.dumps(
+                [
+                    {
+                        "id": item["id"],
+                        "valid": True,
+                        "correct_index": 0,
+                        "solution": "A soma é " + item["options"][0] + ".",
+                    }
+                    for item in items
+                ]
+            ), "qa"
+        return json.dumps(raw), "qa"
+
+    monkeypatch.setattr(quiz, "_call_ai_for_user", provider)
     with Session(engine) as db:
         if feature == "quiz":
             response = quiz.generate_quiz(

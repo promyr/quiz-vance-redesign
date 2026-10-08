@@ -123,42 +123,6 @@ StudyPackage sanitizeStudyPackageForMaterial({
 }) {
   final profile = _buildRelevanceProfile(file.nome, file.conteudo);
 
-  final rawFlashcards = package.flashcards
-      .map(
-        (card) => <String, String>{
-          'front': (card['front'] ?? '').trim(),
-          'back': (card['back'] ?? '').trim(),
-        },
-      )
-      .where((card) => card['front']!.isNotEmpty && card['back']!.isNotEmpty)
-      .where(
-        (card) => !_containsMetadataNoise(
-          '${card['front']!}\n${card['back']!}',
-        ),
-      )
-      .toList(growable: false);
-
-  final flashcards = package.flashcards
-      .where(
-        (card) => _isRelevantText(
-          '${card['front'] ?? ''}\n${card['back'] ?? ''}',
-          profile,
-        ),
-      )
-      .take(16)
-      .map(
-        (card) => <String, String>{
-          'front': (card['front'] ?? '').trim(),
-          'back': (card['back'] ?? '').trim(),
-        },
-      )
-      .where((card) => card['front']!.isNotEmpty && card['back']!.isNotEmpty)
-      .toList();
-
-  final effectiveFlashcards = flashcards.isNotEmpty
-      ? flashcards
-      : rawFlashcards.take(12).toList(growable: false);
-
   final questoes = package.questoes
       .where((question) {
         final options = question['opcoes'];
@@ -199,7 +163,6 @@ StudyPackage sanitizeStudyPackageForMaterial({
     titulo: title,
     resumoCurto: package.resumoCurto,
     topicosPrincipais: topicosPrincipais,
-    flashcards: effectiveFlashcards,
     questoes: questoes,
     checklistEstudo: checklistEstudo,
   );

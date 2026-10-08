@@ -26,7 +26,6 @@ enum StudyPlanStatus {
 /// Modo de estudo recomendado para uma sessão
 enum StudyRecommendedMode {
   quiz('QUIZ'),
-  flashcard('FLASHCARDS'),
   reading('READING'),
   auto('AUTO');
 
@@ -36,7 +35,7 @@ enum StudyRecommendedMode {
   static StudyRecommendedMode fromString(String? value) {
     final clean = (value ?? '').trim().toUpperCase();
     if (clean.contains('QUIZ')) return StudyRecommendedMode.quiz;
-    if (clean.contains('FLASH')) return StudyRecommendedMode.flashcard;
+    if (clean.contains('FLASH')) return StudyRecommendedMode.quiz;
     if (clean.contains('LEIT') || clean.contains('READ')) {
       return StudyRecommendedMode.reading;
     }
@@ -88,24 +87,42 @@ class StudySessionProgress {
 
   factory StudySessionProgress.fromJson(Map<String, dynamic> json) {
     return StudySessionProgress(
-      sessionId: json['session_id']?.toString() ?? json['sessionId']?.toString() ?? '',
+      sessionId:
+          json['session_id']?.toString() ?? json['sessionId']?.toString() ?? '',
       planId: json['plan_id']?.toString() ?? json['planId']?.toString() ?? '',
-      selectedMode: json['selected_mode']?.toString() ?? json['selectedMode']?.toString() ?? 'QUIZ',
+      selectedMode: json['selected_mode']?.toString() ??
+          json['selectedMode']?.toString() ??
+          'QUIZ',
       status: json['status']?.toString() ?? 'IN_PROGRESS',
-      currentItem: (json['current_item'] as num?)?.toInt() ?? (json['currentItem'] as num?)?.toInt() ?? 0,
-      totalItems: (json['total_items'] as num?)?.toInt() ?? (json['totalItems'] as num?)?.toInt() ?? 0,
-      correctAnswers: (json['correct_answers'] as num?)?.toInt() ?? (json['correctAnswers'] as num?)?.toInt() ?? 0,
-      incorrectAnswers: (json['incorrect_answers'] as num?)?.toInt() ?? (json['incorrectAnswers'] as num?)?.toInt() ?? 0,
-      progressPercentage: (json['progress_percentage'] as num?)?.toDouble() ?? (json['progress'] as num?)?.toDouble() ?? 0.0,
-      startedAt: json['started_at']?.toString() ?? json['startedAt']?.toString() ?? DateTime.now().toIso8601String(),
-      lastAccessedAt: json['last_accessed_at']?.toString() ?? json['lastAccessedAt']?.toString() ?? DateTime.now().toIso8601String(),
-      completedAt: json['completed_at']?.toString() ?? json['completedAt']?.toString(),
+      currentItem: (json['current_item'] as num?)?.toInt() ??
+          (json['currentItem'] as num?)?.toInt() ??
+          0,
+      totalItems: (json['total_items'] as num?)?.toInt() ??
+          (json['totalItems'] as num?)?.toInt() ??
+          0,
+      correctAnswers: (json['correct_answers'] as num?)?.toInt() ??
+          (json['correctAnswers'] as num?)?.toInt() ??
+          0,
+      incorrectAnswers: (json['incorrect_answers'] as num?)?.toInt() ??
+          (json['incorrectAnswers'] as num?)?.toInt() ??
+          0,
+      progressPercentage: (json['progress_percentage'] as num?)?.toDouble() ??
+          (json['progress'] as num?)?.toDouble() ??
+          0.0,
+      startedAt: json['started_at']?.toString() ??
+          json['startedAt']?.toString() ??
+          DateTime.now().toIso8601String(),
+      lastAccessedAt: json['last_accessed_at']?.toString() ??
+          json['lastAccessedAt']?.toString() ??
+          DateTime.now().toIso8601String(),
+      completedAt:
+          json['completed_at']?.toString() ?? json['completedAt']?.toString(),
     );
   }
 
   final String sessionId;
   final String planId;
-  final String selectedMode; // QUIZ | FLASHCARDS | READING
+  final String selectedMode; // QUIZ | READING; legacy FLASHCARDS maps to QUIZ
   final String status; // IN_PROGRESS | COMPLETED
   final int currentItem;
   final int totalItems;
@@ -189,42 +206,58 @@ class StudyPlanItem {
     final rawConcluido = json['concluido'] as bool? ?? false;
     final rawStatus = json['status'] != null
         ? StudySessionStatus.fromString(json['status'].toString())
-        : (rawConcluido ? StudySessionStatus.completed : StudySessionStatus.pending);
+        : (rawConcluido
+            ? StudySessionStatus.completed
+            : StudySessionStatus.pending);
 
     final rawTema = json['tema'] as String? ?? json['topic'] as String? ?? '';
-    final rawSubject = json['subject'] as String? ?? json['disciplina'] as String? ?? '';
+    final rawSubject =
+        json['subject'] as String? ?? json['disciplina'] as String? ?? '';
     final rawSubtopics = (json['subtopics'] as List<dynamic>?)
             ?.map((e) => e.toString().trim())
             .where((s) => s.isNotEmpty)
             .toList() ??
         const [];
 
-    final rawDocIds = (json['source_document_ids'] ?? json['sourceDocumentIds']) as List<dynamic>?;
-    final docIds = rawDocIds?.map((e) => (e as num).toInt()).toList() ?? const [];
+    final rawDocIds = (json['source_document_ids'] ?? json['sourceDocumentIds'])
+        as List<dynamic>?;
+    final docIds =
+        rawDocIds?.map((e) => (e as num).toInt()).toList() ?? const [];
 
-    final rawSections = (json['source_sections'] ?? json['sourceSections']) as List<dynamic>?;
+    final rawSections =
+        (json['source_sections'] ?? json['sourceSections']) as List<dynamic>?;
     final sections = rawSections?.map((e) => e.toString()).toList() ?? const [];
 
     final rawId = (json['id'] as num?)?.toInt();
-    final rawSessionId = json['session_id']?.toString() ?? json['sessionId']?.toString() ?? 'session_${rawId ?? rawTema.hashCode}';
+    final rawSessionId = json['session_id']?.toString() ??
+        json['sessionId']?.toString() ??
+        'session_${rawId ?? rawTema.hashCode}';
 
     return StudyPlanItem(
       id: rawId,
       sessionId: rawSessionId,
       planId: json['plan_id']?.toString() ?? json['planId']?.toString(),
       dia: json['dia'] as String? ?? json['weekday'] as String? ?? '',
-      scheduledDate: json['scheduled_date'] as String? ?? json['scheduledDate'] as String?,
+      scheduledDate:
+          json['scheduled_date'] as String? ?? json['scheduledDate'] as String?,
       subject: rawSubject,
       tema: rawTema,
       subtopics: rawSubtopics,
-      atividade: json['atividade'] as String? ?? json['activity'] as String? ?? '',
-      duracaoMin: (json['duracao_min'] as num?)?.toInt() ?? (json['estimated_minutes'] as num?)?.toInt() ?? 30,
+      atividade:
+          json['atividade'] as String? ?? json['activity'] as String? ?? '',
+      duracaoMin: (json['duracao_min'] as num?)?.toInt() ??
+          (json['estimated_minutes'] as num?)?.toInt() ??
+          30,
       prioridade: (json['prioridade'] as num?)?.toInt() ?? 2,
-      recommendedMode: StudyRecommendedMode.fromString(json['recommended_mode']?.toString() ?? json['recommendedMode']?.toString()),
+      recommendedMode: StudyRecommendedMode.fromString(
+          json['recommended_mode']?.toString() ??
+              json['recommendedMode']?.toString()),
       difficulty: json['difficulty']?.toString() ?? 'intermediario',
       status: rawStatus,
       concluido: rawStatus == StudySessionStatus.completed || rawConcluido,
-      completedAt: json['completed_at'] != null ? DateTime.tryParse(json['completed_at'].toString()) : null,
+      completedAt: json['completed_at'] != null
+          ? DateTime.tryParse(json['completed_at'].toString())
+          : null,
       sourceDocumentIds: docIds,
       sourceSections: sections,
       score: (json['score'] as num?)?.toDouble(),
@@ -362,9 +395,11 @@ class StudyPlan {
     List<int>? sourceDocumentIds,
     required this.items,
     this.activeSessionProgress,
-  })  : id = id ?? 'plan_${objetivo.hashCode}_${DateTime.now().millisecondsSinceEpoch}',
+  })  : id = id ??
+            'plan_${objetivo.hashCode}_${DateTime.now().millisecondsSinceEpoch}',
         title = title ?? objetivo,
-        startDate = startDate ?? DateTime.now().toIso8601String().substring(0, 10),
+        startDate =
+            startDate ?? DateTime.now().toIso8601String().substring(0, 10),
         status = status ?? StudyPlanStatus.active,
         timezone = timezone ?? 'America/Sao_Paulo',
         sourceDocumentIds = sourceDocumentIds ?? const [];
@@ -376,11 +411,14 @@ class StudyPlan {
         .map(StudyPlanItem.fromJson)
         .toList();
 
-    final rawDocIds = (json['source_document_ids'] ?? json['sourceDocumentIds']) as List<dynamic>?;
-    final docIds = rawDocIds?.map((e) => (e as num).toInt()).toList() ?? const [];
+    final rawDocIds = (json['source_document_ids'] ?? json['sourceDocumentIds'])
+        as List<dynamic>?;
+    final docIds =
+        rawDocIds?.map((e) => (e as num).toInt()).toList() ?? const [];
 
     StudySessionProgress? progress;
-    final rawProgress = json['active_session_progress'] ?? json['activeSessionProgress'];
+    final rawProgress =
+        json['active_session_progress'] ?? json['activeSessionProgress'];
     if (rawProgress is Map<String, dynamic>) {
       progress = StudySessionProgress.fromJson(rawProgress);
     }
@@ -388,12 +426,22 @@ class StudyPlan {
     return StudyPlan(
       id: json['id']?.toString(),
       userId: json['user_id']?.toString() ?? json['userId']?.toString(),
-      title: json['title']?.toString() ?? json['position']?.toString() ?? json['objetivo'] as String? ?? 'Plano de Estudos',
-      objetivo: json['objetivo'] as String? ?? json['title']?.toString() ?? 'Plano de Estudos',
-      dataProva: json['data_prova'] as String? ?? json['dataProva'] as String? ?? json['targetDate'] as String?,
-      tempoDiario: ((json['tempo_diario'] ?? json['tempoDiario']) as num?)?.toInt() ?? 30,
+      title: json['title']?.toString() ??
+          json['position']?.toString() ??
+          json['objetivo'] as String? ??
+          'Plano de Estudos',
+      objetivo: json['objetivo'] as String? ??
+          json['title']?.toString() ??
+          'Plano de Estudos',
+      dataProva: json['data_prova'] as String? ??
+          json['dataProva'] as String? ??
+          json['targetDate'] as String?,
+      tempoDiario:
+          ((json['tempo_diario'] ?? json['tempoDiario']) as num?)?.toInt() ??
+              30,
       startDate: json['start_date'] as String? ?? json['startDate'] as String?,
-      targetDate: json['target_date'] as String? ?? json['targetDate'] as String?,
+      targetDate:
+          json['target_date'] as String? ?? json['targetDate'] as String?,
       status: StudyPlanStatus.fromString(json['status']?.toString()),
       timezone: json['timezone']?.toString() ?? 'America/Sao_Paulo',
       sourceDocumentIds: docIds,
@@ -424,7 +472,8 @@ class StudyPlan {
     final weekdayName = _weekdayName(localDate.weekday);
 
     // 1. Sessões com data estrita agendada para dateStr
-    final exactDateSessions = items.where((i) => i.scheduledDate == dateStr).toList();
+    final exactDateSessions =
+        items.where((i) => i.scheduledDate == dateStr).toList();
     if (exactDateSessions.isNotEmpty) {
       return exactDateSessions;
     }
@@ -433,7 +482,8 @@ class StudyPlan {
     final recurrentSessions = items.where((i) {
       if (i.scheduledDate != null && i.scheduledDate!.isNotEmpty) return false;
       final itemDia = i.dia.trim().toLowerCase();
-      return itemDia == weekdayName || itemDia.startsWith(weekdayName.substring(0, 3));
+      return itemDia == weekdayName ||
+          itemDia.startsWith(weekdayName.substring(0, 3));
     }).toList();
 
     return recurrentSessions;

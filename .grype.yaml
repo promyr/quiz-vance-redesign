@@ -1,0 +1,10 @@
+ignore:
+  - vulnerability: CVE-2026-15308
+    package:
+      name: python
+      version: 3.14.6
+      type: binary
+    reason: >-
+      CPython html.parser denial of service is not reachable in this backend.
+      CI rejects html.parser imports; remove this exception when a patched stable
+      CPython image is available.

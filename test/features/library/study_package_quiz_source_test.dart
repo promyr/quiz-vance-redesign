@@ -11,49 +11,53 @@ import 'package:quiz_vance_flutter/features/quiz/domain/quiz_generation_params.d
 import 'package:quiz_vance_flutter/shared/widgets/app_bottom_nav.dart';
 
 void main() {
-  testWidgets('quiz do pacote preserva recorte e biblioteca ativa',
-      (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final file = LibraryFile(
-        id: 56,
-        nome: 'Livro.pdf',
-        conteudo:
-            'Capítulo 1 - Frações\nFrações dividem inteiros em partes.\nCapítulo 2 - Porcentagens\nPorcentagens representam proporções por cem.',
-        criadoEm: DateTime(2026));
-    await MaterialScopeStore()
-        .save(file, [detectMaterialChapters(file.conteudo).last]);
-    final package = StudyPackage.fromJson({
-      'titulo': 'Pacote',
-      'topicos_principais': ['Porcentagens']
+  for (final fileId in [56, -56]) {
+    testWidgets('quiz do pacote preserva recorte e biblioteca ativa $fileId',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final file = LibraryFile(
+          id: fileId,
+          nome: 'Livro.pdf',
+          conteudo:
+              'Capítulo 1 - Frações\nFrações dividem inteiros em partes.\nCapítulo 2 - Porcentagens\nPorcentagens representam proporções por cem.',
+          criadoEm: DateTime(2026));
+      await MaterialScopeStore()
+          .save(file, [detectMaterialChapters(file.conteudo).last]);
+      final package = StudyPackage.fromJson({
+        'titulo': 'Pacote',
+        'topicos_principais': ['Porcentagens']
+      });
+      QuizGenerationParams? received;
+      final router = GoRouter(routes: [
+        GoRoute(
+            path: '/',
+            builder: (_, __) =>
+                StudyPackageScreen(package: package, file: file)),
+        GoRoute(
+            path: '/quiz',
+            builder: (_, __) => const Text('Configuração indevida')),
+        GoRoute(
+            path: '/session',
+            name: 'quizSession',
+            builder: (_, state) {
+              received = (state.extra as Map)['generationParams'];
+              return const Text('Quiz direto');
+            }),
+      ]);
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+          ProviderScope(child: MaterialApp.router(routerConfig: router)));
+      await tester.pumpAndSettle();
+      expect(
+          tester.widget<AppBottomNav>(find.byType(AppBottomNav)).currentIndex,
+          2);
+      await tester.ensureVisible(find.text('Iniciar Quiz com este Material'));
+      await tester.tap(find.text('Iniciar Quiz com este Material'));
+      await tester.pumpAndSettle();
+      expect(received, isNotNull);
+      expect(received!.documentId, fileId < 0 ? 56 : isNull);
+      expect(received!.conteudo, contains('proporções'));
+      expect(received!.conteudo, isNot(contains('dividem inteiros')));
     });
-    QuizGenerationParams? received;
-    final router = GoRouter(routes: [
-      GoRoute(
-          path: '/',
-          builder: (_, __) => StudyPackageScreen(package: package, file: file)),
-      GoRoute(
-          path: '/quiz',
-          builder: (_, __) => const Text('Configuração indevida')),
-      GoRoute(
-          path: '/session',
-          name: 'quizSession',
-          builder: (_, state) {
-            received = (state.extra as Map)['generationParams'];
-            return const Text('Quiz direto');
-          }),
-    ]);
-    addTearDown(router.dispose);
-    await tester.pumpWidget(
-        ProviderScope(child: MaterialApp.router(routerConfig: router)));
-    await tester.pumpAndSettle();
-    expect(
-        tester.widget<AppBottomNav>(find.byType(AppBottomNav)).currentIndex, 2);
-    await tester.ensureVisible(find.text('Iniciar Quiz com este Material'));
-    await tester.tap(find.text('Iniciar Quiz com este Material'));
-    await tester.pumpAndSettle();
-    expect(received, isNotNull);
-    expect(received!.documentId, 56);
-    expect(received!.conteudo, contains('proporções'));
-    expect(received!.conteudo, isNot(contains('dividem inteiros')));
-  });
+  }
 }

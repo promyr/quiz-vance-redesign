@@ -39,8 +39,8 @@ void main() {
                 width: 120,
                 height: 170,
                 child: BentoTile(
-                  title: 'Flashcards SRS',
-                  subtitle: 'Repeticao espacada',
+                  title: 'Caderno de Erros',
+                  subtitle: 'Revisao das questoes',
                   icon: Icons.style_rounded,
                   badgeText: 'MEMORIA',
                 ),

@@ -53,8 +53,10 @@ def _valid_matching_references(question: dict, text: str, left: list[dict], righ
         left_ids = {label for label in labels if not label.isdigit()}
         right_ids = {label for label in labels if label.isdigit()}
     options = question.get("opcoes") or question.get("options") or []
+    if not isinstance(options, list):
+        return False
     for option in options:
-        value = option.get("text", "") if isinstance(option, dict) else str(option)
+        value = str(option.get("text") or "") if isinstance(option, dict) else str(option)
         value = unicodedata.normalize("NFKC", value).upper()
         if not any(label.isdigit() for label in left_ids) and re.fullmatch(r"[\d\s,;().–—-]+", value):
             sequence = re.findall(r"\d+", value)
@@ -138,7 +140,9 @@ def structured_question_rules() -> str:
 def complete_cached_questions(questions: list[dict]) -> list[dict]:
     result = []
     for question in questions:
-        complete = question_structure(question, str(question.get("text") or ""))
+        if not isinstance(question, dict) or not isinstance(question.get("text"), str):
+            continue
+        complete = question_structure(question, question["text"])
         if complete is not None:
             text, metadata = complete
             result.append({**question, "text": text, **metadata})
