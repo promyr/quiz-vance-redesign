@@ -272,6 +272,7 @@ def _increment_usage(db: Session, user_id: int, feature_key: str) -> None:
 # ── Helpers de deduplicação de questões ──────────────────────────────────────
 
 _SEEN_MAX_PER_TOPIC = 200  # máximo de fingerprints guardados por user/tópico
+_SEEN_REPEAT_INTERVAL = 20  # outras questões do mesmo contexto antes de repetir
 _SEEN_LIMIT_AVOID = 30  # quantas questões recentes passar ao prompt como "evitar"
 
 
@@ -287,15 +288,15 @@ def _topic_key(topic: str) -> str:
 
 
 def _load_seen_questions(db: Session, user_id: int, topic_key: str) -> list[str]:
-    """Retorna o histórico limitado usado para bloquear repetições no servidor."""
+    """Bloqueia as últimas 20 questões entregues no mesmo contexto."""
     rows = (
         db.query(models.QuizSeenQuestion)
         .filter(
             models.QuizSeenQuestion.user_id == user_id,
             models.QuizSeenQuestion.topic_key == topic_key,
         )
-        .order_by(models.QuizSeenQuestion.created_at.desc())
-        .limit(_SEEN_MAX_PER_TOPIC)
+        .order_by(models.QuizSeenQuestion.created_at.desc(), models.QuizSeenQuestion.id.desc())
+        .limit(_SEEN_REPEAT_INTERVAL)
         .all()
     )
     return [r.question_text for r in rows]
@@ -306,7 +307,7 @@ def _store_seen_questions(
 ) -> None:
     """Persiste fingerprints das questões recém-geradas; remove excesso se necessário."""
     try:
-        for q in questions:
+        for position, q in enumerate(questions):
             text = (q.get("text") or q.get("pergunta") or "").strip()
             if not text:
                 continue
@@ -316,13 +317,19 @@ def _store_seen_questions(
                 .filter_by(user_id=user_id, fingerprint=fp)
                 .first()
             )
-            if not exists:
+            delivered_at = datetime.now(timezone.utc) + timedelta(microseconds=position)
+            if exists:
+                exists.created_at = delivered_at
+                exists.topic_key = topic_key
+                exists.question_text = text
+            else:
                 db.add(
                     models.QuizSeenQuestion(
                         user_id=user_id,
                         topic_key=topic_key,
                         fingerprint=fp,
-                        question_text=text[:500],
+                        question_text=text,
+                        created_at=delivered_at,
                     )
                 )
 

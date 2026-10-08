@@ -168,3 +168,27 @@ def test_old_cache_is_reviewed_and_disagreement_cannot_be_delivered(
             quiz.QuizGenerateIn(topic="Matemática", quantity=1), "qa", db
         )
     assert usage == []
+
+
+@pytest.mark.parametrize("intervening,blocked", [(19, True), (20, False)])
+def test_repeat_requires_twenty_other_questions(generation, intervening, blocked):
+    db, _ = generation
+    topic = quiz._topic_key("Matemática")
+    original = {"text": "Pergunta original"}
+    quiz._store_seen_questions(db, 1, topic, [original])
+    quiz._store_seen_questions(db, 1, topic, [
+        {"text": f"Outra pergunta {n}"} for n in range(intervening)
+    ])
+    assert (original["text"] in quiz._load_seen_questions(db, 1, topic)) is blocked
+    if not blocked:
+        quiz._store_seen_questions(db, 1, topic, [original])
+        assert quiz._load_seen_questions(db, 1, topic)[0] == original["text"]
+
+
+def test_other_subject_does_not_advance_repeat_interval(generation):
+    db, _ = generation
+    quiz._store_seen_questions(db, 1, "matemática", [{"text": "Original"}])
+    quiz._store_seen_questions(db, 1, "biologia", [
+        {"text": f"Biologia {n}"} for n in range(25)
+    ])
+    assert quiz._load_seen_questions(db, 1, "matemática") == ["Original"]
