@@ -1,25 +1,25 @@
 {
   "schema_version": 1,
-  "app_version": "2.1.9",
-  "artifact": "quiz-vance-2.1.9.apk",
-  "size_bytes": 40589226,
-  "apk_sha256": "174DF683DEB82A802CC1C351FAB563CEC2153C68AF48B3F92F4EFF506838EC1A",
+  "app_version": "2.1.10",
+  "artifact": "quiz-vance-2.1.10.apk",
+  "size_bytes": 40590482,
+  "apk_sha256": "B8AB0D80E6A86E62E7319CC15A52D6172847948DBBD6AAAEB0EDBFE6D8A2CC1F",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
-  "commit": "b03a9a7ef252898a471712ca3fa0c882ec6b2f04",
+  "commit": "51d2792d2e9a92a46a11dfea7d13cae8bb285849",
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "build_number": 81,
-  "published_at": "2026-10-08T11:52:34.160481+00:00",
+  "build_number": 82,
+  "published_at": "2026-10-08T13:51:11.873278+00:00",
   "telegram_publish_requested": false,
   "telegram_publication_receipt": {
-    "version": "2.1.9",
+    "version": "2.1.10",
     "status": "sent",
-    "message_id": 961,
+    "message_id": 963,
     "chat_id": -1003742591996,
     "message_thread_id": 6,
-    "size_bytes": 40589226,
-    "sha256": "174DF683DEB82A802CC1C351FAB563CEC2153C68AF48B3F92F4EFF506838EC1A",
-    "telegram_url": "https://t.me/c/3742591996/6/961"
+    "size_bytes": 40590482,
+    "sha256": "B8AB0D80E6A86E62E7319CC15A52D6172847948DBBD6AAAEB0EDBFE6D8A2CC1F",
+    "telegram_url": "https://t.me/c/3742591996/6/963"
   },
-  "release_notes": "Leitura de PDF repetitivo e escopo de fontes curtas corrigidos; bloqueio de contexto vazio; validação de classificações ambíguas de triângulos; ofensiva e singular DIA alinhados ao APK 2.1.9."
+  "release_notes": "Quiz da biblioteca e treino infinito usam ID correto do documento; plano diário não atribui conclusões antigas a hoje; ajustes na ativação por digital e mensagens de erro."
 }
