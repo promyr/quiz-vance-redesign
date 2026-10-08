@@ -1,21 +1,15 @@
 {
   "schema_version": 1,
-  "app_version": "2.1.7",
-  "artifact": "quiz-vance-2.1.7.apk",
-  "size_bytes": 40692082,
-  "apk_sha256": "2F2E7E3BE5355FACD901F1952376BC49BDD2BE14370EF973787F1900DB080526",
+  "app_version": "2.1.8",
+  "build_number": 80,
+  "artifact": "quiz-vance-2.1.8.apk",
+  "size_bytes": 40587178,
+  "apk_sha256": "7BA6681A32E1954B8949E624E03E06CA7B628A7FF4D30E5560F8AAD887F831CE",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
-  "commit": "dc788b6b2832431e1f307d0ff27269bea126a0ec",
+  "commit": "b5868d07e52086e24aaa3d6c97b6f15dbce1b4dc",
   "clean_tree": false,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "build_number": 79,
-  "release_notes": "Revisões offline e XP reconciliados; proteção contra datas futuras e sincronização antiga; isolamento de documentos entre contas; associações completas e layout com fonte ampliada.",
-  "published_at": "2026-10-07T21:19:48.688237+00:00",
-  "telegram_publish_requested": false,
-  "telegram_publication_receipt": {
-    "version": "2.1.7",
-    "status": "sent",
-    "message_id": 958,
-    "sha256": "2F2E7E3BE5355FACD901F1952376BC49BDD2BE14370EF973787F1900DB080526"
-  }
+  "published_at": "2026-10-08T03:01:18.689074+00:00",
+  "release_notes": "Estatísticas e reenvios corrigidos; quiz dos PDFs da biblioteca; conquistas alinhadas; layout com fontes ampliadas; revisão de gabaritos e avaliação dissertativa; quantidade exata de questões; retirada dos cards.",
+  "telegram_publish_requested": false
 }
