@@ -46,6 +46,34 @@ def question(n):
     }
 
 
+@pytest.mark.parametrize('feature', ['quiz', 'simulado'])
+def test_history_and_whitespace_duplicates_are_blocked_server_side(monkeypatch, feature):
+    batches = [
+        [question(1), question(2), dict(question(2), pergunta=' Quanto  é  2+2? ')],
+        [question(3)],
+    ]
+    monkeypatch.setattr(quiz, '_call_ai_for_user',
+        lambda *args, **kwargs: (json.dumps(batches.pop(0)), 'fake'))
+    monkeypatch.setattr(quiz, '_review_question_batch',
+        lambda user, db, provider, candidates: candidates)
+    result = quiz._generate_verified_batch(None, None, feature=feature,
+        topic='Matemática', difficulty='easy', quantity=2, context=None,
+        provider=None, avoid=['Quanto é 1+1?'])
+    assert [q['text'] for q in result] == ['Quanto é 2+2?', 'Quanto é 3+3?']
+
+
+def test_cached_initial_batch_cannot_bypass_history_or_uniqueness(monkeypatch):
+    initial = quiz.ai.normalize_quiz_questions([question(1), question(2), question(2)])
+    monkeypatch.setattr(quiz, '_call_ai_for_user',
+        lambda *args, **kwargs: (json.dumps([question(3)]), 'fake'))
+    monkeypatch.setattr(quiz, '_review_question_batch',
+        lambda user, db, provider, candidates: candidates)
+    result = quiz._generate_verified_batch(None, None, feature='quiz',
+        topic='Matemática', difficulty='easy', quantity=2, context=None,
+        provider=None, avoid=['Quanto é 1+1?'], initial=initial)
+    assert [q['text'] for q in result] == ['Quanto é 2+2?', 'Quanto é 3+3?']
+
+
 @pytest.mark.parametrize("feature,quantity", [("quiz", 3), ("simulado", 5)])
 def test_partial_generation_refills_and_reviews_before_delivery(
     generation, monkeypatch, feature, quantity

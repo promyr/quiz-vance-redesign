@@ -287,7 +287,7 @@ def _topic_key(topic: str) -> str:
 
 
 def _load_seen_questions(db: Session, user_id: int, topic_key: str) -> list[str]:
-    """Retorna os textos das últimas _SEEN_LIMIT_AVOID questões vistas no tópico."""
+    """Retorna o histórico limitado usado para bloquear repetições no servidor."""
     rows = (
         db.query(models.QuizSeenQuestion)
         .filter(
@@ -295,7 +295,7 @@ def _load_seen_questions(db: Session, user_id: int, topic_key: str) -> list[str]
             models.QuizSeenQuestion.topic_key == topic_key,
         )
         .order_by(models.QuizSeenQuestion.created_at.desc())
-        .limit(_SEEN_LIMIT_AVOID)
+        .limit(_SEEN_MAX_PER_TOPIC)
         .all()
     )
     return [r.question_text for r in rows]
@@ -375,15 +375,20 @@ def _generate_verified_batch(
     avoid, initial=None, document_name=None, document_id=None,
 ):
     """Deliver an exact reviewed batch, with at most two generation attempts."""
-    accepted = list(initial or [])[:quantity]
-    seen = {q['text'].strip().casefold() for q in accepted}
+    seen = {_q_fingerprint(text) for text in avoid}
+    accepted = []
+    for question in initial or []:
+        key = _q_fingerprint(question['text'])
+        if key not in seen and len(accepted) < quantity:
+            seen.add(key)
+            accepted.append(question)
     builder = ai.build_simulado_prompt if feature == 'simulado' else ai.build_quiz_prompt
     for _attempt in range(2):
         if len(accepted) == quantity:
             return accepted
         prompt = builder(
             topic, difficulty, quantity-len(accepted), context,
-            avoid=list(avoid)+[q['text'] for q in accepted],
+            avoid=list(avoid)[:_SEEN_LIMIT_AVOID]+[q['text'] for q in accepted],
         )
         raw, _provider = _call_ai_for_user(
             user, db, requested_provider=provider,
@@ -396,14 +401,14 @@ def _generate_verified_batch(
         candidates = []
         pending = set()
         for question in normalized:
-            key = question['text'].strip().casefold()
+            key = _q_fingerprint(question['text'])
             if key not in seen and key not in pending:
                 pending.add(key)
                 candidates.append(question)
         for question in _review_question_batch(user, db, provider, candidates):
             if len(accepted) == quantity:
                 break
-            key = question['text'].strip().casefold()
+            key = _q_fingerprint(question['text'])
             seen.add(key)
             accepted.append(question)
     if len(accepted) != quantity:
