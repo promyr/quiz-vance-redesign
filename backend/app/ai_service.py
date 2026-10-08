@@ -16,6 +16,7 @@ import httpx
 from .ai_response_parsing import extract_json_list, extract_json_object
 from .material_sanitization import (
     _material_context_block,
+    library_scope_rule,
     sanitize_library_package_response,
     sanitize_reference_material,
 )
@@ -35,7 +36,6 @@ _COMPATIBILITY_REEXPORTS = (
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = httpx.Timeout(75.0, connect=10.0)
-
 
 
 def _safe_output_token_limit(value: int | None) -> int:
@@ -742,9 +742,11 @@ def build_library_prompt(
     avoid_fronts: list[str] | None = None,
 ) -> str:
     ctx_block = _material_context_block(context, limit=3500)
+    source_rule = library_scope_rule(context)
     return f"""Tarefa: gere um pacote de estudo sobre \"{topic}\" para nivel {level}.
 
 {ctx_block}
+{source_rule}
 {_grounding_rules_block()}
 Workflow interno silencioso:
 - Primeiro identifique os conceitos nucleares realmente sustentados pelo material.

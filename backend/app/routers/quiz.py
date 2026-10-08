@@ -1087,6 +1087,10 @@ def generate_library_package(
     user = _require_user(authorization, db)
     topic = (body.topic or body.titulo or "").strip() or "Material da biblioteca"
     context = body.context or body.conteudo
+    if body.context is not None or body.conteudo is not None:
+        context = ai.sanitize_reference_material(context, limit=3500)
+        if not context:
+            raise HTTPException(status_code=422, detail="O material não contém conteúdo legível. Revise o documento ou os capítulos selecionados.")
     prompt = ai.build_library_prompt(topic, body.level, context)
     try:
         raw_text, _provider = _call_ai_for_user(

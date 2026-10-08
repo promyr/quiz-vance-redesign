@@ -5,6 +5,45 @@ import pytest
 from app.ai_service import normalize_quiz_questions
 
 
+def test_triangle_345_without_axis_has_two_true_options_and_is_rejected():
+    from app.question_validation import semantic_question_is_valid
+
+    question = {
+        "pergunta": "Um triângulo tem lados de 3 cm, 4 cm e 5 cm. Qual é o tipo de triângulo?",
+        "opcoes": ["Escaleno", "Isósceles", "Retângulo", "Obtuso"],
+        "correta_index": 2,
+    }
+    assert not semantic_question_is_valid(question)
+
+
+@pytest.mark.parametrize("axis,index", [("lados", 0), ("ângulos", 2)])
+def test_triangle_explicit_classification_axis_is_preserved(axis, index):
+    from app.question_validation import semantic_question_is_valid
+
+    question = {
+        "pergunta": f"Um triângulo tem lados de 3 cm, 4 cm e 5 cm. Qual é o tipo de triângulo quanto aos {axis}?",
+        "opcoes": ["Escaleno", "Isósceles", "Retângulo", "Obtuso"],
+        "correta_index": index,
+    }
+    assert semantic_question_is_valid(question)
+
+
+@pytest.mark.parametrize(
+    "lengths", ["3/2 cm, 4 cm e 5 cm", "3 cm, 4 m e 5 cm", "3,5 cm, 4 cm e 5 cm"]
+)
+def test_triangle_unsupported_units_or_fractional_sides_left_to_review(lengths):
+    from app.question_validation import _triangle_answer
+
+    assert (
+        _triangle_answer(
+            f"Um triângulo tem lados de {lengths}. Qual é o tipo de triângulo?",
+            ["Escaleno", "Isósceles", "Retângulo", "Obtuso"],
+            2,
+        )
+        is None
+    )
+
+
 def test_single_fair_die_thrown_twice_wrong_key_is_rejected():
     from app.question_validation import semantic_question_is_valid
 

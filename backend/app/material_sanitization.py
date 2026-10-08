@@ -65,6 +65,12 @@ _SURNAME_REFERENCE_RE = re.compile(r"^\s*[A-Z][A-Z\s-]{2,},\s")
 _ALL_CAPS_HEADING_RE = re.compile(r"^[A-Z0-9\s\-,:]{4,}$")
 
 
+def _is_didactic_sentence(line: str) -> bool:
+    return len(re.findall(r"[A-Za-z0-9]+", line)) >= 3 and bool(
+        re.search(r"[.!?;=]", line)
+    )
+
+
 def _should_skip_material_line(line: str, repeated_short_lines: dict[str, int]) -> bool:
     normalized = re.sub(r"\s+", " ", line.strip().lower())
     if not normalized:
@@ -74,7 +80,11 @@ def _should_skip_material_line(line: str, repeated_short_lines: dict[str, int]) 
         return True
     if _TOC_ENTRY_RE.search(line):
         return True
-    if repeated_short_lines.get(normalized, 0) >= 3 and len(normalized) <= 80:
+    if (
+        repeated_short_lines.get(normalized, 0) >= 3
+        and len(normalized) <= 80
+        and not _is_didactic_sentence(line)
+    ):
         return True
     if _FRONT_MATTER_RE.search(line):
         return True
@@ -92,7 +102,11 @@ def _should_skip_leading_noise(line: str, repeated_short_lines: dict[str, int]) 
     normalized = re.sub(r"\s+", " ", line.strip().lower())
     if _FRONT_MATTER_RE.search(line) or _looks_like_reference_line(line):
         return True
-    if repeated_short_lines.get(normalized, 0) >= 2 and len(normalized) <= 120:
+    if (
+        repeated_short_lines.get(normalized, 0) >= 2
+        and len(normalized) <= 120
+        and not _is_didactic_sentence(line)
+    ):
         return True
 
     words = len(re.findall(r"[A-Za-z0-9]+", line))
@@ -138,6 +152,7 @@ def sanitize_reference_material(text: str | None, limit: int = 4000) -> str:
     last_was_blank = False
     started_content = False
     skipping_reference_section = False
+    seen_content: set[str] = set()
     for line in raw_lines:
         if not line:
             if skipping_reference_section:
@@ -159,6 +174,10 @@ def sanitize_reference_material(text: str | None, limit: int = 4000) -> str:
             continue
         if _should_skip_material_line(line, repeated_short_lines):
             continue
+        key = re.sub(r"\s+", " ", line.lower())
+        if key in seen_content:
+            continue
+        seen_content.add(key)
         if _looks_like_content_line(line):
             started_content = True
         cleaned_lines.append(line)
@@ -178,6 +197,16 @@ def _material_context_block(text: str | None, limit: int = 4000) -> str:
         "definicoes, relacoes causais e exemplos — nao mencione esta fonte "
         "nas questoes; o aluno nao tem acesso a ela):\n"
         f"{cleaned}\n"
+    )
+
+
+def library_scope_rule(context: str | None) -> str:
+    if context is None:
+        return "Use o tema solicitado como escopo do pacote."
+    return (
+        "O material e a UNICA autoridade do escopo. Titulo identifica; nivel altera profundidade, nunca amplia materias. "
+        "Fonte curta/repetitiva exige pacote pequeno: nao acrescente algebra/calculo/probabilidade a uma fonte de adicao. "
+        "Devolva menos itens em vez de assuntos genericos."
     )
 
 
@@ -324,7 +353,7 @@ def _build_library_relevance_profile(topic: str, context: str | None) -> dict[st
     context_counts = Counter(_tokenize_library_relevance(cleaned_context))
 
     anchor_terms: list[str] = []
-    for term in topic_terms:
+    for term in topic_terms if context is None else []:
         if term not in anchor_terms:
             anchor_terms.append(term)
     for term, _ in context_counts.most_common(18):
@@ -332,8 +361,8 @@ def _build_library_relevance_profile(topic: str, context: str | None) -> dict[st
             anchor_terms.append(term)
 
     return {
-        "strict": len(cleaned_context) >= 180 and len(context_counts) >= 6,
-        "topic_terms": set(topic_terms),
+        "strict": context is not None,
+        "topic_terms": set(topic_terms) if context is None else set(),
         "anchor_terms": set(anchor_terms),
     }
 
@@ -427,20 +456,23 @@ def sanitize_library_package_response(
         for item in raw_checklist
         if isinstance(item, str)
         and item.strip()
-        and not _contains_library_metadata_noise(item)
+        and _is_library_text_relevant(item, profile)
     ][:10]
 
     titulo = str(data.get("titulo") or "").strip() or topic
     resumo_curto = str(data.get("resumo_curto") or data.get("resumo") or "").strip()
-    if profile["strict"] and not _is_library_text_relevant(
-        f"{titulo}\n{resumo_curto}", profile
-    ):
+    if profile["strict"] and not _is_library_text_relevant(titulo, profile):
         titulo = topic
+    if profile["strict"] and not _is_library_text_relevant(resumo_curto, profile):
+        resumo_curto = sanitize_reference_material(context, limit=500)
+    resumo = str(data.get("resumo") or resumo_curto).strip()
+    if profile["strict"] and not _is_library_text_relevant(resumo, profile):
+        resumo = resumo_curto
 
     return {
         "titulo": titulo,
         "resumo_curto": resumo_curto,
-        "resumo": str(data.get("resumo") or resumo_curto).strip(),
+        "resumo": resumo,
         "topicos_principais": topicos_principais,
         "pontos_chave": topicos_principais,
         "sugestoes_flashcards": flashcards,

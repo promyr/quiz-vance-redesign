@@ -172,6 +172,72 @@ def _expected_answer(text: str) -> Fraction | None:
     return None
 
 
+def _triangle_answer(text: str, options: list[str], index: int) -> bool | None:
+    """Exact integer sides, one common unit, and simple classification options only."""
+    plain = "".join(
+        c
+        for c in unicodedata.normalize("NFD", text.lower())
+        if not unicodedata.combining(c)
+    )
+    if "triangulo" not in plain or not re.search(r"\b(?:tipo|classific\w*)\b", plain):
+        return None
+    match = re.search(
+        r"\blados\s+(?:de\s+)?(\d+)\s*(cm|mm|m)\s*,\s*(\d+)\s*(cm|mm|m)\s+e\s+(\d+)\s*(cm|mm|m)(?=\s|[?.!,;]|$)",
+        plain,
+    )
+    if not match or len({match[2], match[4], match[6]}) != 1:
+        return None
+    sides = sorted(int(match[i]) for i in (1, 3, 5))
+    if sides[0] <= 0 or sides[-1] > 10**6 or sides[0] + sides[1] <= sides[2]:
+        return False
+    side_class = (
+        "equilatero"
+        if len(set(sides)) == 1
+        else "isosceles"
+        if len(set(sides)) == 2
+        else "escaleno"
+    )
+    delta = sides[0] ** 2 + sides[1] ** 2 - sides[2] ** 2
+    angle_class = (
+        "retangulo" if delta == 0 else "acutangulo" if delta > 0 else "obtusangulo"
+    )
+    axis_side = bool(
+        re.search(r"quanto\s+aos\s+lados|em\s+relacao\s+aos\s+lados", plain)
+    )
+    axis_angle = bool(
+        re.search(r"quanto\s+aos\s+angulos|em\s+relacao\s+aos\s+angulos", plain)
+    )
+    allowed = {side_class, angle_class}
+    if axis_side and not axis_angle:
+        allowed = {side_class}
+    elif axis_angle and not axis_side:
+        allowed = {angle_class}
+    matches = []
+    aliases = {"obtuso": "obtusangulo", "agudo": "acutangulo"}
+    classifications = {
+        "equilatero",
+        "isosceles",
+        "escaleno",
+        "retangulo",
+        "acutangulo",
+        "obtusangulo",
+    }
+    for position, option in enumerate(options):
+        label = "".join(
+            c
+            for c in unicodedata.normalize("NFD", option.lower())
+            if not unicodedata.combining(c)
+        )
+        label = re.sub(r"^[a-e][).:]\s*", "", label.strip())
+        label = re.sub(r"^triangulo\s+", "", label).rstrip(".")
+        label = aliases.get(label, label)
+        if label not in classifications:
+            return None
+        if label in allowed:
+            matches.append(position)
+    return matches == [index]
+
+
 def semantic_question_is_valid(question: dict) -> bool:
     if not isinstance(question, dict):
         return False
@@ -185,6 +251,9 @@ def semantic_question_is_valid(question: dict) -> bool:
         or not 0 <= index < len(options)
     ):
         return False
+    triangle = _triangle_answer(text, options, index)
+    if triangle is not None:
+        return triangle
     expected = _expected_answer(text)
     if expected is not None:
         matches = [
