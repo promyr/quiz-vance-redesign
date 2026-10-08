@@ -20,7 +20,7 @@ void main() {
     id: 1,
     nome: 'Biologia',
     categoria: 'Vestibular',
-    conteudo: 'Resumo sobre celulas',
+    conteudo: 'As celulas possuem membrana que protege seu conteudo.',
     criadoEm: DateTime(2026, 3, 24),
   );
 
@@ -32,6 +32,20 @@ void main() {
     repository = LibraryRepository(apiClient);
 
     when(() => apiClient.dio).thenReturn(dio);
+  });
+
+  test('empty whole-document context is rejected before provider request',
+      () async {
+    final emptyFile = LibraryFile(
+        id: 90,
+        nome: 'vazio.pdf',
+        categoria: 'Teste',
+        conteudo: 'ISBN 978-85-0000-000-0',
+        criadoEm: DateTime(2026, 10, 8));
+    await expectLater(repository.generatePackage(file: emptyFile),
+        throwsA(isA<StateError>()));
+    verifyNever(() => dio.post(ApiEndpoints.libraryGeneratePackage,
+        data: any(named: 'data')));
   });
 
   test('generatePackage preserves backend validation detail', () async {

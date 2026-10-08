@@ -92,8 +92,8 @@ class AdminBiometricAuthCoordinator {
       throw const AdminBiometricUnavailable();
     }
     await _vault.clear();
-    final credential = await _vault.createCredential();
     try {
+      final credential = await _vault.createCredential();
       await _remote.enroll(credential: credential, password: password);
     } catch (_) {
       await _vault.clear();

@@ -16,7 +16,8 @@ import 'package:quiz_vance_flutter/features/error_notebook/providers/error_noteb
 import 'package:quiz_vance_flutter/features/error_notebook/domain/error_question.dart';
 
 class _Stats extends UserStatsNotifier {
-  _Stats(this.premium);
+  _Stats(this.premium, {this.todayQuizzes = 0});
+  final int todayQuizzes;
   final bool premium;
   @override
   Future<UserStats> build() async => UserStats(
@@ -24,8 +25,9 @@ class _Stats extends UserStatsNotifier {
       xp: 12850,
       level: 129,
       streak: 123,
-      quizRestante: 10,
-      quizLimite: 10);
+      todayQuizzes: todayQuizzes,
+      quizRestante: premium ? -1 : 10,
+      quizLimite: premium ? -1 : 10);
 }
 
 class _Daily extends DailyChallengeNotifier {
@@ -62,6 +64,33 @@ void main() {
         .then((bytes) => ByteData.sublistView(bytes)));
     await icons.load();
   });
+  for (final today in [0, 3]) {
+    testWidgets(
+        'premium ilimitado mostra risco apenas antes de estudar hoje $today',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'premium_upsell_last_shown_date':
+            DateTime.now().toIso8601String().substring(0, 10)
+      });
+      await tester.pumpWidget(ProviderScope(overrides: [
+        activePlanProvider.overrideWith((ref) async => null),
+        userStatsNotifierProvider
+            .overrideWith(() => _Stats(true, todayQuizzes: today)),
+        billingStatusProvider.overrideWith((ref) async =>
+            const BillingStatus(planCode: 'premium', isPremium: true)),
+        dailyChallengeNotifierProvider.overrideWith(_Daily.new),
+        errorNotebookNotifierProvider.overrideWith(_Errors.new),
+        networkStatusNotifierProvider.overrideWith((ref) => _Online()),
+      ], child: const MaterialApp(home: HomeScreen())));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.textContaining('em risco'),
+          today == 0 ? findsOneWidget : findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+    });
+  }
   for (final premium in [false, true]) {
     for (final scale in [1.0, 1.6]) {
       testWidgets('Home completa 320px fonte $scale premium $premium',

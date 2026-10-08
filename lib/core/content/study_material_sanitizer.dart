@@ -77,6 +77,7 @@ String sanitizeStudyMaterialForPrompt(
   var lastWasBlank = false;
   var startedContent = false;
   var skippingReferenceSection = false;
+  final seenContent = <String>{};
 
   for (final line in lines) {
     if (line.isEmpty) {
@@ -105,6 +106,9 @@ String sanitizeStudyMaterialForPrompt(
     if (_shouldSkipLine(line, repeatedShortLines)) {
       continue;
     }
+    if (!seenContent.add(_normalizeForMatch(line))) {
+      continue;
+    }
 
     if (_looksLikeContentLine(line)) {
       startedContent = true;
@@ -122,6 +126,10 @@ String sanitizeStudyMaterialForPrompt(
   return cleaned;
 }
 
+bool _isDidacticSentence(String line) =>
+    _wordPattern.allMatches(line).length >= 3 &&
+    RegExp(r'[.!?;=]').hasMatch(line);
+
 bool _shouldSkipLine(String line, Map<String, int> repeatedShortLines) {
   final normalized = _normalizeForMatch(line);
 
@@ -131,7 +139,9 @@ bool _shouldSkipLine(String line, Map<String, int> repeatedShortLines) {
   if (_tocEntryPattern.hasMatch(normalized)) {
     return true;
   }
-  if ((repeatedShortLines[normalized] ?? 0) >= 3 && line.length <= 80) {
+  if ((repeatedShortLines[normalized] ?? 0) >= 3 &&
+      line.length <= 80 &&
+      !_isDidacticSentence(line)) {
     return true;
   }
   if (_looksLikeReferenceLine(line, normalized)) {
@@ -162,7 +172,9 @@ bool _shouldSkipLeadingNoise(String line, Map<String, int> repeatedShortLines) {
       return true;
     }
   }
-  if ((repeatedShortLines[normalized] ?? 0) >= 2 && line.length <= 120) {
+  if ((repeatedShortLines[normalized] ?? 0) >= 2 &&
+      line.length <= 120 &&
+      !_isDidacticSentence(line)) {
     return true;
   }
 

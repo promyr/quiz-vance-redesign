@@ -121,7 +121,8 @@ StudyPackage sanitizeStudyPackageForMaterial({
   required StudyPackage package,
   required LibraryFile file,
 }) {
-  final profile = _buildRelevanceProfile(file.nome, file.conteudo);
+  final profile = _buildRelevanceProfile(file.nome, file.conteudo,
+      topicOnly: file.isTopicOnlyStudyMaterial);
 
   final questoes = package.questoes
       .where((question) {
@@ -147,21 +148,23 @@ StudyPackage sanitizeStudyPackageForMaterial({
 
   final checklistEstudo = package.checklistEstudo
       .where(
-        (item) => item.trim().isNotEmpty && !_containsMetadataNoise(item),
+        (item) => _isRelevantText(item, profile),
       )
       .take(10)
       .toList();
 
   final titleCandidate =
       package.titulo.trim().isEmpty ? file.nome : package.titulo;
-  final title = profile.strict &&
-          !_isRelevantText('$titleCandidate\n${package.resumoCurto}', profile)
+  final title = profile.strict && !_isRelevantText(titleCandidate, profile)
       ? file.nome
       : titleCandidate;
 
   return StudyPackage(
     titulo: title,
-    resumoCurto: package.resumoCurto,
+    resumoCurto:
+        profile.strict && !_isRelevantText(package.resumoCurto, profile)
+            ? sanitizeStudyMaterialForPrompt(file.conteudo, maxChars: 500)
+            : package.resumoCurto,
     topicosPrincipais: topicosPrincipais,
     questoes: questoes,
     checklistEstudo: checklistEstudo,
@@ -180,10 +183,10 @@ class _RelevanceProfile {
   final Set<String> anchorTerms;
 }
 
-_RelevanceProfile _buildRelevanceProfile(String topic, String rawContext) {
+_RelevanceProfile _buildRelevanceProfile(String topic, String rawContext,
+    {bool topicOnly = false}) {
   final cleanedContext =
       sanitizeStudyMaterialForPrompt(rawContext, maxChars: 6000);
-  final topicTerms = _tokenizeRelevance(topic);
 
   final contextCounts = <String, int>{};
   for (final token in _tokenizeRelevance(cleanedContext)) {
@@ -197,15 +200,15 @@ _RelevanceProfile _buildRelevanceProfile(String topic, String rawContext) {
       return b.key.length.compareTo(a.key.length);
     });
 
-  final anchors = <String>{...topicTerms};
+  final anchors = <String>{};
   for (final entry in sortedContextTerms) {
     anchors.add(entry.key);
     if (anchors.length >= 24) break;
   }
 
   return _RelevanceProfile(
-    strict: cleanedContext.length >= 180 && contextCounts.length >= 6,
-    topicTerms: topicTerms,
+    strict: !topicOnly,
+    topicTerms: const {},
     anchorTerms: anchors,
   );
 }

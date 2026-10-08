@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
+import 'package:biometric_storage/biometric_storage.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/network/api_error_message.dart';
@@ -135,8 +138,23 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
 
   void _showError(Object error) {
     if (!mounted) return;
+    final Object visibleError;
+    if (error is DioException) {
+      visibleError = buildRemoteServiceException(error,
+          fallback:
+              'Não foi possível confirmar a ativação no servidor. Tente novamente.');
+    } else if (error is AuthException) {
+      visibleError = Exception(
+          'Confirmação por digital cancelada ou não reconhecida. Tente novamente.');
+    } else if (error is PlatformException ||
+        error is BiometricStorageException) {
+      visibleError = Exception(
+          'O Android não conseguiu abrir o cofre biométrico. Verifique a digital cadastrada e tente ativar novamente.');
+    } else {
+      visibleError = error;
+    }
     final message = userVisibleErrorMessage(
-      error,
+      visibleError,
       fallback: 'Não foi possível concluir. Tente novamente.',
     );
     ScaffoldMessenger.of(context).showSnackBar(
@@ -263,7 +281,8 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                         ),
                         onChanged: (val) {
                           final trimmed = val.trim();
-                          if (trimmed.startsWith('gsk_') && selectedProvider != 'groq') {
+                          if (trimmed.startsWith('gsk_') &&
+                              selectedProvider != 'groq') {
                             setDialogState(() => selectedProvider = 'groq');
                           } else if ((trimmed.startsWith('AIza') ||
                                   trimmed.startsWith('AQ.') ||

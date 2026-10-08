@@ -3,6 +3,18 @@ import 'package:quiz_vance_flutter/features/settings/application/admin_biometric
 import 'package:quiz_vance_flutter/features/settings/domain/admin_authorization.dart';
 
 void main() {
+  test('clears partially created credential when local enrollment fails',
+      () async {
+    final vault = _FakeVault()..creationFailure = Exception('vault failure');
+    final remote = _FakeRemote();
+    final coordinator =
+        AdminBiometricAuthCoordinator(vault: vault, remote: remote);
+    await expectLater(coordinator.enroll(password: 'admin-password'),
+        throwsA(same(vault.creationFailure)));
+    expect(vault.clearCalls, 2);
+    expect(vault.storedCredentialId, isNull);
+    expect(remote.enrolledCredentialId, isNull);
+  });
   test('enrolls a device credential without persisting the admin password',
       () async {
     final vault = _FakeVault();
@@ -68,6 +80,7 @@ void main() {
 }
 
 class _FakeVault implements AdminBiometricVault {
+  Object? creationFailure;
   bool available = true;
   String? storedCredentialId;
   String? signedChallenge;
@@ -86,6 +99,7 @@ class _FakeVault implements AdminBiometricVault {
   @override
   Future<AdminDevicePublicCredential> createCredential() async {
     storedCredentialId = 'device-credential-1';
+    if (creationFailure != null) throw creationFailure!;
     return const AdminDevicePublicCredential(
       credentialId: 'device-credential-1',
       publicKey: 'public-key',

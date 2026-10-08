@@ -6,6 +6,17 @@ class LibraryFile {
   /// Positive IDs identify local-only imports and must not be sent to the server.
   int? get remoteDocumentId => id < 0 ? -id : null;
 
+  /// Explicit legacy topic-only material, distinct from imported documents.
+  bool get isTopicOnlyStudyMaterial {
+    if (id != 0 || categoria?.trim().toLowerCase() != 'gerado por ia') {
+      return false;
+    }
+    final match = RegExp(r'^t[óo]pico:\s*(.+)$', caseSensitive: false)
+        .firstMatch(conteudo.trim());
+    return match != null &&
+        match.group(1)!.trim().toLowerCase() == nome.trim().toLowerCase();
+  }
+
   final String nome;
   final String? categoria;
   final String conteudo;

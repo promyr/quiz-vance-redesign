@@ -18,7 +18,8 @@ class StreakBadge extends StatefulWidget {
   State<StreakBadge> createState() => _StreakBadgeState();
 }
 
-class _StreakBadgeState extends State<StreakBadge> with SingleTickerProviderStateMixin {
+class _StreakBadgeState extends State<StreakBadge>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _animCtrl;
   late final Animation<double> _glowAnim;
 
@@ -44,7 +45,8 @@ class _StreakBadgeState extends State<StreakBadge> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final hasStreak = widget.streak > 0;
-    final flameColor = hasStreak ? AppColors.streakOrange : AppColors.textDisabled;
+    final flameColor =
+        hasStreak ? AppColors.streakOrange : AppColors.textDisabled;
 
     if (widget.compact) {
       return AnimatedBuilder(
@@ -80,7 +82,8 @@ class _StreakBadgeState extends State<StreakBadge> with SingleTickerProviderStat
               Text(
                 '${widget.streak}',
                 style: TextStyle(
-                  color: hasStreak ? AppColors.textPrimary : AppColors.textMuted,
+                  color:
+                      hasStreak ? AppColors.textPrimary : AppColors.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -140,9 +143,10 @@ class _StreakBadgeState extends State<StreakBadge> with SingleTickerProviderStat
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${widget.streak} DIAS',
+                  '${widget.streak} ${widget.streak == 1 ? 'DIA' : 'DIAS'}',
                   style: TextStyle(
-                    color: hasStreak ? AppColors.textPrimary : AppColors.textMuted,
+                    color:
+                        hasStreak ? AppColors.textPrimary : AppColors.textMuted,
                     fontSize: 13,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.5,
@@ -150,7 +154,9 @@ class _StreakBadgeState extends State<StreakBadge> with SingleTickerProviderStat
                 ),
                 Text(
                   hasStreak
-                      ? (widget.isActiveToday ? 'Ofensiva ativa!' : 'Pratique hoje!')
+                      ? (widget.isActiveToday
+                          ? 'Ofensiva ativa!'
+                          : 'Pratique hoje!')
                       : 'Comece sua sequência',
                   style: TextStyle(
                     color: flameColor.withOpacity(0.9),

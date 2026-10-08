@@ -481,6 +481,13 @@ class StudyPlan {
     // 2. Sessões correspondentes ao dia da semana recorrente
     final recurrentSessions = items.where((i) {
       if (i.scheduledDate != null && i.scheduledDate!.isNotEmpty) return false;
+      // Uma conclusão histórica não pertence a toda ocorrência do mesmo
+      // dia da semana. Sem data de conclusão, não atribua o legado a hoje.
+      if (i.isCompleted) {
+        final completedDate =
+            i.completedAt?.toLocal().toIso8601String().substring(0, 10);
+        if (completedDate != dateStr) return false;
+      }
       final itemDia = i.dia.trim().toLowerCase();
       return itemDia == weekdayName ||
           itemDia.startsWith(weekdayName.substring(0, 3));

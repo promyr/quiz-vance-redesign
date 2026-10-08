@@ -174,7 +174,7 @@ class LibraryRepository {
       final context = scoped.restricted
           ? scoped.promptContext(3200)
           : sanitizeStudyMaterialForPrompt(file.conteudo);
-      if (scoped.restricted && context.trim().isEmpty) {
+      if (context.trim().isEmpty && !file.isTopicOnlyStudyMaterial) {
         throw StateError(
             "O trecho selecionado não contém conteúdo legível para gerar. Revise a seleção.");
       }
@@ -184,7 +184,7 @@ class LibraryRepository {
         data: {
           'topic': file.nome,
           'level': 'intermediario',
-          'context': context,
+          if (!file.isTopicOnlyStudyMaterial) 'context': context,
           if (aiProvider != null && aiProvider.isNotEmpty)
             'provider': aiProvider,
         },

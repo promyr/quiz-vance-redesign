@@ -60,7 +60,7 @@ class DeviceAdminBiometricVault implements AdminBiometricVault {
       options: StorageFileInitOptions(
         authenticationRequired: true,
         androidBiometricOnly: true,
-        authenticationValidityDurationSeconds: 15,
+        authenticationValidityDurationSeconds: -1,
       ),
       promptInfo: _prompt,
     );

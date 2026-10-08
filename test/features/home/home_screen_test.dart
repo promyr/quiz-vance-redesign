@@ -7,6 +7,18 @@ import 'package:quiz_vance_flutter/shared/widgets/adaptive_hero_card.dart';
 import 'package:quiz_vance_flutter/shared/widgets/streak_badge.dart';
 
 void main() {
+  for (final streak in [1, 2]) {
+    testWidgets('badge pluraliza ofensiva $streak', (tester) async {
+      await tester.pumpWidget(
+          MaterialApp(home: Scaffold(body: StreakBadge(streak: streak))));
+      await tester.pump();
+      expect(find.text(streak == 1 ? '1 DIA' : '2 DIAS'), findsOneWidget);
+      expect(find.text('1 DIAS'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
   testWidgets('hero remains readable with enlarged text on narrow screens',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 800));

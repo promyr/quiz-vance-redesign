@@ -214,7 +214,7 @@ class QuizGenerationCoordinator {
         );
       }
 
-      final docId = int.tryParse(selectedLibraryFile.id.toString());
+      final docId = selectedLibraryFile.remoteDocumentId;
       final slicedContent = sliceStudyMaterialForSession(
         selectedLibraryFile.conteudo,
       );

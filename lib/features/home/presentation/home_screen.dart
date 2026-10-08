@@ -290,10 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             SliverToBoxAdapter(
               child: statsAsync.whenOrNull(
                     data: (stats) {
-                      if (stats.streak > 0 &&
-                          stats.quizRestante != null &&
-                          stats.quizLimite != null &&
-                          stats.quizRestante == stats.quizLimite) {
+                      if (stats.streak > 0 && stats.todayQuizzes == 0) {
                         return _StreakDangerBanner(streak: stats.streak);
                       }
                       return const SizedBox.shrink();

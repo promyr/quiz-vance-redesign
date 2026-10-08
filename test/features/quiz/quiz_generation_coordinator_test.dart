@@ -50,6 +50,47 @@ void main() {
     );
   });
 
+  for (final id in [99, -99]) {
+    for (final infinite in [false, true]) {
+      test('quiz da biblioteca usa ID remoto correto $id infinito $infinite',
+          () async {
+        when(() => aiGenerationGuard.ensureReadyForGeneration(
+                overrideProvider: any(named: 'overrideProvider')))
+            .thenAnswer((_) async => 'gemini');
+        when(() => repository.generate(
+                topic: any(named: 'topic'),
+                difficulty: any(named: 'difficulty'),
+                quantity: any(named: 'quantity'),
+                aiProvider: any(named: 'aiProvider'),
+                conteudo: any(named: 'conteudo'),
+                documentName: any(named: 'documentName'),
+                documentId: any(named: 'documentId')))
+            .thenAnswer((invocation) async {
+          expect(invocation.namedArguments[#documentId], id < 0 ? 99 : null);
+          expect(invocation.namedArguments[#conteudo],
+              contains('revolucao francesa'));
+          expect(invocation.namedArguments[#quantity], infinite ? 5 : 10);
+          return questions;
+        });
+        final file = LibraryFile(
+            id: id,
+            nome: selectedFile.nome,
+            conteudo:
+                'A revolucao francesa mudou as relações sociais na França em 1789.',
+            criadoEm: selectedFile.criadoEm);
+        final result = await coordinator.generate(
+            useLibrary: true,
+            topic: '',
+            difficulty: 'hard',
+            quantity: 10,
+            infiniteMode: infinite,
+            preferredProvider: 'gemini',
+            selectedLibraryFile: file);
+        expect(result.questions, questions);
+      });
+    }
+  }
+
   test('valida topico manual obrigatorio', () async {
     await expectLater(
       coordinator.generate(

@@ -2,6 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_vance_flutter/core/content/study_material_sanitizer.dart';
 
 void main() {
+  test('preserves one occurrence of repeated didactic content', () {
+    final raw =
+        'CONTEUDO PROGRAMATICO\nAdicao\n${'Dois mais dois resulta em quatro.\n' * 12}';
+    final cleaned = sanitizeStudyMaterialForPrompt(raw);
+    expect('Dois mais dois resulta em quatro.'.allMatches(cleaned).length, 1);
+  });
   group('sanitizeStudyMaterialForPrompt', () {
     test('removes common metadata and table of contents lines', () {
       const raw = '''
