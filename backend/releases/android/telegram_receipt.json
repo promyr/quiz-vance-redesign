@@ -1,6 +1,10 @@
 {
-  "version": "2.1.7",
+  "version": "2.1.9",
   "status": "sent",
-  "message_id": 958,
-  "sha256": "2F2E7E3BE5355FACD901F1952376BC49BDD2BE14370EF973787F1900DB080526"
+  "message_id": 961,
+  "chat_id": -1003742591996,
+  "message_thread_id": 6,
+  "size_bytes": 40589226,
+  "sha256": "174DF683DEB82A802CC1C351FAB563CEC2153C68AF48B3F92F4EFF506838EC1A",
+  "telegram_url": "https://t.me/c/3742591996/6/961"
 }
