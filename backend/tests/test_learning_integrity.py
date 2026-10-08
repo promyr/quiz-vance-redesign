@@ -257,6 +257,7 @@ def test_real_generation_route_to_submission_receipt_contract(
                     {
                         "id": item["id"],
                         "valid": True,
+                            "concept_duplicate": False,
                         "correct_index": 0,
                         "solution": "A soma é " + item["options"][0] + ".",
                     }

@@ -208,3 +208,22 @@ def test_duplicate_reviewer_verdict_and_malformed_json_are_rejected():
         == []
     )
     assert verify_questions_with_ai(raw, lambda **kwargs: "not json") == []
+
+
+@pytest.mark.parametrize("duplicate,expected", [(True, 0), (False, 1), (None, 0)])
+def test_concept_repeat_gate_preserves_distinct_items(duplicate, expected):
+    from app.question_validation import verify_questions_with_ai
+    question = {
+        "pergunta": "O que determina a pressão de abertura da válvula?",
+        "opcoes": ["Ajuste da mola", "Cor da pintura"], "correta_index": 0,
+    }
+    def review(**prompts):
+        payload = json.loads(prompts["user_prompt"])
+        assert payload[0]["recent_questions"] == ["Como o tensionamento da mola regula a válvula?"]
+        assert "CONCEITUAL" in prompts["system_prompt"]
+        return json.dumps([{"id": 0, "valid": True, "correct_index": 0,
+            "solution": "O ajuste da mola determina o limiar de abertura.",
+            "concept_duplicate": duplicate}])
+    result = verify_questions_with_ai([question], review,
+        recent_questions=["Como o tensionamento da mola regula a válvula?"])
+    assert len(result) == expected

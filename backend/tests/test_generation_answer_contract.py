@@ -28,6 +28,7 @@ def generate(monkeypatch):
                         {
                             "id": item["id"],
                             "valid": True,
+                            "concept_duplicate": False,
                             "correct_index": 1,
                             "solution": "Dois mais dois são quatro.",
                         }

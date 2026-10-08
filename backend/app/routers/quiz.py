@@ -368,13 +368,13 @@ def _store_seen_questions(
 # ── /quiz/generate ────────────────────────────────────────────────────────────
 
 
-def _review_question_batch(user, db, provider, questions):
+def _review_question_batch(user, db, provider, questions, recent_questions=None):
     def review(**prompts):
         return _call_ai_for_user(
             user, db, requested_provider=provider, **prompts
         )[0]
 
-    return verify_questions_with_ai(questions, review)
+    return verify_questions_with_ai(questions, review, recent_questions=recent_questions)
 
 
 def _generate_verified_batch(
@@ -412,7 +412,8 @@ def _generate_verified_batch(
             if key not in seen and key not in pending:
                 pending.add(key)
                 candidates.append(question)
-        for question in _review_question_batch(user, db, provider, candidates):
+        for question in _review_question_batch(user, db, provider, candidates,
+            recent_questions=list(reversed(avoid))+[q["text"] for q in accepted]):
             if len(accepted) == quantity:
                 break
             key = _q_fingerprint(question['text'])
@@ -486,7 +487,7 @@ def generate_quiz(
 
     try:
         if questions:
-            questions = _review_question_batch(user, db, body.provider, questions)
+            questions = _review_question_batch(user, db, body.provider, questions, recent_questions=avoid_texts)
         questions = _generate_verified_batch(
             user, db, feature='quiz', topic=body.topic, difficulty=body.difficulty,
             quantity=quantity, context=body.context, provider=body.provider,

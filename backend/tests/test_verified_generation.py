@@ -55,7 +55,7 @@ def test_history_and_whitespace_duplicates_are_blocked_server_side(monkeypatch, 
     monkeypatch.setattr(quiz, '_call_ai_for_user',
         lambda *args, **kwargs: (json.dumps(batches.pop(0)), 'fake'))
     monkeypatch.setattr(quiz, '_review_question_batch',
-        lambda user, db, provider, candidates: candidates)
+        lambda user, db, provider, candidates, **kwargs: candidates)
     result = quiz._generate_verified_batch(None, None, feature=feature,
         topic='Matemática', difficulty='easy', quantity=2, context=None,
         provider=None, avoid=['Quanto é 1+1?'])
@@ -67,7 +67,7 @@ def test_cached_initial_batch_cannot_bypass_history_or_uniqueness(monkeypatch):
     monkeypatch.setattr(quiz, '_call_ai_for_user',
         lambda *args, **kwargs: (json.dumps([question(3)]), 'fake'))
     monkeypatch.setattr(quiz, '_review_question_batch',
-        lambda user, db, provider, candidates: candidates)
+        lambda user, db, provider, candidates, **kwargs: candidates)
     result = quiz._generate_verified_batch(None, None, feature='quiz',
         topic='Matemática', difficulty='easy', quantity=2, context=None,
         provider=None, avoid=['Quanto é 1+1?'], initial=initial)
@@ -94,6 +94,7 @@ def test_partial_generation_refills_and_reviews_before_delivery(
                     {
                         "id": q["id"],
                         "valid": True,
+                        "concept_duplicate": False,
                         "correct_index": 0,
                         "solution": "Soma verificada de parcelas iguais.",
                     }
@@ -155,6 +156,7 @@ def test_old_cache_is_reviewed_and_disagreement_cannot_be_delivered(
                     {
                         "id": 0,
                         "valid": True,
+                        "concept_duplicate": False,
                         "correct_index": 1,
                         "solution": "Outra alternativa.",
                     }
