@@ -55,7 +55,10 @@ são preservadas e ignoradas; o código canônico continua em `backend/`.
 
 O usuário pediu retirar a seleção e usar somente misto ou difícil. Novas sessões
 usam `mixed`, definido como combinação de médio e difícil, sem fáceis. Seletores
-foram removidos do quiz, simulado e dissertativas. Requests da Biblioteca, plano,
+de três níveis foram removidos do quiz, simulado e dissertativas. O controle
+"Modo difícil" é opcional e inicia desligado: só sua ativação pede questões
+exclusivamente difíceis. Itens de plano gerados pela IA não ativam esse modo.
+Requests da Biblioteca, plano,
 prefetch do treino infinito e dados legados passam pela mesma normalização.
 `hard` é preservado para compatibilidade; o servidor também normaliza os três
 contratos de geração e explicita a política nos prompts. Dificuldades históricas

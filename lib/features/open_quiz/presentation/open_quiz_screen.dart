@@ -1,3 +1,4 @@
+import '../../../shared/widgets/hard_mode_toggle.dart';
 import '../../../core/content/generation_difficulty.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -37,6 +38,7 @@ class _OpenQuizScreenState extends ConsumerState<OpenQuizScreen> {
 
   _OpenQuizPhase _phase = _OpenQuizPhase.config;
   bool _loading = false;
+  bool _hardMode = false;
 
   bool _useLibrary = false;
   LibraryFile? _selectedLibraryFile;
@@ -66,7 +68,7 @@ class _OpenQuizScreenState extends ConsumerState<OpenQuizScreen> {
           await ref.read(openQuizCoordinatorProvider).generateQuestion(
                 useLibrary: _useLibrary,
                 tema: _temaCtrl.text,
-                difficulty: mixedGenerationDifficulty,
+                difficulty: _hardMode ? 'hard' : mixedGenerationDifficulty,
                 selectedLibraryFile: _selectedLibraryFile,
               );
       if (mounted) {
@@ -264,6 +266,12 @@ class _OpenQuizScreenState extends ConsumerState<OpenQuizScreen> {
         ),
         const SizedBox(height: 24),
 
+        HardModeToggle(
+          enabled: _hardMode,
+          onChanged:
+              _loading ? null : (value) => setState(() => _hardMode = value),
+        ),
+        const SizedBox(height: 24),
         // Botão Gerar Pergunta
         AppButton(
           label: 'Gerar Pergunta',

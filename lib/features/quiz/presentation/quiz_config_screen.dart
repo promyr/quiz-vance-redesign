@@ -1,3 +1,4 @@
+import '../../../shared/widgets/hard_mode_toggle.dart';
 import '../../../core/content/generation_difficulty.dart';
 import '../../library/presentation/material_chapter_picker.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
   int _quantity = 10;
   String _provider = 'groq';
   bool _loading = false;
+  bool _hardMode = false;
   bool _infiniteMode = false;
 
   bool _useLibrary = false;
@@ -104,7 +106,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
       final result = await ref.read(quizGenerationCoordinatorProvider).generate(
             useLibrary: _useLibrary,
             topic: _topicCtrl.text,
-            difficulty: mixedGenerationDifficulty,
+            difficulty: _hardMode ? 'hard' : mixedGenerationDifficulty,
             quantity: _quantity,
             infiniteMode: _infiniteMode,
             preferredProvider: _provider,
@@ -449,6 +451,13 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
 
                     const SizedBox(height: 20),
 
+                    HardModeToggle(
+                      enabled: _hardMode,
+                      onChanged: _loading
+                          ? null
+                          : (value) => setState(() => _hardMode = value),
+                    ),
+                    const SizedBox(height: 20),
                     // Tamanho da Sessão (Seletor Numeral Direto)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

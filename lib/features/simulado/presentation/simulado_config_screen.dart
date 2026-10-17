@@ -1,3 +1,4 @@
+import '../../../shared/widgets/hard_mode_toggle.dart';
 import '../../../core/content/generation_difficulty.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -54,6 +55,7 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
   int _quantity = 30;
   int _durationMinutes = 60;
   bool _loading = false;
+  bool _hardMode = false;
 
   bool _useLibrary = false;
   LibraryFile? _selectedLibraryFile;
@@ -81,7 +83,7 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
           await ref.read(simuladoGenerationCoordinatorProvider).generateExam(
                 useLibrary: _useLibrary,
                 topic: _topicCtrl.text,
-                difficulty: mixedGenerationDifficulty,
+                difficulty: _hardMode ? 'hard' : mixedGenerationDifficulty,
                 quantity: _quantity,
                 durationMinutes: _durationMinutes,
                 selectedLibraryFile: _selectedLibraryFile,
@@ -251,6 +253,13 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    HardModeToggle(
+                      enabled: _hardMode,
+                      onChanged: _loading
+                          ? null
+                          : (value) => setState(() => _hardMode = value),
+                    ),
+                    const SizedBox(height: 24),
                     // ── Quantidade de questões ────────────────────
                     _SectionLabel('Quantidade: $_quantity questões'),
                     Slider(
@@ -282,7 +291,7 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
                     // ── Resumo ───────────────────────────────────
                     _SummaryCard(
                       quantity: _quantity,
-                      difficulty: 'Médio e difícil',
+                      difficulty: _hardMode ? 'Difícil' : 'Médio e difícil',
                       duration: _formatDuration(_durationMinutes),
                     ),
                     const SizedBox(height: 24),

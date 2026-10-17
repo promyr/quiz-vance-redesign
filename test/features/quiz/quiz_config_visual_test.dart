@@ -16,7 +16,8 @@ class _FakeUserStatsNotifier extends UserStatsNotifier {
 }
 
 void main() {
-  testWidgets('dissertativo gera sem seletor de dificuldade', (tester) async {
+  testWidgets('dissertativo usa padrão misto com modo difícil opcional',
+      (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(ProviderScope(
       overrides: [

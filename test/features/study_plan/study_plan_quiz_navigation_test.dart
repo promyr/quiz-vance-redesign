@@ -90,6 +90,15 @@ void main() {
     expect(params.aiProvider, isNull);
   });
 
+  test('plano gerado nao ativa modo dificil sem escolha do aluno', () {
+    final params = studyPlanQuizRequest(
+      plan,
+      selected.copyWith(difficulty: 'hard'),
+    );
+    expect(params.difficulty, 'mixed');
+    expect(params.studySessionId, 'chosen');
+  });
+
   for (final daily in [false, true]) {
     testWidgets(
         'botao real do plano envia o segundo item sem configurar (hoje $daily)',

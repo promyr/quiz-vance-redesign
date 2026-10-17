@@ -18,7 +18,8 @@ QuizGenerationParams studyPlanQuizRequest(StudyPlan plan, StudyPlanItem item) {
       : plan.sourceDocumentIds;
   return QuizGenerationParams(
       topic: topic,
-      difficulty: normalizeGenerationDifficulty(item.difficulty),
+      // A generated plan must not enable exclusively hard questions for the user.
+      difficulty: mixedGenerationDifficulty,
       aiProvider: null,
       documentId: documentIds.isEmpty ? null : documentIds.first,
       planId: plan.id,
