@@ -10,6 +10,8 @@ Backup Git de todas as refs: `output/quality-remediation-2026-10-17/pre-change.b
 
 - Job Flutter de análise/testes independente da assinatura; release Android
   restrita a tags/manualmente e dependente dos checks de Flutter, backend e imagem.
+- SDK Flutter do CI alinhado ao SDK 3.44.8 que gerou as dependências locais:
+  o pin anterior 3.41.4 tentava alterar matcher/test_api e falhava com lockfile estrito.
 - Contrato de CI com mutações negativas que detectam quatro formas de bypass.
 - Guardas de fontes para os dois entrypoints de APK: erro Git, árvore suja,
   arquivo novo e mudança de commit bloqueiam a release. Testes em repositório
