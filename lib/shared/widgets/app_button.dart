@@ -79,14 +79,23 @@ class _AppButtonState extends State<AppButton>
           decoration: BoxDecoration(
             gradient: widget.gradient ?? AppColors.primaryGradient,
             color: widget.gradient == null ? widget.color : null,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.18),
+              width: 1,
+            ),
             boxShadow: widget.onPressed == null
                 ? null
                 : [
+                    const BoxShadow(
+                      color: AppColors.primaryDark,
+                      blurRadius: 0,
+                      offset: Offset(0, 3),
+                    ),
                     BoxShadow(
                       color: AppColors.primary.withOpacity(0.35),
                       blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      offset: const Offset(0, 6),
                     ),
                   ],
           ),
@@ -112,7 +121,8 @@ class _AppButtonState extends State<AppButton>
                         style: TextStyle(
                           color: widget.textColor ?? Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
                         ),
                       ),
                     ],

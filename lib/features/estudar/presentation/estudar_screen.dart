@@ -114,14 +114,27 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF1e1a3e), Color(0xFF272250)],
+                              colors: [Color(0xFF132347), Color(0xFF162C5B)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: AppColors.primary.withOpacity(0.4),
+                              color: AppColors.primaryLight.withOpacity(0.45),
+                              width: 1.4,
                             ),
+                            boxShadow: [
+                              const BoxShadow(
+                                color: AppColors.primaryDark,
+                                blurRadius: 0,
+                                offset: Offset(0, 3),
+                              ),
+                              BoxShadow(
+                                color: AppColors.primary.withOpacity(0.25),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
                           ),
                           child: Stack(
                             children: [
@@ -131,11 +144,11 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                                 left: 0,
                                 right: 0,
                                 child: Container(
-                                  height: 2,
-                                  decoration: BoxDecoration(
-                                    gradient: AppColors.primaryGradient,
-                                    borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(18)),
+                                  height: 3,
+                                  decoration: const BoxDecoration(
+                                    gradient: AppColors.cyberGradient,
+                                    borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(20)),
                                   ),
                                 ),
                               ),
@@ -151,9 +164,9 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                                         const Spacer(),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 3),
+                                              horizontal: 9, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFFF6B35),
+                                            gradient: AppColors.fireGradient,
                                             borderRadius:
                                                 BorderRadius.circular(20),
                                           ),
@@ -161,7 +174,7 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                                               style: TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 9,
-                                                  fontWeight: FontWeight.w800,
+                                                  fontWeight: FontWeight.w900,
                                                   letterSpacing: 0.5)),
                                         ),
                                       ],
@@ -171,15 +184,15 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                                       'Quiz IA',
                                       style: TextStyle(
                                         color: AppColors.textPrimary,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w900,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     const Text(
                                       'Questões geradas sob medida para o seu nível. Adaptativo, sem repetição.',
                                       style: TextStyle(
-                                        color: AppColors.textMuted,
+                                        color: AppColors.textSecondary,
                                         fontSize: 12,
                                         height: 1.5,
                                       ),
@@ -206,7 +219,7 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                                               vertical: 13),
                                           shape: RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.circular(12),
+                                                BorderRadius.circular(14),
                                           ),
                                         ),
                                         onPressed: hasQuota
@@ -218,7 +231,7 @@ class _EstudarScreenState extends ConsumerState<EstudarScreen> {
                                               : '🔒 Limite atingido · Seja Premium',
                                           style: const TextStyle(
                                             fontSize: 14,
-                                            fontWeight: FontWeight.w700,
+                                            fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                       ),
@@ -372,11 +385,24 @@ class _TabBtn extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? AppColors.primary : AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
+            gradient: isActive ? AppColors.primaryGradient : null,
+            color: isActive ? null : AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isActive ? AppColors.primary : AppColors.border,
+              color: isActive
+                  ? AppColors.primaryLight.withOpacity(0.5)
+                  : AppColors.border,
+              width: 1.4,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: isActive
+                    ? AppColors.primaryDark
+                    : Colors.black.withOpacity(0.4),
+                blurRadius: 0,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Text(
             label,
@@ -384,7 +410,7 @@ class _TabBtn extends StatelessWidget {
             style: TextStyle(
               color: isActive ? Colors.white : AppColors.textMuted,
               fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
         ),
@@ -409,8 +435,9 @@ class _Chip extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-          color: AppColors.textMuted,
+          color: AppColors.textSecondary,
           fontSize: 11,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -439,8 +466,15 @@ class _ModeCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border, width: 1.4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.45),
+              blurRadius: 0,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -452,30 +486,32 @@ class _ModeCard extends StatelessWidget {
               title,
               style: const TextStyle(
                 color: AppColors.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
               style: const TextStyle(
-                color: AppColors.textMuted,
+                color: AppColors.textSecondary,
                 fontSize: 11,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: AppColors.surface2,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
               ),
               child: Text(
                 chipLabel,
                 style: const TextStyle(
-                  color: AppColors.textMuted,
+                  color: AppColors.primaryLight,
                   fontSize: 10,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),

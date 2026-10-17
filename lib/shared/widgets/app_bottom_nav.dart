@@ -65,17 +65,22 @@ class AppBottomNav extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.surface.withOpacity(0.90),
+                color: AppColors.surface.withOpacity(0.95),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: AppColors.border.withOpacity(0.8),
-                  width: 1,
+                  color: AppColors.border,
+                  width: 1.4,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.55),
+                    blurRadius: 0,
+                    offset: const Offset(0, 3),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.35),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
@@ -104,15 +109,20 @@ class AppBottomNav extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: isActive
-                                  ? AppColors.primary.withOpacity(0.22)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
+                              gradient: isActive
+                                  ? LinearGradient(
+                                      colors: [
+                                        AppColors.primary.withOpacity(0.28),
+                                        AppColors.accent.withOpacity(0.16),
+                                      ],
+                                    )
+                                  : null,
+                              borderRadius: BorderRadius.circular(14),
                               border: isActive
                                   ? Border.all(
                                       color: AppColors.primaryLight
-                                          .withOpacity(0.4),
-                                      width: 1,
+                                          .withOpacity(0.55),
+                                      width: 1.2,
                                     )
                                   : null,
                             ),
@@ -124,7 +134,7 @@ class AppBottomNav extends StatelessWidget {
                                   : AppColors.textMuted,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
                           Text(
                             item.label,
                             maxLines: 2,
@@ -133,7 +143,7 @@ class AppBottomNav extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight:
-                                  isActive ? FontWeight.w700 : FontWeight.w500,
+                                  isActive ? FontWeight.w800 : FontWeight.w600,
                               color: isActive
                                   ? AppColors.textPrimary
                                   : AppColors.textMuted,

@@ -47,6 +47,14 @@ class BentoTile extends StatelessWidget {
         onTap: onTap,
         padding: const EdgeInsets.all(16),
         borderRadius: 20,
+        hasGlow: true,
+        glowColor: effectiveIconColor,
+        borderGradient: LinearGradient(
+          colors: [
+            effectiveIconColor.withOpacity(0.45),
+            AppColors.border,
+          ],
+        ),
         child: SizedBox(
           height: height,
           child: Column(
@@ -61,8 +69,8 @@ class BentoTile extends StatelessWidget {
                       color: effectiveIconBg,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: effectiveIconColor.withOpacity(0.2),
-                        width: 1,
+                        color: effectiveIconColor.withOpacity(0.35),
+                        width: 1.2,
                       ),
                     ),
                     child: Icon(
@@ -84,22 +92,22 @@ class BentoTile extends StatelessWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: (badgeColor ?? AppColors.primary)
-                                  .withOpacity(0.15),
+                              color: (badgeColor ?? effectiveIconColor)
+                                  .withOpacity(0.16),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: (badgeColor ?? AppColors.primary)
-                                    .withOpacity(0.3),
+                                color: (badgeColor ?? effectiveIconColor)
+                                    .withOpacity(0.38),
                                 width: 1,
                               ),
                             ),
                             child: Text(
                               badgeText!,
                               style: TextStyle(
-                                color: badgeColor ?? AppColors.primaryLight,
+                                color: badgeColor ?? effectiveIconColor,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: 0.3,
+                                letterSpacing: 0.4,
                               ),
                             ),
                           ),
@@ -134,7 +142,7 @@ class BentoTile extends StatelessWidget {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: AppColors.textMuted,
+                      color: AppColors.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),

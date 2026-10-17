@@ -137,15 +137,24 @@ class AdaptiveHeroCard extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [
                     accentColor,
-                    accentColor.withOpacity(0.8),
+                    accentColor.withOpacity(0.85),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.22),
+                  width: 1,
+                ),
                 boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.35),
+                    blurRadius: 0,
+                    offset: const Offset(0, 3),
+                  ),
                   BoxShadow(
                     color: accentColor.withOpacity(0.35),
                     blurRadius: 16,
-                    offset: const Offset(0, 4),
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
@@ -156,14 +165,14 @@ class AdaptiveHeroCard extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.play_arrow_rounded,
-                      color: Colors.white,
+                      color: Color(0xFF0A0E17),
                       size: 20,
                     ),
                     SizedBox(width: 6),
                     Text(
                       'Iniciar Sessão de Foco',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF0A0E17),
                         fontSize: 14,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.3,

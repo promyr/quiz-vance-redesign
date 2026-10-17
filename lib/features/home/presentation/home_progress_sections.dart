@@ -137,49 +137,66 @@ class _XPBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final level = stats.level ?? 1;
     final xp = stats.xp ?? 0;
+    final totalQuizzes = stats.totalQuizzes ?? 0;
     final xpToNextLevel = stats.xpToNextLevel ?? 100;
     final progress = xpToNextLevel > 0 ? (xp % 100) / 100.0 : 1.0;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: Container(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: NeoGlassCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
-        ),
+        borderRadius: 18,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Wrap(
-              spacing: 12,
+              spacing: 10,
               runSpacing: 6,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text.rich(
-                  TextSpan(children: [
-                    const WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: Padding(
-                        padding: EdgeInsets.only(right: 4),
-                        child: Icon(Icons.bolt_rounded,
-                            color: AppColors.xpGold, size: 16),
-                      ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.xpGold.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.xpGold.withOpacity(0.4),
                     ),
-                    TextSpan(text: 'Nível $level · ${_getRankName(level)}'),
-                  ]),
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  ),
+                  child: Text.rich(
+                    TextSpan(children: [
+                      const WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Padding(
+                          padding: EdgeInsets.only(right: 4),
+                          child: Icon(Icons.bolt_rounded,
+                              color: AppColors.xpGold, size: 15),
+                        ),
+                      ),
+                      TextSpan(text: 'Nível $level · ${_getRankName(level)}'),
+                    ]),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 Text(
-                  '+$xp XP',
+                  '$xp XP',
                   style: const TextStyle(
                     color: AppColors.xpGold,
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  '• $totalQuizzes questões',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -190,55 +207,12 @@ class _XPBar extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: AppColors.border,
-                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-                minHeight: 6,
+                valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                minHeight: 7,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _WeeklyStat extends StatelessWidget {
-  const _WeeklyStat({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  final String value;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return NeoGlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-      borderRadius: 18,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }

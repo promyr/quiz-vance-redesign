@@ -147,27 +147,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // Header
+            // ── 1. Top Gamified HUD Header ──────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
+                    GestureDetector(
+                      onTap: () => context.go('/profile'),
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.25),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.35),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                       ),
@@ -178,30 +192,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Hoje, ${_dayOfWeek()}',
+                            'HOJE · ${_dayOfWeek().toUpperCase()}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
+                              color: AppColors.primaryLight,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
                             ),
                           ),
+                          const SizedBox(height: 2),
                           Text(
                             '${_greeting()}, $firstName',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: AppColors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.3,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.notifications_none,
-                          color: AppColors.textMuted),
-                      onPressed: () {},
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                    const SizedBox(width: 8),
+                    Semantics(
+                      button: true,
+                      label: 'Abrir Ranking e Conquistas',
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          context.push('/ranking');
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.xpGold.withOpacity(0.14),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: AppColors.xpGold.withOpacity(0.4),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.emoji_events_rounded,
+                            color: AppColors.xpGold,
+                            size: 20,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -213,7 +255,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: OfflineBanner(),
             ),
 
-            // Compact stats row
+            // ── 2. Streak & Quota Status Bar ────────────────────────────
             SliverToBoxAdapter(
               child: statsAsync.when(
                 data: (stats) {
@@ -224,12 +266,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       stackCards ? screenWidth - 40 : (screenWidth - 52) * 0.62;
 
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
                     child: Wrap(
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        // Card 1: Streak
                         SizedBox(
                           width: card1Width,
                           child: _StreakCard(
@@ -237,7 +278,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             compact: screenWidth < 420 || textScale > 1.15,
                           ),
                         ),
-                        // Card 2: Quota banner
                         SizedBox(
                           width: card2Width,
                           child: _QuotaBanner(
@@ -273,17 +313,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // XP Bar
+            // Unified Level, XP & Resolved Questions HUD Bar
             SliverToBoxAdapter(
               child: statsAsync.whenOrNull(
                     data: (stats) => _XPBar(stats: stats),
                   ) ??
                   const SizedBox(),
-            ),
-
-            // Card de Destaque: Continuar Plano de Estudos
-            const SliverToBoxAdapter(
-              child: ActivePlanCard(),
             ),
 
             // Streak Danger Banner (se não estudou hoje e tem streak ativo)
@@ -299,7 +334,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox.shrink(),
             ),
 
-            // Adaptive Hero Card (Missão do Turno)
+            // ── 3. Missão Principal (Plano Ativo + Hero do Turno) ───────
+            const SliverToBoxAdapter(
+              child: ActivePlanCard(),
+            ),
+
             SliverToBoxAdapter(
               child: statsAsync.whenOrNull(
                     data: (stats) => AdaptiveHeroCard(
@@ -310,86 +349,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(),
             ),
 
-            // Section label: ESTA SEMANA
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: const Text(
-                  'ESTA SEMANA',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
-
-            // Meta semanal row
-            SliverToBoxAdapter(
-              child: statsAsync.whenOrNull(
-                    data: (stats) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _WeeklyStat(
-                              value: stats.totalQuizzes.toString(),
-                              label: 'Questões',
-                              color: AppColors.primaryLight,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _WeeklyStat(
-                              value: stats.streak.toString(),
-                              label: 'Dias',
-                              color: AppColors.accent,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _WeeklyStat(
-                              value: stats.xp.toString(),
-                              label: 'XP',
-                              color: AppColors.xpGold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ) ??
-                  const SizedBox(),
-            ),
-
-            // Quiz do Dia (Desafio Coletivo Diário)
-            const SliverToBoxAdapter(
-              child: _QuizDoDiaBanner(),
-            ),
-
-            // Caderno de Erros (Revisão Inteligente de Erros)
+            // Caderno de Erros (Revisão Inteligente de Erros — aparece se houver erros)
             const SliverToBoxAdapter(
               child: _ErrorNotebookBanner(),
             ),
 
-            // Section label: MODOS DE ESTUDO & GERAÇÃO DE PERGUNTAS
+            // Quiz do Dia (Desafio Diário com Bônus de XP)
+            const SliverToBoxAdapter(
+              child: _QuizDoDiaBanner(),
+            ),
+
+            // ── 4. Arena de Prática (Bento Grid 2x2 Equilibrado) ────────
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
+                padding: EdgeInsets.fromLTRB(20, 22, 20, 12),
                 child: Text(
-                  'MODOS DE ESTUDO & GERAÇÃO DE PERGUNTAS',
+                  'ARENA DE PRÁTICA',
                   style: TextStyle(
                     color: AppColors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
                   ),
                 ),
               ),
             ),
 
-            // Bento Grid com os modos rápidos de estudo
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               sliver: SliverGrid.count(
@@ -401,7 +386,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     gridHeight,
                 children: [
                   BentoTile(
-                    icon: Icons.auto_awesome_rounded,
+                    icon: Icons.bolt_rounded,
                     title: 'Quiz IA Turbo',
                     subtitle: 'Gerado sob medida',
                     badgeText: 'POPULAR',
@@ -412,60 +397,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     icon: Icons.edit_note_rounded,
                     title: 'Dissertativo',
                     subtitle: 'Correção por IA',
-                    badgeText: 'NOVO',
+                    badgeText: 'ABERTO',
                     iconColor: AppColors.accent,
                     onTap: () => context.push('/open-quiz'),
                   ),
                   BentoTile(
-                    icon: Icons.assignment_rounded,
+                    icon: Icons.timer_rounded,
                     title: 'Simulado Oficial',
                     subtitle: 'Cronômetro real',
                     badgeText: 'RANKEADO',
                     iconColor: AppColors.xpGold,
                     onTap: () => context.go('/simulado'),
                   ),
+                  BentoTile(
+                    icon: Icons.event_note_rounded,
+                    title: 'Plano do Dia',
+                    subtitle: 'Trilha do edital',
+                    badgeText: 'META',
+                    iconColor: AppColors.success,
+                    onTap: () => context.push('/today-plan'),
+                  ),
                 ],
               ),
-            ),
-
-            // Section label: SUA TRILHA DE HOJE
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 28, 20, 16),
-                child: Text(
-                  'SUA TRILHA DE HOJE',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
-
-            // Smart Queue items
-            SliverToBoxAdapter(
-              child: statsAsync.whenOrNull(
-                    data: (stats) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          _SmartQueueItem(
-                            number: 1,
-                            title: 'Quiz IA disponível',
-                            subtitle:
-                                'Personalizado para você · ${stats.quizRestante ?? 0} restantes hoje',
-                            badgeLabel: 'Quiz',
-                            badgeColor: AppColors.primary,
-                            onTap: () => context.go('/quiz'),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-                    ),
-                  ) ??
-                  const SizedBox(),
             ),
 
             const SliverPadding(padding: EdgeInsets.only(bottom: 32)),

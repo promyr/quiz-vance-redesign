@@ -79,6 +79,7 @@ class _NeoGlassCardState extends State<NeoGlassCard> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final effectiveGlow = widget.glowColor ?? AppColors.primary;
     final cardContent = Container(
       margin: widget.margin,
       decoration: BoxDecoration(
@@ -86,17 +87,27 @@ class _NeoGlassCardState extends State<NeoGlassCard> with SingleTickerProviderSt
         boxShadow: widget.hasGlow
             ? [
                 BoxShadow(
-                  color: (widget.glowColor ?? AppColors.primary).withOpacity(0.2),
-                  blurRadius: 24,
+                  color: effectiveGlow.withOpacity(0.35),
+                  blurRadius: 0,
+                  offset: const Offset(0, 3),
+                ),
+                BoxShadow(
+                  color: effectiveGlow.withOpacity(0.22),
+                  blurRadius: 22,
                   spreadRadius: -2,
-                  offset: const Offset(0, 6),
+                  offset: const Offset(0, 8),
                 ),
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withOpacity(0.45),
+                  blurRadius: 0,
+                  offset: const Offset(0, 3),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.28),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
                 ),
               ],
       ),
@@ -110,19 +121,20 @@ class _NeoGlassCardState extends State<NeoGlassCard> with SingleTickerProviderSt
           child: Container(
             padding: widget.padding,
             decoration: BoxDecoration(
-              color: widget.backgroundColor ?? AppColors.surface.withOpacity(0.75),
+              color:
+                  widget.backgroundColor ?? AppColors.surface.withOpacity(0.92),
               borderRadius: BorderRadius.circular(widget.borderRadius),
               border: Border.all(
                 color: widget.borderGradient == null
-                    ? AppColors.border.withOpacity(0.6)
-                    : Colors.white.withOpacity(0.15),
-                width: 1.2,
+                    ? AppColors.border.withOpacity(0.85)
+                    : effectiveGlow.withOpacity(0.45),
+                width: 1.4,
               ),
               gradient: widget.borderGradient != null
                   ? LinearGradient(
                       colors: [
-                        Colors.white.withOpacity(0.08),
-                        Colors.white.withOpacity(0.02),
+                        effectiveGlow.withOpacity(0.14),
+                        AppColors.surface.withOpacity(0.92),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,

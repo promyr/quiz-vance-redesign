@@ -422,73 +422,111 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header da pergunta: Categoria e Botão de Áudio (TTS)
-                      Row(
-                        children: [
-                          if (_current.topic != null)
-                            Flexible(
-                                child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.15),
-                                border: Border.all(
-                                    color: AppColors.primary.withOpacity(0.3)),
-                                borderRadius: BorderRadius.circular(100),
-                              ),
-                              child: Text(
-                                  '${_getTopicIcon(_current.topic!)} ${_current.topic!}',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700)),
-                            )),
-                          const Spacer(),
-                          Semantics(
-                            button: true,
-                            label: 'Ouvir enunciado da questão por áudio',
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.volume_up_rounded,
-                                color: AppColors.primaryLight,
-                                size: 20,
-                              ),
-                              tooltip: 'Ouvir enunciado da questão',
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                ScaffoldMessenger.of(context).clearSnackBars();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'Leitura por voz ativada para este enunciado.'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
+                      // Enunciado em Card de Foco Tátil
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.border,
+                            width: 1.4,
                           ),
-                        ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.45),
+                              blurRadius: 0,
+                              offset: const Offset(0, 3),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header da pergunta: Categoria e Botão de Áudio (TTS)
+                            Row(
+                              children: [
+                                if (_current.topic != null)
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppColors.primary.withOpacity(0.16),
+                                        border: Border.all(
+                                            color: AppColors.primaryLight
+                                                .withOpacity(0.35)),
+                                        borderRadius:
+                                            BorderRadius.circular(100),
+                                      ),
+                                      child: Text(
+                                        '${_getTopicIcon(_current.topic!)} ${_current.topic!}',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: AppColors.primaryLight,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                const Spacer(),
+                                Semantics(
+                                  button: true,
+                                  label: 'Ouvir enunciado da questão por áudio',
+                                  child: IconButton(
+                                    icon: const Icon(
+                                      Icons.volume_up_rounded,
+                                      color: AppColors.primaryLight,
+                                      size: 20,
+                                    ),
+                                    tooltip: 'Ouvir enunciado da questão',
+                                    onPressed: () {
+                                      HapticFeedback.lightImpact();
+                                      ScaffoldMessenger.of(context)
+                                          .clearSnackBars();
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Leitura por voz ativada para este enunciado.'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            // Question text
+                            Text(
+                              _current.text,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                height: 1.55,
+                                letterSpacing: -0.1,
+                              ),
+                            ).animate().fadeIn(duration: 300.ms),
+                          ],
+                        ),
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 18),
 
-                      // Question text
-                      Text(
-                        _current.text,
-                        style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            height: 1.5),
-                      ).animate().fadeIn(duration: 300.ms),
-
-                      const SizedBox(height: 20),
-
-                      // Options
+                      // Options — Tactile 3D Duolingo/Brilliant Cards
                       ..._current.options.asMap().entries.map((e) {
                         final option = e.value;
                         final isSelected = _selectedOptionId == option.id;
@@ -499,28 +537,35 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                         final isWrong = _answered &&
                             isSelected &&
                             option.id != _current.correctOptionId;
+                        final isDimmed = _answered && !isCorrect && !isWrong;
 
                         Color borderColor = AppColors.border;
+                        Color lipColor = Colors.black.withOpacity(0.5);
                         Color bgColor = AppColors.surface;
                         Color letterBg = AppColors.surface2;
-                        Color letterColor = AppColors.textMuted;
-                        Color textColor = AppColors.textPrimary;
+                        Color letterColor = AppColors.textSecondary;
+                        Color textColor = isDimmed
+                            ? AppColors.textMuted
+                            : AppColors.textPrimary;
 
                         if (isCorrect) {
                           borderColor = AppColors.success;
-                          bgColor = AppColors.success.withOpacity(0.12);
+                          lipColor = const Color(0xFF15803D);
+                          bgColor = AppColors.success.withOpacity(0.14);
                           letterBg = AppColors.success;
-                          letterColor = Colors.white;
-                          textColor = AppColors.success;
+                          letterColor = const Color(0xFF0A0E17);
+                          textColor = AppColors.textPrimary;
                         } else if (isWrong) {
                           borderColor = AppColors.error;
-                          bgColor = AppColors.error.withOpacity(0.12);
+                          lipColor = const Color(0xFFBE123C);
+                          bgColor = AppColors.error.withOpacity(0.14);
                           letterBg = AppColors.error;
                           letterColor = Colors.white;
-                          textColor = AppColors.error;
+                          textColor = AppColors.textPrimary;
                         } else if (isSelected) {
-                          borderColor = AppColors.primary;
-                          bgColor = AppColors.primary.withOpacity(0.08);
+                          borderColor = AppColors.primaryLight;
+                          lipColor = AppColors.primaryDark;
+                          bgColor = AppColors.primary.withOpacity(0.14);
                           letterBg = AppColors.primary;
                           letterColor = Colors.white;
                         }
@@ -529,48 +574,75 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                           onTap: () => _selectOption(option.id),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.only(bottom: 10),
+                            margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 13),
+                                horizontal: 16, vertical: 14),
                             decoration: BoxDecoration(
                               color: bgColor,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: borderColor, width: 2),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: borderColor,
+                                width: isCorrect || isWrong || isSelected
+                                    ? 2.0
+                                    : 1.4,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: lipColor,
+                                  blurRadius: 0,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
                             child: Row(
                               children: [
                                 AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
-                                  width: 28,
-                                  height: 28,
+                                  width: 32,
+                                  height: 32,
                                   decoration: BoxDecoration(
-                                      color: letterBg,
-                                      borderRadius: BorderRadius.circular(8)),
+                                    color: letterBg,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: borderColor.withOpacity(0.5),
+                                      width: 1,
+                                    ),
+                                  ),
                                   child: Center(
                                     child: Text(
                                       String.fromCharCode(65 + e.key),
                                       style: TextStyle(
-                                          color: letterColor,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w800),
+                                        color: letterColor,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w900,
+                                      ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 14),
                                 Expanded(
-                                  child: Text(option.text,
-                                      style: TextStyle(
-                                          color: textColor,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          height: 1.4)),
+                                  child: Text(
+                                    option.text,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 14,
+                                      fontWeight: isCorrect || isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      height: 1.45,
+                                    ),
+                                  ),
                                 ),
-                                if (isCorrect)
+                                if (isCorrect) ...[
+                                  const SizedBox(width: 8),
                                   const Icon(Icons.check_circle_rounded,
-                                      color: AppColors.success, size: 18),
-                                if (isWrong)
+                                      color: AppColors.success, size: 22),
+                                ],
+                                if (isWrong) ...[
+                                  const SizedBox(width: 8),
                                   const Icon(Icons.cancel_rounded,
-                                      color: AppColors.error, size: 18),
+                                      color: AppColors.error, size: 22),
+                                ],
                               ],
                             ),
                           )
@@ -583,19 +655,26 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                       // Explicação do Assunto & Gabarito Comentado
                       if (_answered)
                         Container(
-                          margin: const EdgeInsets.only(top: 14),
-                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(top: 12),
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
                             color: answeredCorrectly
-                                ? AppColors.success.withOpacity(0.08)
-                                : AppColors.primary.withOpacity(0.06),
-                            borderRadius: BorderRadius.circular(16),
+                                ? AppColors.success.withOpacity(0.10)
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(18),
                             border: Border.all(
                               color: answeredCorrectly
-                                  ? AppColors.success.withOpacity(0.35)
-                                  : AppColors.primary.withOpacity(0.30),
-                              width: 1.5,
+                                  ? AppColors.success.withOpacity(0.45)
+                                  : AppColors.primaryLight.withOpacity(0.40),
+                              width: 1.6,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.4),
+                                blurRadius: 0,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,11 +682,11 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.all(6),
+                                    padding: const EdgeInsets.all(7),
                                     decoration: BoxDecoration(
                                       color: answeredCorrectly
-                                          ? AppColors.success.withOpacity(0.16)
-                                          : AppColors.primary.withOpacity(0.16),
+                                          ? AppColors.success.withOpacity(0.20)
+                                          : AppColors.primary.withOpacity(0.20),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
@@ -616,7 +695,7 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                                           : Icons.lightbulb_rounded,
                                       color: answeredCorrectly
                                           ? AppColors.success
-                                          : AppColors.primary,
+                                          : AppColors.primaryLight,
                                       size: 18,
                                     ),
                                   ),
@@ -629,9 +708,9 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                                       style: TextStyle(
                                         color: answeredCorrectly
                                             ? AppColors.success
-                                            : AppColors.primary,
+                                            : AppColors.primaryLight,
                                         fontSize: 14,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w900,
                                       ),
                                     ),
                                   ),
@@ -646,14 +725,14 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                                     vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surface,
-                                    borderRadius: BorderRadius.circular(6),
+                                    color: AppColors.surface2,
+                                    borderRadius: BorderRadius.circular(8),
                                     border: Border.all(color: AppColors.border),
                                   ),
                                   child: Text(
                                     _current.topic!,
                                     style: const TextStyle(
-                                      color: AppColors.textMuted,
+                                      color: AppColors.textSecondary,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -662,27 +741,39 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
                               ],
                               const SizedBox(height: 12),
                               if (correctOption != null) ...[
-                                Text(
-                                  correctOptionLetter == null
-                                      ? 'Resposta correta: ${correctOption.text}'
-                                      : 'Resposta correta: Letra $correctOptionLetter • ${correctOption.text}',
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.4,
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success.withOpacity(0.10),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color:
+                                          AppColors.success.withOpacity(0.30),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    correctOptionLetter == null
+                                        ? 'Resposta correta: ${correctOption.text}'
+                                        : 'Resposta correta: Letra $correctOptionLetter • ${correctOption.text}',
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1.4,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 12),
                               ],
                               Text(
                                 _current.getEffectiveExplanation(
                                     widget.generationParams?.topic),
                                 style: const TextStyle(
                                   color: AppColors.textSecondary,
-                                  fontSize: 13,
-                                  height: 1.5,
-                                  fontWeight: FontWeight.w400,
+                                  fontSize: 13.5,
+                                  height: 1.55,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
@@ -740,77 +831,6 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // ── Diálogo de confirmação ao sair ──────────────────────────────
-
-  void _showExitConfirmation() {
-    if (_answers.isEmpty && !_answered) {
-      _saveSessionLocally();
-      if (context.canPop()) {
-        context.pop();
-      } else {
-        context.go('/');
-      }
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Sair do quiz?',
-          style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          _isInfinite
-              ? 'Você respondeu ${_answers.length} questões. Deseja ver seu resultado ou continuar praticando?'
-              : 'As questões respondidas serão salvas. Deseja encerrar este quiz?',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _saveSessionLocally();
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/');
-              }
-            },
-            child: const Text('Pausar e sair'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Continuar',
-                style: TextStyle(color: AppColors.textMuted)),
-          ),
-          if (_isInfinite && (_answers.isNotEmpty || _answered))
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _finishQuiz();
-              },
-              child: const Text('Ver resultado',
-                  style: TextStyle(color: AppColors.primary)),
-            ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _finishQuiz(completed: false);
-            },
-            child:
-                const Text('Sair', style: TextStyle(color: AppColors.accent)),
-          ),
-        ],
       ),
     );
   }

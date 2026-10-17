@@ -453,9 +453,9 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
           borderRadius: BorderRadius.circular(100),
           child: LinearProgressIndicator(
             value: progress,
-            backgroundColor: AppColors.border,
-            valueColor: const AlwaysStoppedAnimation(AppColors.success),
-            minHeight: 8,
+            backgroundColor: AppColors.surface2,
+            valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+            minHeight: 10,
           ),
         ),
         const SizedBox(height: 4),
@@ -463,7 +463,11 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
           alignment: Alignment.centerRight,
           child: Text(
             '$answeredCount de $total',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -476,14 +480,14 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.12),
+            color: AppColors.primary.withOpacity(0.16),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+            border: Border.all(color: AppColors.primaryLight.withOpacity(0.35)),
           ),
           child: const Text(
             '∞',
             style: TextStyle(
-                color: AppColors.primary,
+                color: AppColors.primaryLight,
                 fontSize: 14,
                 fontWeight: FontWeight.w900),
           ),
@@ -494,16 +498,16 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 13,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const Spacer(),
         Text(
           _formatElapsed(),
           style: const TextStyle(
-            color: AppColors.textMuted,
+            color: AppColors.textSecondary,
             fontSize: 11,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -516,22 +520,33 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
       onTap: _answered ? _next : null,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 15),
         decoration: BoxDecoration(
           gradient: AppColors.primaryGradient,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withOpacity(0.20)),
           boxShadow: [
+            const BoxShadow(
+              color: AppColors.primaryDark,
+              blurRadius: 0,
+              offset: Offset(0, 3),
+            ),
             BoxShadow(
-                color: AppColors.primary.withOpacity(0.35),
-                blurRadius: 24,
-                offset: const Offset(0, 8))
+              color: AppColors.primary.withOpacity(0.35),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
           ],
         ),
         child: Center(
           child: Text(
             isLast ? 'Ver resultado' : 'Próxima questão',
             style: const TextStyle(
-                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800),
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
           ),
         ),
       ),
@@ -546,11 +561,18 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
           child: GestureDetector(
             onTap: _answered ? _finishQuiz : null,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(
                 color: AppColors.surface2,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border, width: 1.4),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.45),
+                    blurRadius: 0,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: const Center(
                 child: Text(
@@ -558,7 +580,7 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
                   style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 14,
-                      fontWeight: FontWeight.w700),
+                      fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -570,14 +592,20 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
           child: GestureDetector(
             onTap: _answered ? (hasNext ? _next : _finishQuiz) : null,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(
                 gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withOpacity(0.20)),
                 boxShadow: [
+                  const BoxShadow(
+                    color: AppColors.primaryDark,
+                    blurRadius: 0,
+                    offset: Offset(0, 3),
+                  ),
                   BoxShadow(
                       color: AppColors.primary.withOpacity(0.35),
-                      blurRadius: 24,
+                      blurRadius: 20,
                       offset: const Offset(0, 8))
                 ],
               ),
@@ -589,8 +617,8 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
                       hasNext ? 'Próxima questão' : 'Ver resultado',
                       style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900),
                     ),
                     if (_isFetching && !hasNext) ...[
                       const SizedBox(width: 8),
@@ -610,6 +638,75 @@ extension _QuizSessionScreenUiHelpers on _QuizSessionScreenState {
           ),
         ),
       ],
+    );
+  }
+
+  void _showExitConfirmation() {
+    if (_answers.isEmpty && !_answered) {
+      _saveSessionLocally();
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/');
+      }
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Sair do quiz?',
+          style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          _isInfinite
+              ? 'Você respondeu ${_answers.length} questões. Deseja ver seu resultado ou continuar praticando?'
+              : 'As questões respondidas serão salvas. Deseja encerrar este quiz?',
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _saveSessionLocally();
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
+            child: const Text('Pausar e sair'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Continuar',
+                style: TextStyle(color: AppColors.textMuted)),
+          ),
+          if (_isInfinite && (_answers.isNotEmpty || _answered))
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _finishQuiz();
+              },
+              child: const Text('Ver resultado',
+                  style: TextStyle(color: AppColors.primary)),
+            ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _finishQuiz(completed: false);
+            },
+            child:
+                const Text('Sair', style: TextStyle(color: AppColors.accent)),
+          ),
+        ],
+      ),
     );
   }
 }

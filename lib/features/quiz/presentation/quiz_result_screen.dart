@@ -598,9 +598,16 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.25)),
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.35), width: 1.4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 0,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -609,15 +616,16 @@ class _StatCard extends StatelessWidget {
               style: TextStyle(
                 color: color,
                 fontSize: 22,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: const TextStyle(
-                color: AppColors.textMuted,
+                color: AppColors.textSecondary,
                 fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -646,6 +654,19 @@ class _PrimaryAction extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: AppColors.primaryGradient,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withOpacity(0.20)),
+          boxShadow: [
+            const BoxShadow(
+              color: AppColors.primaryDark,
+              blurRadius: 0,
+              offset: Offset(0, 3),
+            ),
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Center(
           child: Text(
@@ -653,7 +674,7 @@ class _PrimaryAction extends StatelessWidget {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),
@@ -681,7 +702,14 @@ class _SecondaryAction extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.border, width: 1.4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.45),
+              blurRadius: 0,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Center(
           child: Text(
@@ -689,7 +717,7 @@ class _SecondaryAction extends StatelessWidget {
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
