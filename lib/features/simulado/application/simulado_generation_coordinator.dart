@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import '../../library/data/material_scope_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -61,7 +62,7 @@ class SimuladoGenerationCoordinator {
     final provider = await _aiGenerationGuard.ensureReadyForGeneration();
     final questions = await _simuladoRepository.generateExam(
       quantity: quantity,
-      difficulty: difficulty,
+      difficulty: normalizeGenerationDifficulty(difficulty),
       topic: selection.topic,
       conteudo: selection.libraryContent,
       aiProvider: provider,

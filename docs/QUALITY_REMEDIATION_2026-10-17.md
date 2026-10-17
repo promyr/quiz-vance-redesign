@@ -35,3 +35,34 @@ As verificações locais de versão, CI, fonte limpa e codificação passaram.
 O PC estava com aproximadamente 1,2 GB livres; por solicitação do usuário,
 testes pesados não devem executar localmente. Flutter/backend e scanners serão
 validados no GitHub Actions. Não foi gerado nem anunciado um novo APK nesta rodada.
+
+## Retomada após mudanças do usuário
+
+A base passou a `4b32a14`, versão 2.1.11+83, com novo visual e PR #2 integrado.
+As mudanças visuais são preservadas. Os endpoints públicos confirmaram banco
+disponível, notas sem caractere de substituição e recibo Telegram da mensagem 1023.
+O recibo confirma uma entrega; isoladamente não comprova a validade atual de uma credencial.
+
+O CI dessa base ainda falhava em 13 casos Flutter: três setups dependiam de
+fontes em caminhos Windows e dez verificações de layout usavam Ahem no Linux
+porque o carregamento de fontes era silenciosamente ignorado. A correção usa
+fontes do mesmo SDK Flutter em qualquer plataforma, mantendo escalas e asserções.
+Os registros Git órfãos `.backend-source` e `.main-clean` foram retirados do índice:
+não havia `.gitmodules` nem referências a eles nos scripts/docs. As pastas locais
+são preservadas e ignoradas; o código canônico continua em `backend/`.
+
+## Política de dificuldade solicitada na retomada
+
+O usuário pediu retirar a seleção e usar somente misto ou difícil. Novas sessões
+usam `mixed`, definido como combinação de médio e difícil, sem fáceis. Seletores
+de três níveis foram removidos do quiz, simulado e dissertativas. O controle
+"Modo difícil" é opcional e inicia desligado: só sua ativação pede questões
+exclusivamente difíceis. Itens de plano gerados pela IA não ativam esse modo.
+Requests da Biblioteca, plano,
+prefetch do treino infinito e dados legados passam pela mesma normalização.
+`hard` é preservado para compatibilidade; o servidor também normaliza os três
+contratos de geração e explicita a política nos prompts. Dificuldades históricas
+das questões e estatísticas não são reclassificadas.
+
+Remover os controles da interface requer o próximo APK. Esta branch não muda a
+versão 2.1.11 já publicada nem envia uma nova mensagem de release ao Telegram.

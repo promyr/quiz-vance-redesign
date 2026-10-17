@@ -1,3 +1,5 @@
+import '../../../shared/widgets/hard_mode_toggle.dart';
+import '../../../core/content/generation_difficulty.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,7 +20,7 @@ import '../application/simulado_generation_coordinator.dart';
 ///
 /// Permite ao usuário definir:
 /// - Fonte do conteúdo: tópico manual ou material da Biblioteca
-/// - Dificuldade: Fácil / Médio / Difícil / Misto
+/// A geração combina questões médias e difíceis automaticamente.
 /// - Quantidade de questões: 10–60
 /// - Duração: 30 min a 3 horas
 ///
@@ -50,21 +52,13 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
 
   final _topicCtrl = TextEditingController();
 
-  String _difficulty = 'mixed';
   int _quantity = 30;
   int _durationMinutes = 60;
   bool _loading = false;
+  bool _hardMode = false;
 
   bool _useLibrary = false;
   LibraryFile? _selectedLibraryFile;
-
-  static const _difficulties = ['easy', 'medium', 'hard', 'mixed'];
-  static const _difficultyLabels = {
-    'easy': 'Fácil',
-    'medium': 'Médio',
-    'hard': 'Difícil',
-    'mixed': 'Misto',
-  };
 
   @override
   void dispose() {
@@ -89,7 +83,7 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
           await ref.read(simuladoGenerationCoordinatorProvider).generateExam(
                 useLibrary: _useLibrary,
                 topic: _topicCtrl.text,
-                difficulty: _difficulty,
+                difficulty: _hardMode ? 'hard' : mixedGenerationDifficulty,
                 quantity: _quantity,
                 durationMinutes: _durationMinutes,
                 selectedLibraryFile: _selectedLibraryFile,
@@ -259,52 +253,13 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Dificuldade ───────────────────────────────
-                    _SectionLabel('Dificuldade'),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: _difficulties.map((d) {
-                        final isSelected = _difficulty == d;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _difficulty = d),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              margin: const EdgeInsets.only(right: 6),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.primary.withOpacity(0.15)
-                                    : AppColors.surface2,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : AppColors.border,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  _difficultyLabels[d] ?? d,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : AppColors.textMuted,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w400,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                    HardModeToggle(
+                      enabled: _hardMode,
+                      onChanged: _loading
+                          ? null
+                          : (value) => setState(() => _hardMode = value),
                     ),
                     const SizedBox(height: 24),
-
                     // ── Quantidade de questões ────────────────────
                     _SectionLabel('Quantidade: $_quantity questões'),
                     Slider(
@@ -336,7 +291,7 @@ class _SimuladoConfigScreenState extends ConsumerState<SimuladoConfigScreen> {
                     // ── Resumo ───────────────────────────────────
                     _SummaryCard(
                       quantity: _quantity,
-                      difficulty: _difficultyLabels[_difficulty] ?? _difficulty,
+                      difficulty: _hardMode ? 'Difícil' : 'Médio e difícil',
                       duration: _formatDuration(_durationMinutes),
                     ),
                     const SizedBox(height: 24),

@@ -26,6 +26,36 @@ void main() {
     when(() => apiClient.dio).thenReturn(dio);
   });
 
+  for (final setting in const {
+    'easy': 'mixed',
+    'medium': 'mixed',
+    'intermediario': 'mixed',
+    'mixed': 'mixed',
+    'hard': 'hard',
+    'dificil': 'hard',
+  }.entries) {
+    test('generation requests normalize legacy difficulty ${setting.key}',
+        () async {
+      when(() => dio.post(
+            ApiEndpoints.quizGenerate,
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          )).thenAnswer((_) async => Response(
+            requestOptions: RequestOptions(path: ApiEndpoints.quizGenerate),
+            data: <String, dynamic>{'questions': <dynamic>[]},
+          ));
+
+      await repository.generate(
+          topic: 'Válvulas', difficulty: setting.key, quantity: 5);
+
+      final payload = verify(() => dio.post(
+            ApiEndpoints.quizGenerate,
+            data: captureAny(named: 'data'),
+            options: any(named: 'options'),
+          )).captured.single as Map<String, dynamic>;
+      expect(payload['difficulty'], setting.value);
+    });
+  }
   test('generate preserves backend validation message from detail list',
       () async {
     when(

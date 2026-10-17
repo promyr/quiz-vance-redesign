@@ -1,3 +1,5 @@
+import '../../../shared/widgets/hard_mode_toggle.dart';
+import '../../../core/content/generation_difficulty.dart';
 import '../../library/presentation/material_chapter_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,36 +38,15 @@ class QuizConfigScreen extends ConsumerStatefulWidget {
 
 class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
   final _topicCtrl = TextEditingController();
-  String _difficulty = 'medium';
   int _quantity = 10;
   String _provider = 'groq';
   bool _loading = false;
+  bool _hardMode = false;
   bool _infiniteMode = false;
 
   bool _useLibrary = false;
   LibraryFile? _selectedLibraryFile;
   bool _clearingMemory = false;
-
-  final _difficulties = [
-    (
-      key: 'easy',
-      label: 'Fácil',
-      icon: Icons.eco_rounded,
-      color: AppColors.success
-    ),
-    (
-      key: 'medium',
-      label: 'Médio',
-      icon: Icons.bolt_rounded,
-      color: AppColors.primary
-    ),
-    (
-      key: 'hard',
-      label: 'Difícil',
-      icon: Icons.local_fire_department_rounded,
-      color: AppColors.error
-    ),
-  ];
 
   @override
   void initState() {
@@ -125,7 +106,7 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
       final result = await ref.read(quizGenerationCoordinatorProvider).generate(
             useLibrary: _useLibrary,
             topic: _topicCtrl.text,
-            difficulty: _difficulty,
+            difficulty: _hardMode ? 'hard' : mixedGenerationDifficulty,
             quantity: _quantity,
             infiniteMode: _infiniteMode,
             preferredProvider: _provider,
@@ -470,66 +451,13 @@ class _QuizConfigScreenState extends ConsumerState<QuizConfigScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Dificuldade (Pills modernas)
-                    const _SectionLabel('NÍVEL DE DIFICULDADE'),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: _difficulties.map((d) {
-                        final isSelected = _difficulty == d.key;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _difficulty = d.key);
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? d.color.withOpacity(0.15)
-                                    : AppColors.surface2,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color:
-                                      isSelected ? d.color : AppColors.border,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    d.icon,
-                                    size: 16,
-                                    color: isSelected
-                                        ? d.color
-                                        : AppColors.textMuted,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    d.label,
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? d.color
-                                          : AppColors.textMuted,
-                                      fontSize: 13,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w800
-                                          : FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                    HardModeToggle(
+                      enabled: _hardMode,
+                      onChanged: _loading
+                          ? null
+                          : (value) => setState(() => _hardMode = value),
                     ),
-
                     const SizedBox(height: 20),
-
                     // Tamanho da Sessão (Seletor Numeral Direto)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

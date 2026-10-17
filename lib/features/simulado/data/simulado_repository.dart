@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,7 +18,7 @@ class SimuladoRepository {
 
   Future<List<Question>> generateExam({
     int quantity = 30,
-    String difficulty = 'mixed',
+    String difficulty = mixedGenerationDifficulty,
     String? topic,
     String? conteudo,
     String? aiProvider,
@@ -28,7 +29,7 @@ class SimuladoRepository {
         options: Options(receiveTimeout: const Duration(minutes: 5)),
         data: {
           'quantity': quantity,
-          'difficulty': difficulty,
+          'difficulty': normalizeGenerationDifficulty(difficulty),
           if (topic != null && topic.isNotEmpty) 'topic': topic,
           if (conteudo != null) 'context': conteudo,
           if (aiProvider != null && aiProvider.isNotEmpty)

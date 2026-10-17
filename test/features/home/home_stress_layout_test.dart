@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +13,8 @@ import 'package:quiz_vance_flutter/features/profile/data/billing_repository.dart
 import 'package:quiz_vance_flutter/features/quiz/providers/quiz_do_dia_provider.dart';
 import 'package:quiz_vance_flutter/features/error_notebook/providers/error_notebook_provider.dart';
 import 'package:quiz_vance_flutter/features/error_notebook/domain/error_question.dart';
+
+import '../../support/test_fonts.dart';
 
 class _Stats extends UserStatsNotifier {
   _Stats(this.premium);
@@ -49,19 +50,7 @@ class _Online extends NetworkStatusNotifier {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async {
-    final font = FontLoader('VisualTestFont');
-    font.addFont(File(r'C:\Windows\Fonts\segoeui.ttf')
-        .readAsBytes()
-        .then((bytes) => ByteData.sublistView(bytes)));
-    await font.load();
-    final icons = FontLoader('MaterialIcons');
-    icons.addFont(File(
-            r'C:\flutter\bin\cache\artifacts\material_fonts\MaterialIcons-Regular.otf')
-        .readAsBytes()
-        .then((bytes) => ByteData.sublistView(bytes)));
-    await icons.load();
-  });
+  setUpAll(() => loadTestFonts(fontFamily: 'VisualTestFont'));
   for (final width in [280.0, 320.0, 400.0, 800.0]) {
     for (final premium in [false, true]) {
       for (final scale in [1.0, 2.0, 3.0]) {

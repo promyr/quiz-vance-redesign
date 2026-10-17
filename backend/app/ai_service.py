@@ -14,6 +14,8 @@ from typing import Any
 import httpx
 
 from .ai_response_parsing import extract_json_list, extract_json_object
+from .generation_difficulty import DIFFICULTY_GUIDES as _NIVEL
+from .generation_difficulty import normalize_generation_difficulty
 from .material_sanitization import (
     _material_context_block,
     library_scope_rule,
@@ -194,41 +196,6 @@ def call_ai(
 
 # Prompt builders
 
-_NIVEL: dict[str, tuple[str, str]] = {
-    "iniciante": (
-        "INICIANTE",
-        "Perguntas diretas sobre conceitos basicos. Alternativas erradas contem erros claros.",
-    ),
-    "facil": (
-        "FACIL",
-        "Perguntas sobre fundamentos. Alternativas erradas trocam um detalhe especifico.",
-    ),
-    "intermediario": (
-        "INTERMEDIARIO",
-        "Exige entender relacoes entre conceitos ou aplicar regras a situacoes.",
-    ),
-    "dificil": (
-        "DIFICIL",
-        "Situacoes praticas que exigem analise. Alternativas erradas sao parcialmente corretas.",
-    ),
-    "mestre": (
-        "MESTRE",
-        "Casos complexos com multiplas interpretacoes plausiveis. Dominio profundo.",
-    ),
-    "medio": (
-        "INTERMEDIARIO",
-        "Exige entender relacoes entre conceitos ou aplicar regras a situacoes.",
-    ),
-    "avancado": (
-        "DIFICIL",
-        "Situacoes praticas que exigem analise. Alternativas erradas sao parcialmente corretas.",
-    ),
-    "easy": (
-        "FACIL",
-        "Perguntas sobre fundamentos. Alternativas erradas trocam um detalhe especifico.",
-    ),
-}
-
 _SYSTEM_QUIZ = (
     "Voce e o motor de questoes do Quiz Vance, app brasileiro de estudo.\n"
     "Seu trabalho e gerar questoes objetivas de multipla escolha sobre CONTEUDO DIDATICO.\n"
@@ -328,10 +295,7 @@ def build_quiz_prompt(
     context: str | None = None,
     avoid: list[str] | None = None,
 ) -> str:
-    nivel_label, nivel_instrucao = _NIVEL.get(
-        (difficulty or "intermediario").lower().strip(),
-        _NIVEL["intermediario"],
-    )
+    nivel_label, nivel_instrucao = _NIVEL[normalize_generation_difficulty(difficulty)]
     ctx_block = _material_context_block(context, limit=4000)
     avoid_block = _avoid_items_block(
         "Perguntas ja usadas - nao repita nem faca variacoes muito proximas",
@@ -402,10 +366,7 @@ def build_simulado_prompt(
     context: str | None = None,
     avoid: list[str] | None = None,
 ) -> str:
-    nivel_label, nivel_instrucao = _NIVEL.get(
-        (difficulty or "intermediario").lower().strip(),
-        _NIVEL["intermediario"],
-    )
+    nivel_label, nivel_instrucao = _NIVEL[normalize_generation_difficulty(difficulty)]
     tema_block = (
         f"Tema/Area: {topic}"
         if topic
@@ -461,6 +422,7 @@ def build_open_question_prompt(
     conteudo: str | None = None,
     avoid: list[str] | None = None,
 ) -> str:
+    nivel_label, nivel_instrucao = _NIVEL[normalize_generation_difficulty(dificuldade)]
     ctx_block = _material_context_block(conteudo, limit=3000)
     avoid_block = _avoid_items_block(
         "Perguntas dissertativas ja geradas - nao repita nem faca variacoes muito proximas",
@@ -470,7 +432,8 @@ def build_open_question_prompt(
     )
     return f"""Tarefa: crie 1 questao dissertativa sobre \"{tema}\".
 
-Dificuldade alvo: {dificuldade}
+Dificuldade alvo: {nivel_label}
+Guia de dificuldade: {nivel_instrucao}
 {ctx_block}{avoid_block}
 {_grounding_rules_block()}
 Regras pedagogicas:

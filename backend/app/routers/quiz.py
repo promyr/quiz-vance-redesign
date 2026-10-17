@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -429,8 +429,13 @@ def _generate_verified_batch(
 
 
 class QuizGenerateIn(BaseModel):
+    @field_validator("difficulty")
+    @classmethod
+    def enforce_difficulty(cls, value: str) -> str:
+        return ai.normalize_generation_difficulty(value)
+
     topic: str = Field(max_length=200)
-    difficulty: str = Field(default="intermediario", max_length=30)
+    difficulty: str = Field(default="mixed", max_length=30)
     quantity: int = Field(default=10, ge=1, le=30)
     provider: str | None = Field(default=None, max_length=30)
     context: str | None = Field(default=None, max_length=50_000)
@@ -719,8 +724,13 @@ def clear_seen_questions(
 
 
 class SimuladoGenerateIn(BaseModel):
+    @field_validator("difficulty")
+    @classmethod
+    def enforce_difficulty(cls, value: str) -> str:
+        return ai.normalize_generation_difficulty(value)
+
     topic: str | None = Field(default=None, max_length=200)
-    difficulty: str = Field(default="intermediario", max_length=30)
+    difficulty: str = Field(default="mixed", max_length=30)
     quantity: int = Field(default=30, ge=5, le=60)
     provider: str | None = Field(default=None, max_length=30)
     context: str | None = Field(default=None, max_length=50_000)
@@ -828,8 +838,13 @@ def get_simulado_history(
 
 
 class OpenGenerateIn(BaseModel):
+    @field_validator("dificuldade")
+    @classmethod
+    def enforce_difficulty(cls, value: str) -> str:
+        return ai.normalize_generation_difficulty(value)
+
     tema: str
-    dificuldade: str = "intermediario"
+    dificuldade: str = Field(default="mixed", max_length=30)
     contexto_material: str | None = None
     provider: str | None = Field(default=None, max_length=30)
 

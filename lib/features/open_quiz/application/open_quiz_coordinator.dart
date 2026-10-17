@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import '../../library/data/material_scope_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -49,7 +50,7 @@ class OpenQuizCoordinator {
     final provider = await _aiGenerationGuard.ensureReadyForGeneration();
     return _openQuizRepository.generateQuestion(
       tema: selection.tema,
-      dificuldade: difficulty,
+      dificuldade: normalizeGenerationDifficulty(difficulty),
       conteudo: selection.libraryContent,
       aiProvider: provider,
     );

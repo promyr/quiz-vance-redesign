@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,7 +16,7 @@ class OpenQuizRepository {
 
   Future<OpenQuestion> generateQuestion({
     required String tema,
-    String dificuldade = 'intermediario',
+    String dificuldade = mixedGenerationDifficulty,
     String? conteudo,
     String? aiProvider,
   }) async {
@@ -24,7 +25,7 @@ class OpenQuizRepository {
         ApiEndpoints.quizOpenGenerate,
         data: {
           'tema': tema,
-          'dificuldade': dificuldade,
+          'dificuldade': normalizeGenerationDifficulty(dificuldade),
           if (conteudo != null) 'contexto_material': conteudo,
           if (aiProvider != null && aiProvider.isNotEmpty)
             'provider': aiProvider,

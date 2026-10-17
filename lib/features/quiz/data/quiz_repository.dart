@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'quiz_generation_metrics.dart';
@@ -35,7 +36,7 @@ class QuizRepository {
         options: Options(receiveTimeout: const Duration(minutes: 5)),
         data: {
           'topic': topic,
-          'difficulty': difficulty,
+          'difficulty': normalizeGenerationDifficulty(difficulty),
           'quantity': quantity,
           if (aiProvider != null) 'provider': aiProvider,
           if (conteudo != null) 'context': conteudo,
