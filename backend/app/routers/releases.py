@@ -20,7 +20,9 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 def _android_release_manifest() -> dict:
     try:
         directory = _BACKEND_ROOT / "releases" / "android"
-        manifest = json.loads((directory / "release-manifest.json").read_text())
+        manifest = json.loads(
+            (directory / "release-manifest.json").read_text(encoding="utf-8")
+        )
         version = str(manifest.get("app_version") or "").strip()
         if not re.fullmatch(r"[0-9A-Za-z._+-]+", version):
             return {}

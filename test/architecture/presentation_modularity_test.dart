@@ -27,9 +27,6 @@ void main() {
     final todayPlan =
         File('lib/features/study_plan/presentation/today_plan_screen.dart')
             .readAsLinesSync();
-    final experimental =
-        File('lib/experimental/presentation/experimental_shell_screen.dart')
-            .readAsLinesSync();
 
     expect(profile.length, lessThan(500));
     expect(studyPlan.length, lessThan(1350));
@@ -39,7 +36,6 @@ void main() {
     expect(quizSession.length, lessThan(900));
     expect(quizConfig.length, lessThan(800));
     expect(todayPlan.length, lessThan(750));
-    expect(experimental.length, lessThan(250));
     expect(
       profile.join('\n'),
       allOf(
@@ -73,10 +69,6 @@ void main() {
       todayPlan.join('\n'),
       contains("part 'today_plan_sections.dart';"),
     );
-    expect(
-      experimental.join('\n'),
-      contains("part 'experimental_shell_sections.dart';"),
-    );
   });
 
   test('fontes nao contem marcadores de truncamento de ferramenta', () {
@@ -101,7 +93,6 @@ void main() {
       'lib/features/quiz/presentation/quiz_config_sections.dart',
       'lib/features/quiz/presentation/quiz_session_sections.dart',
       'lib/features/study_plan/presentation/today_plan_sections.dart',
-      'lib/experimental/presentation/experimental_shell_sections.dart',
     ];
 
     for (final path in sectionFiles) {

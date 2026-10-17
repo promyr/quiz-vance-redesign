@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/observability/app_observability.dart';
 import '../../features/conquistas/domain/achievement_catalog.dart';
 import '../application/user_stats_cache_service.dart';
 import 'account_session_epoch_provider.dart';
@@ -26,7 +27,13 @@ Future<Map<String, dynamic>> fetchUserStatsPayload(Ref ref) async {
       if (cached != null) {
         return cached;
       }
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      AppObservability.instance.reportError(
+        'user_stats.cache_read_failed',
+        error,
+        stackTrace,
+      );
+    }
 
     return <String, dynamic>{
       'xp': 0,

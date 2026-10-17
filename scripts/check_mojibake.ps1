@@ -17,7 +17,8 @@ $patterns = @(
 $targets = @(
     @{ Path = (Join-Path $root 'lib'); Filter = '*.dart' },
     @{ Path = (Join-Path $root 'test'); Filter = '*.dart' },
-    @{ Path = (Join-Path $root 'scripts'); Filter = '*.ps1' }
+    @{ Path = (Join-Path $root 'scripts'); Filter = '*.ps1' },
+    @{ Path = (Join-Path $root 'backend\releases'); Filter = '*.json' }
 )
 
 $matchesFound = @()
@@ -34,7 +35,7 @@ foreach ($target in $targets) {
         }
 
         $lineNumber = 0
-        foreach ($line in Get-Content -Path $file.FullName) {
+        foreach ($line in Get-Content -Path $file.FullName -Encoding UTF8) {
             $lineNumber++
             foreach ($pattern in $patterns) {
                 if ($line -match $pattern) {

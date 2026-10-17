@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/app_config.dart';
+import '../observability/app_observability.dart';
 import 'api_endpoints.dart';
 import '../../shared/application/account_scoped_preferences.dart';
 
@@ -114,7 +115,13 @@ class ApiClient {
           final response = await _dio.fetch(retryRequest);
           return handler.resolve(response);
         }
-      } catch (_) {}
+      } catch (retryError) {
+        AppObservability.instance.trackEvent(
+          'api.auth_retry_failed',
+          level: AppEventLevel.warning,
+          attributes: {'path': request.path},
+        );
+      }
     }
 
     return handler.next(err);

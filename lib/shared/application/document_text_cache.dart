@@ -70,7 +70,9 @@ class DocumentTextCache {
     final key = _key(id);
     try {
       await _pending[key];
-    } catch (_) {}
+    } catch (_) {
+      // Ignora erro de operacao pendente anterior ao invalidar a entrada.
+    }
     try {
       await (await SharedPreferences.getInstance()
               .timeout(const Duration(seconds: 3)))

@@ -106,8 +106,9 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
         // Cancelamento, falha do sensor ou credencial expirada: usa a senha.
       }
     }
+    if (!mounted) return null;
     final password = await _requestAdminPassword(title: title);
-    if (password == null) return null;
+    if (password == null || !mounted) return null;
     return AdminAuthorization.password(password);
   }
 
@@ -115,7 +116,7 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
     final password = await _requestAdminPassword(
       title: 'Ativar confirmação por digital',
     );
-    if (password == null) return;
+    if (password == null || !mounted) return;
     setState(() => _checkingBiometrics = true);
     try {
       await ref
@@ -170,7 +171,7 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
       scope: AdminStepUpScope.testAiKey,
       title: 'Testar chave de IA',
     );
-    if (authorization == null) return;
+    if (authorization == null || !mounted) return;
     setState(() => _isTestingMap[entry.id] = true);
     try {
       final service = ref.read(adminMasterKeysServiceProvider);

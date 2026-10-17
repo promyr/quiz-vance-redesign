@@ -144,25 +144,41 @@ class BillingRepository {
     ),
   ];
 
+  bool _isAdminFromRawUserJson(String? raw) {
+    if (raw == null || raw.isEmpty) return false;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final role = (decoded['role'] as String?)?.trim().toLowerCase() ?? '';
+        return role == 'admin';
+      }
+    } catch (_) {
+      // JSON de cache legado ou invalido; segue para verificacao remota.
+    }
+    return false;
+  }
+
   Future<BillingStatus> getStatus() async {
     String? raw;
     try {
-      final cachedUserRaw = await _effectiveStorage.getCacheValue('auth_user_cache', scoped: false);
-      final cachedUserRawOld = await _effectiveStorage.getCacheValue('auth_user', scoped: false);
+      final cachedUserRaw = await _effectiveStorage.getCacheValue(
+        'auth_user_cache',
+        scoped: false,
+      );
+      final cachedUserRawOld = await _effectiveStorage.getCacheValue(
+        'auth_user',
+        scoped: false,
+      );
       raw = cachedUserRaw ?? cachedUserRawOld;
-      if (raw != null) {
-        try {
-          final decoded = jsonDecode(raw) as Map<String, dynamic>;
-          final role = (decoded['role'] as String?)?.trim().toLowerCase() ?? '';
-          if (role == 'admin') {
-            return const BillingStatus(
-              planCode: 'premium',
-              isPremium: true,
-            );
-          }
-        } catch (_) {}
+      if (_isAdminFromRawUserJson(raw)) {
+        return const BillingStatus(
+          planCode: 'premium',
+          isPremium: true,
+        );
       }
-    } catch (_) {}
+    } catch (_) {
+      // Falha de leitura do cache local nao impede consulta ao servidor.
+    }
 
     try {
       final response = await _client.dio.get(ApiEndpoints.billingStatus);
@@ -181,17 +197,11 @@ class BillingRepository {
         premiumUntil: json['premium_until']?.toString(),
       );
     } on DioException catch (error) {
-      if (raw != null) {
-        try {
-          final decoded = jsonDecode(raw) as Map<String, dynamic>;
-          final role = (decoded['role'] as String?)?.trim().toLowerCase() ?? '';
-          if (role == 'admin') {
-            return const BillingStatus(
-              planCode: 'premium',
-              isPremium: true,
-            );
-          }
-        } catch (_) {}
+      if (_isAdminFromRawUserJson(raw)) {
+        return const BillingStatus(
+          planCode: 'premium',
+          isPremium: true,
+        );
       }
       throw buildRemoteServiceException(
         error,

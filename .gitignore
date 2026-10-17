@@ -83,6 +83,13 @@ app.*.map.json
 
 # Local temporary and external attachments
 .codex-remote-attachments/
+.pytest_cache/
+/output/
+/audit/
+/telegram_bridge/
+/BUILD_DESKTOP.ps1
+/architecture_map.html
+/architecture_map.json
 output_desktop/
 telegram_bridge/downloads/
 telegram_bridge/incoming_queue.jsonl

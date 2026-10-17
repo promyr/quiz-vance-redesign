@@ -123,14 +123,20 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
       if (account != AccountScopedPreferences.instance.activeAccountId) return;
       try {
         await queue.acknowledge(result.sessionId, type: 'quiz_result');
-      } catch (_) {}
+      } catch (error) {
+        debugPrint('Quiz queue acknowledge error: $error');
+      }
       try {
         await userStatsNotifier.refresh();
-      } catch (_) {}
+      } catch (error) {
+        debugPrint('Quiz userStats refresh error: $error');
+      }
       if (mounted) ref.invalidate(userStatsProvider);
       try {
-        ref.invalidate(activityHistoryProvider);
-      } catch (_) {}
+        if (mounted) ref.invalidate(activityHistoryProvider);
+      } catch (error) {
+        debugPrint('Quiz activityHistory invalidate error: $error');
+      }
 
       if (!mounted) return;
       setState(() {
@@ -162,7 +168,9 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
               result.topic!.contains(currentDaily.topic))) {
         await dailyNotifier.markCompleted();
       }
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('DailyChallenge markCompleted error: $error');
+    }
 
     final wrongAnswers = result.answers.where((a) => !a.isCorrect).toList();
     if (wrongAnswers.isNotEmpty) {
@@ -410,19 +418,12 @@ class _QuizResultScreenState extends ConsumerState<QuizResultScreen> {
                     final question = answer.question;
                     final isCorrect = answer.isCorrect;
 
-                    QuizOption? selectedOpt;
-                    try {
-                      selectedOpt = question.options.firstWhere(
-                        (o) => o.id == answer.selectedOptionId,
-                      );
-                    } catch (_) {}
-
-                    QuizOption? correctOpt;
-                    try {
-                      correctOpt = question.options.firstWhere(
-                        (o) => o.id == question.correctOptionId,
-                      );
-                    } catch (_) {}
+                    final selectedOpt = question.options
+                        .where((o) => o.id == answer.selectedOptionId)
+                        .firstOrNull;
+                    final correctOpt = question.options
+                        .where((o) => o.id == question.correctOptionId)
+                        .firstOrNull;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),

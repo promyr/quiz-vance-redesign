@@ -539,6 +539,7 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
   }
 
   void _showError(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: AppColors.error),
     );
@@ -557,9 +558,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
                 plan: _plan!,
                 index: targetIndex,
               );
-      if (mounted) {
-        setState(() => _plan = updatedPlan);
-      }
+      if (!mounted) return;
+      setState(() => _plan = updatedPlan);
       ref.invalidate(activePlanProvider);
       ref.invalidate(allPlansProvider);
     } catch (_) {

@@ -103,7 +103,9 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
           idempotencyKey: result.sessionId);
       queued = true;
       await _clearAttempt(result.sessionId);
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('Simulado enqueue error: $error');
+    }
     if (account != AccountScopedPreferences.instance.activeAccountId) return;
     try {
       await repository.submitResult(payload);
@@ -111,10 +113,14 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
       if (account != AccountScopedPreferences.instance.activeAccountId) return;
       try {
         await queue.acknowledge(result.sessionId, type: 'simulado_result');
-      } catch (_) {}
+      } catch (error) {
+        debugPrint('Simulado queue acknowledge error: $error');
+      }
       try {
         await stats.refresh();
-      } catch (_) {}
+      } catch (error) {
+        debugPrint('Simulado stats refresh error: $error');
+      }
       if (mounted) {
         ref.invalidate(activityHistoryProvider);
         setState(() {
@@ -142,7 +148,9 @@ class _SimuladoResultScreenState extends ConsumerState<SimuladoResultScreen> {
     try {
       await gamification.recordQuizCompletion(
           eventId: result.sessionId, xpEarned: result.xpEarned);
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('Simulado gamification error: $error');
+    }
   }
 
   void _onGamificationChanged(

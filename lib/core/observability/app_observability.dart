@@ -99,7 +99,15 @@ class AppObservability {
     if (_remoteReporter != null) {
       try {
         _remoteReporter!(name, error, stackTrace, attributes);
-      } catch (_) {}
+      } catch (reporterError, reporterStack) {
+        developer.log(
+          'RemoteErrorReporter failed for $name',
+          name: 'QuizVance',
+          level: 900,
+          error: reporterError,
+          stackTrace: reporterStack,
+        );
+      }
     }
   }
 

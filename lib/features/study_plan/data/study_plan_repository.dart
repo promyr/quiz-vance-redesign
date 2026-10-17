@@ -32,17 +32,8 @@ class StudyPlanRepository {
 
   /// Obter todos os planos de estudos do usuário.
   Future<List<StudyPlan>> getPlans() async {
-    final rawList = await _preferences.getString(_allPlansKey);
-    if (rawList != null && rawList.isNotEmpty) {
-      try {
-        final List<dynamic> jsonList = jsonDecode(rawList);
-        final plans = jsonList
-            .whereType<Map<String, dynamic>>()
-            .map(StudyPlan.fromJson)
-            .toList();
-        if (plans.isNotEmpty) return plans;
-      } catch (_) {}
-    }
+    final plans = await _getPlansRaw();
+    if (plans.isNotEmpty) return plans;
 
     // Fallback para o plano legado em _activePlanKey
     final active = await getActivePlan();

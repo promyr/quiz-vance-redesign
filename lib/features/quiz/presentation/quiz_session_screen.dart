@@ -232,11 +232,13 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
     if (_finishing) return;
     _finishing = true;
     await _recoveryStore.clear(_recoveryKey).catchError((Object _) {});
-    try {
-      unawaited(LocalStorage.instance
+    unawaited(
+      LocalStorage.instance
           .clearActiveQuizSession('quiz_session_current')
-          .catchError((Object _) {}));
-    } catch (_) {}
+          .catchError((Object error) {
+        debugPrint('Clear active quiz session error: $error');
+      }),
+    );
 
     // Registra a resposta atual se ainda não foi adicionada.
     if (_answered && _answers.length <= _currentIndex) {

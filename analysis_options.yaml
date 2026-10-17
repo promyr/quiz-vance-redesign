@@ -1,6 +1,12 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  exclude:
+    - build/**
+    - output_apk/**
+    - output/**
+    - audit/**
+    - .dart_tool/**
   errors:
     deprecated_member_use: ignore
     invalid_annotation_target: ignore
