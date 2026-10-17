@@ -83,11 +83,15 @@ def _community_target() -> tuple[str, int]:
 
 
 def _release_metadata(version: str) -> tuple[str, int, str]:
+    manifest = _release_manifest()
     url = telegram_bot.download_url()
+    if not url and manifest.get("backend_url"):
+        base = str(manifest["backend_url"]).strip().rstrip("/")
+        if base:
+            url = f"{base}/app/download/android/latest.apk"
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.hostname != EXPECTED_HOST:
         raise RuntimeError("refusing to publish a non-canonical download URL")
-    manifest = _release_manifest()
     if manifest and str(manifest.get("app_version") or "").strip() != str(version).strip():
         raise RuntimeError("release manifest version does not match requested release version")
     if not APK_PATH.is_file():

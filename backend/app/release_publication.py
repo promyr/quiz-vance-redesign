@@ -50,7 +50,11 @@ def publish_requested_release(*, manifest=None, session_factory=None, publish=No
             existing = db.query(models.TelegramDailyPostLog).filter_by(day_key=day, slot_key=slot).first()
             if existing is not None:
                 err_text = str(existing.last_error or '')
-                if existing.status != 'failed' or ('community configuration' not in err_text and 'Updates topic' not in err_text):
+                is_preflight_err = any(
+                    marker in err_text
+                    for marker in ('community configuration', 'Updates topic', 'non-canonical download URL')
+                )
+                if existing.status != 'failed' or not is_preflight_err:
                     return
                 row_id = existing.id
                 existing.status = 'sending'
