@@ -212,12 +212,12 @@ if ($Platform -eq "android") {
         throw "Assinatura do APK de producao invalida."
     }
     $certificateLine = $signatureReport |
-        Select-String "Signer #1 certificate SHA-256 digest:" |
+        Select-String "certificate SHA-256 digest:" |
         Select-Object -First 1
     if (-not $certificateLine) {
         throw "Digest do certificado de assinatura nao encontrado."
     }
-    $certificateSha256 = ($certificateLine.Line -split ":", 2)[1].Trim().ToUpperInvariant()
+    $certificateSha256 = ($certificateLine.Line -split ":")[-1].Trim().ToUpperInvariant()
     $apkSha256 = (Get-FileHash -LiteralPath $targetApk -Algorithm SHA256).Hash
     Assert-ReleaseSourceState -Repository $ProjectDir -ExpectedCommit $sourceState.commit | Out-Null
     $manifest = [ordered]@{
