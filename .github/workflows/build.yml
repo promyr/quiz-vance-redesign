@@ -180,13 +180,25 @@ jobs:
           APK=build/app/outputs/flutter-apk/app-production-release.apk
           test -f "$APK"
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" > apksigner-report.txt
-          "$BUILD_TOOLS/zipalign" -c -P 16 -v 4 "$APK" > zipalign-report.txt
+          echo "Verifying with $BUILD_TOOLS"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" > apksigner-report.txt 2>&1 || { cat apksigner-report.txt; exit 1; }
+          "$BUILD_TOOLS/zipalign" -c -P 16 -v 4 "$APK" > zipalign-report.txt 2>&1 || { tail -80 zipalign-report.txt; exit 1; }
           APK_SHA256="$(sha256sum "$APK" | awk '{print toupper($1)}')"
           CERT_SHA256="$(awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print toupper($2); exit}' apksigner-report.txt)"
-          test -n "$CERT_SHA256"
+          test -n "$CERT_SHA256" || { cat apksigner-report.txt; exit 1; }
           export APK_SHA256 CERT_SHA256
           node -e 'const fs=require("fs"); const manifest={schema_version:1,commit:process.env.GITHUB_SHA,app_version:process.env.APP_VERSION,artifact:"app-production-release.apk",size_bytes:fs.statSync("build/app/outputs/flutter-apk/app-production-release.apk").size,apk_sha256:process.env.APK_SHA256,certificate_sha256:process.env.CERT_SHA256,backend_url:process.env.BACKEND_URL}; fs.writeFileSync("release-manifest.json",JSON.stringify(manifest,null,2)+"\n")'
+      - name: Preserve failed Android candidate for diagnosis
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-failed-candidate-${{ github.run_id }}
+          path: |
+            build/app/outputs/flutter-apk/app-production-release.apk
+            apksigner-report.txt
+            zipalign-report.txt
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Generate APK SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
