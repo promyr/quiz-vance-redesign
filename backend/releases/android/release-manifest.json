@@ -10,6 +10,6 @@
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
   "build_number": 83,
   "published_at": "2026-10-17T16:05:00+00:00",
-  "telegram_publish_requested": false,
+  "telegram_publish_requested": true,
   "release_notes": "Quiz Vance v2.1.11: Visual repaginado no sistema Dark Gamificado Vibrante (Deep Obsidian, Electric Cobalt, Cyber Mint e Gold) com botões e cards táteis 3D; tela Hoje enxuta com barra de XP unificada, atalho direto para o Ranking e Arena de Prática 2x2; execução de quiz de alto foco sem distrações e tela de resultado celebrativa."
 }
