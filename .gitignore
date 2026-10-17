@@ -83,6 +83,7 @@ app.*.map.json
 
 # Local temporary and external attachments
 /.backend-source/
+/.main-clean/
 .codex-remote-attachments/
 .pytest_cache/
 /output/

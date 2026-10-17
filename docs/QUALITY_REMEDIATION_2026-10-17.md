@@ -47,6 +47,6 @@ O CI dessa base ainda falhava em 13 casos Flutter: três setups dependiam de
 fontes em caminhos Windows e dez verificações de layout usavam Ahem no Linux
 porque o carregamento de fontes era silenciosamente ignorado. A correção usa
 fontes do mesmo SDK Flutter em qualquer plataforma, mantendo escalas e asserções.
-O registro Git órfão `.backend-source` também foi retirado do índice: não havia
-`.gitmodules` nem referências a ele nos scripts/docs. A pasta local é preservada
-e ignorada; o código canônico continua em `backend/`.
+Os registros Git órfãos `.backend-source` e `.main-clean` foram retirados do índice:
+não havia `.gitmodules` nem referências a eles nos scripts/docs. As pastas locais
+são preservadas e ignoradas; o código canônico continua em `backend/`.
