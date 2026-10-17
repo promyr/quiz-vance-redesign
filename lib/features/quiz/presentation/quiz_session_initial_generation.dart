@@ -15,7 +15,8 @@ extension _InitialQuizGeneration on _QuizSessionScreenState {
             .read(studyPlanRepositoryProvider)
             .getDocumentContent(params.documentId!);
       }
-      if (params.documentId != null && (content == null || content.trim().isEmpty)) {
+      if (params.documentId != null &&
+          (content == null || content.trim().isEmpty)) {
         throw const FormatException('document content unavailable');
       }
       if (!mounted || !_sameAccount) return;
@@ -27,7 +28,7 @@ extension _InitialQuizGeneration on _QuizSessionScreenState {
       }
       final questions = await ref.read(quizRepositoryProvider).generate(
             topic: params.topic,
-            difficulty: params.difficulty,
+            difficulty: normalizeGenerationDifficulty(params.difficulty),
             quantity: params.quantity,
             aiProvider: params.aiProvider,
             conteudo: _preparedContent,

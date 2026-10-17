@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import '../../quiz/domain/quiz_generation_params.dart';
 import '../domain/study_plan_model.dart';
 
@@ -17,7 +18,7 @@ QuizGenerationParams studyPlanQuizRequest(StudyPlan plan, StudyPlanItem item) {
       : plan.sourceDocumentIds;
   return QuizGenerationParams(
       topic: topic,
-      difficulty: item.difficulty,
+      difficulty: normalizeGenerationDifficulty(item.difficulty),
       aiProvider: null,
       documentId: documentIds.isEmpty ? null : documentIds.first,
       planId: plan.id,

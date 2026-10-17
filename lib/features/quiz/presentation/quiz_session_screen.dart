@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -155,7 +156,7 @@ class _QuizSessionScreenState extends ConsumerState<QuizSessionScreen>
       final repo = ref.read(quizRepositoryProvider);
       final newQuestions = await repo.generate(
         topic: params.topic,
-        difficulty: params.difficulty,
+        difficulty: normalizeGenerationDifficulty(params.difficulty),
         quantity: _batchSize,
         aiProvider: params.aiProvider,
         conteudo: params.conteudo,

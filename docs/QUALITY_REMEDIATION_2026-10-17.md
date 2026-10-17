@@ -50,3 +50,16 @@ fontes do mesmo SDK Flutter em qualquer plataforma, mantendo escalas e asserçõ
 Os registros Git órfãos `.backend-source` e `.main-clean` foram retirados do índice:
 não havia `.gitmodules` nem referências a eles nos scripts/docs. As pastas locais
 são preservadas e ignoradas; o código canônico continua em `backend/`.
+
+## Política de dificuldade solicitada na retomada
+
+O usuário pediu retirar a seleção e usar somente misto ou difícil. Novas sessões
+usam `mixed`, definido como combinação de médio e difícil, sem fáceis. Seletores
+foram removidos do quiz, simulado e dissertativas. Requests da Biblioteca, plano,
+prefetch do treino infinito e dados legados passam pela mesma normalização.
+`hard` é preservado para compatibilidade; o servidor também normaliza os três
+contratos de geração e explicita a política nos prompts. Dificuldades históricas
+das questões e estatísticas não são reclassificadas.
+
+Remover os controles da interface requer o próximo APK. Esta branch não muda a
+versão 2.1.11 já publicada nem envia uma nova mensagem de release ao Telegram.

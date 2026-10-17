@@ -1,21 +1,30 @@
+import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flutter/services.dart';
 
 /// Loads the Flutter SDK fonts on every platform instead of the Ahem test font.
 Future<void> loadTestFonts({String fontFamily = 'VisualTestFont'}) async {
-  final flutterLibrary = await Isolate.resolvePackageUri(
-    Uri.parse('package:flutter/material.dart'),
-  );
-  if (flutterLibrary == null || flutterLibrary.scheme != 'file') {
-    throw StateError(
-      'Cannot locate the Flutter SDK to load required test fonts.',
+  final configuredRoot = Platform.environment['FLUTTER_ROOT'];
+  final Uri sdkRoot;
+  if (configuredRoot != null && configuredRoot.isNotEmpty) {
+    sdkRoot = Directory(configuredRoot).absolute.uri;
+  } else {
+    // Flutter's test engine does not implement Isolate.resolvePackageUri.
+    final config = File('.dart_tool/package_config.json').absolute;
+    final packages =
+        (jsonDecode(await config.readAsString())
+                as Map<String, dynamic>)['packages']
+            as List<dynamic>;
+    final flutter = packages.cast<Map<String, dynamic>>().firstWhere(
+      (package) => package['name'] == 'flutter',
     );
+    final packageRoot = Directory.fromUri(
+      config.uri.resolve(flutter['rootUri'] as String),
+    ).uri;
+    sdkRoot = packageRoot.resolve('../../');
   }
-  final fontDirectory = flutterLibrary.resolve(
-    '../../../bin/cache/artifacts/material_fonts/',
-  );
+  final fontDirectory = sdkRoot.resolve('bin/cache/artifacts/material_fonts/');
 
   Future<ByteData> readFont(String fileName) async {
     final bytes = await File.fromUri(

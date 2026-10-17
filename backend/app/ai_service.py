@@ -229,6 +229,25 @@ _NIVEL: dict[str, tuple[str, str]] = {
     ),
 }
 
+
+_NIVEL["mixed"] = (
+    "MISTO (MEDIO E DIFICIL)",
+    (
+        "Alterne questoes de nivel medio e dificil. Nao gere questoes faceis ou de "
+        "mera memorizacao: exija relacoes, aplicacao, comparacao e analise. "
+        "Em lotes com pelo menos duas questoes, inclua ambos os niveis."
+    ),
+)
+_NIVEL["hard"] = _NIVEL["dificil"]
+
+
+def normalize_generation_difficulty(value: str | None) -> str:
+    """Current generation policy; historical question labels remain untouched."""
+    return "hard" if (value or "").strip().lower() in {
+        "hard", "dificil", "difícil", "avancado", "avançado", "mestre",
+    } else "mixed"
+
+
 _SYSTEM_QUIZ = (
     "Voce e o motor de questoes do Quiz Vance, app brasileiro de estudo.\n"
     "Seu trabalho e gerar questoes objetivas de multipla escolha sobre CONTEUDO DIDATICO.\n"
@@ -328,10 +347,7 @@ def build_quiz_prompt(
     context: str | None = None,
     avoid: list[str] | None = None,
 ) -> str:
-    nivel_label, nivel_instrucao = _NIVEL.get(
-        (difficulty or "intermediario").lower().strip(),
-        _NIVEL["intermediario"],
-    )
+    nivel_label, nivel_instrucao = _NIVEL[normalize_generation_difficulty(difficulty)]
     ctx_block = _material_context_block(context, limit=4000)
     avoid_block = _avoid_items_block(
         "Perguntas ja usadas - nao repita nem faca variacoes muito proximas",
@@ -402,10 +418,7 @@ def build_simulado_prompt(
     context: str | None = None,
     avoid: list[str] | None = None,
 ) -> str:
-    nivel_label, nivel_instrucao = _NIVEL.get(
-        (difficulty or "intermediario").lower().strip(),
-        _NIVEL["intermediario"],
-    )
+    nivel_label, nivel_instrucao = _NIVEL[normalize_generation_difficulty(difficulty)]
     tema_block = (
         f"Tema/Area: {topic}"
         if topic
@@ -461,6 +474,7 @@ def build_open_question_prompt(
     conteudo: str | None = None,
     avoid: list[str] | None = None,
 ) -> str:
+    nivel_label, nivel_instrucao = _NIVEL[normalize_generation_difficulty(dificuldade)]
     ctx_block = _material_context_block(conteudo, limit=3000)
     avoid_block = _avoid_items_block(
         "Perguntas dissertativas ja geradas - nao repita nem faca variacoes muito proximas",
@@ -470,7 +484,8 @@ def build_open_question_prompt(
     )
     return f"""Tarefa: crie 1 questao dissertativa sobre \"{tema}\".
 
-Dificuldade alvo: {dificuldade}
+Dificuldade alvo: {nivel_label}
+Guia de dificuldade: {nivel_instrucao}
 {ctx_block}{avoid_block}
 {_grounding_rules_block()}
 Regras pedagogicas:

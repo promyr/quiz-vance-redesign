@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +21,7 @@ enum _OpenQuizPhase { config, answering, result }
 /// Tela principal do Quiz Dissertativo (Open Quiz).
 ///
 /// Implementa 3 fases:
-/// 1. Config: selecionar tema e dificuldade, gerar pergunta
+/// 1. Config: selecionar tema, gerar pergunta média ou difícil
 /// 2. Answering: responder a pergunta dissertativa
 /// 3. Result: visualizar nota, critérios e feedback
 class OpenQuizScreen extends ConsumerStatefulWidget {
@@ -34,7 +35,6 @@ class _OpenQuizScreenState extends ConsumerState<OpenQuizScreen> {
   late TextEditingController _temaCtrl;
   late TextEditingController _answerCtrl;
 
-  String _difficulty = 'intermediario';
   _OpenQuizPhase _phase = _OpenQuizPhase.config;
   bool _loading = false;
 
@@ -66,7 +66,7 @@ class _OpenQuizScreenState extends ConsumerState<OpenQuizScreen> {
           await ref.read(openQuizCoordinatorProvider).generateQuestion(
                 useLibrary: _useLibrary,
                 tema: _temaCtrl.text,
-                difficulty: _difficulty,
+                difficulty: mixedGenerationDifficulty,
                 selectedLibraryFile: _selectedLibraryFile,
               );
       if (mounted) {
@@ -263,54 +263,6 @@ class _OpenQuizScreenState extends ConsumerState<OpenQuizScreen> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Chips de dificuldade
-        _SectionLabel('Dificuldade'),
-        const SizedBox(height: 10),
-        Row(
-          children: ['facil', 'intermediario', 'dificil'].map((d) {
-            final isSelected = _difficulty == d;
-            final labels = {
-              'facil': 'Fácil',
-              'intermediario': 'Médio',
-              'dificil': 'Difícil',
-            };
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _difficulty = d),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary.withOpacity(0.15)
-                        : AppColors.surface2,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.border,
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      labels[d]!,
-                      style: TextStyle(
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textMuted,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w400,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 36),
 
         // Botão Gerar Pergunta
         AppButton(

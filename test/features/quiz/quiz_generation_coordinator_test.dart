@@ -198,7 +198,7 @@ void main() {
     verify(
       () => repository.generate(
         topic: 'Direito constitucional',
-        difficulty: 'medium',
+        difficulty: 'mixed',
         quantity: 10,
         aiProvider: 'gemini',
         conteudo: null,

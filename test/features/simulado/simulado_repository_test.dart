@@ -24,6 +24,35 @@ void main() {
     when(() => apiClient.dio).thenReturn(dio);
   });
 
+  for (final setting in const {
+    'easy': 'mixed',
+    'medium': 'mixed',
+    'intermediario': 'mixed',
+    'mixed': 'mixed',
+    'hard': 'hard',
+    'dificil': 'hard',
+  }.entries) {
+    test('generation requests normalize legacy difficulty ${setting.key}',
+        () async {
+      when(() => dio.post(
+            ApiEndpoints.simuladoGenerate,
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          )).thenAnswer((_) async => Response(
+            requestOptions: RequestOptions(path: ApiEndpoints.simuladoGenerate),
+            data: <String, dynamic>{'questions': <dynamic>[]},
+          ));
+
+      await repository.generateExam(difficulty: setting.key);
+
+      final payload = verify(() => dio.post(
+            ApiEndpoints.simuladoGenerate,
+            data: captureAny(named: 'data'),
+            options: any(named: 'options'),
+          )).captured.single as Map<String, dynamic>;
+      expect(payload['difficulty'], setting.value);
+    });
+  }
   test('generateExam forwards selected provider to backend', () async {
     when(
       () => dio.post(

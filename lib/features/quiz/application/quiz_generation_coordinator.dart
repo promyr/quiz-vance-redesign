@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import '../../library/data/material_scope_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -57,6 +58,7 @@ class QuizGenerationCoordinator {
     required String preferredProvider,
     LibraryFile? selectedLibraryFile,
   }) async {
+    difficulty = normalizeGenerationDifficulty(difficulty);
     final scoped = useLibrary && selectedLibraryFile != null
         ? await MaterialScopeStore().resolve(selectedLibraryFile)
         : null;

@@ -24,17 +24,29 @@ void main() {
   testWidgets('configuração mantida atualiza retomada ao sair da sessão',
       (tester) async {
     final router = GoRouter(initialLocation: '/simulado', routes: [
-      GoRoute(path: '/simulado', builder: (_, __) => const SimuladoConfigScreen(),
-          routes: [GoRoute(path: 'session', name: 'simuladoSession',
-              builder: (_, state) => SimuladoScreen(
-                  questions: [q('Questão ida'), q('Questão volta')],
-                  durationSeconds: 600,
-                  checkpoint: (state.extra as Map?)?['checkpoint']))]),
+      GoRoute(
+          path: '/simulado',
+          builder: (_, __) => const SimuladoConfigScreen(),
+          routes: [
+            GoRoute(
+                path: 'session',
+                name: 'simuladoSession',
+                builder: (_, state) => SimuladoScreen(
+                    questions: [q('Questão ida'), q('Questão volta')],
+                    durationSeconds: 600,
+                    checkpoint: (state.extra as Map?)?['checkpoint']))
+          ]),
     ]);
     addTearDown(router.dispose);
-    await tester.pumpWidget(ProviderScope(child: MaterialApp.router(routerConfig: router)));
+    await tester.pumpWidget(
+        ProviderScope(child: MaterialApp.router(routerConfig: router)));
     await tester.pumpAndSettle();
     expect(find.text('Retomar simulado'), findsNothing);
+    expect(find.text('Dificuldade'), findsNothing);
+    expect(find.text('Fácil'), findsNothing);
+    expect(find.text('Médio'), findsNothing);
+    expect(find.text('Difícil'), findsNothing);
+    expect(find.text('Misto'), findsNothing);
     router.pushNamed('simuladoSession');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Correta'));

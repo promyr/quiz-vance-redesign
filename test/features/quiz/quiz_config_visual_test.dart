@@ -1,3 +1,4 @@
+import 'package:quiz_vance_flutter/features/open_quiz/presentation/open_quiz_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,24 @@ class _FakeUserStatsNotifier extends UserStatsNotifier {
 }
 
 void main() {
+  testWidgets('dissertativo gera sem seletor de dificuldade', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        userStatsNotifierProvider.overrideWith(_FakeUserStatsNotifier.new),
+      ],
+      child: const MaterialApp(home: OpenQuizScreen()),
+    ));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Dificuldade'), findsNothing);
+    expect(find.text('Fácil'), findsNothing);
+    expect(find.text('Médio'), findsNothing);
+    expect(find.text('Difícil'), findsNothing);
+    expect(find.text('Gerar Pergunta'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets('configuracao do quiz usa cabecalho visual atualizado',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -46,6 +65,10 @@ void main() {
     expect(find.text('Qual assunto você quer dominar hoje?'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
     expect(find.text('Novo Quiz'), findsNothing);
+    expect(find.text('NÍVEL DE DIFICULDADE'), findsNothing);
+    expect(find.text('Fácil'), findsNothing);
+    expect(find.text('Médio'), findsNothing);
+    expect(find.text('Difícil'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));

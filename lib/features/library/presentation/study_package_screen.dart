@@ -1,3 +1,4 @@
+import '../../../core/content/generation_difficulty.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -207,7 +208,7 @@ class StudyPackageScreen extends ConsumerWidget {
                           context.pushNamed('quizSession', extra: {
                             'generationParams': QuizGenerationParams(
                               topic: tema,
-                              difficulty: 'intermediario',
+                              difficulty: mixedGenerationDifficulty,
                               aiProvider: null,
                               conteudo: content,
                               documentId: file.remoteDocumentId,

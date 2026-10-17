@@ -87,7 +87,7 @@ void main() {
     verify(
       () => repository.generateQuestion(
         tema: 'Redacao',
-        dificuldade: 'intermediario',
+        dificuldade: 'mixed',
         conteudo: any(named: 'conteudo'),
         aiProvider: 'gemini',
       ),
