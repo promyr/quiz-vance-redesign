@@ -184,7 +184,7 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" > apksigner-report.txt 2>&1 || { cat apksigner-report.txt; exit 1; }
           "$BUILD_TOOLS/zipalign" -c -P 16 -v 4 "$APK" > zipalign-report.txt 2>&1 || { tail -80 zipalign-report.txt; exit 1; }
           APK_SHA256="$(sha256sum "$APK" | awk '{print toupper($1)}')"
-          CERT_SHA256="$(awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print toupper($2); exit}' apksigner-report.txt)"
+          CERT_SHA256="$(awk -F': ' '/certificate SHA-256 digest:/ {print toupper($NF); exit}' apksigner-report.txt)"
           test -n "$CERT_SHA256" || { cat apksigner-report.txt; exit 1; }
           export APK_SHA256 CERT_SHA256
           node -e 'const fs=require("fs"); const manifest={schema_version:1,commit:process.env.GITHUB_SHA,app_version:process.env.APP_VERSION,artifact:"app-production-release.apk",size_bytes:fs.statSync("build/app/outputs/flutter-apk/app-production-release.apk").size,apk_sha256:process.env.APK_SHA256,certificate_sha256:process.env.CERT_SHA256,backend_url:process.env.BACKEND_URL}; fs.writeFileSync("release-manifest.json",JSON.stringify(manifest,null,2)+"\n")'
