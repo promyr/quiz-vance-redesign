@@ -56,12 +56,30 @@ def _community_target() -> tuple[str, int]:
             .mappings()
             .first()
         )
-    if not row:
+    if row:
+        chat_id = str(row["chat_id"] or "").strip()
+        thread_id = int(row["atualizacoes_thread_id"] or 0)
+        if chat_id and thread_id > 0:
+            return chat_id, thread_id
+    fallback_chat = telegram_bot.normalize_chat_id(telegram_bot.community_chat_id())
+    fallback_thread = int(telegram_bot.community_updates_thread_id() or 0)
+    if fallback_chat and fallback_thread > 0:
+        return fallback_chat, fallback_thread
+    receipt_path = APK_PATH.with_name("telegram_receipt.json")
+    if receipt_path.is_file():
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            r_chat = str(receipt.get("chat_id") or "").strip()
+            r_thread = int(receipt.get("message_thread_id") or 0)
+            if r_chat and r_thread > 0:
+                return (fallback_chat or r_chat), (fallback_thread if fallback_thread > 0 else r_thread)
+        except (OSError, ValueError, TypeError):
+            pass
+    if not fallback_chat:
         raise RuntimeError("telegram community configuration was not found")
-    thread_id = int(row["atualizacoes_thread_id"] or 0)
-    if thread_id <= 0:
+    if fallback_thread <= 0:
         raise RuntimeError("Telegram Updates topic was not configured")
-    return str(row["chat_id"]), thread_id
+    return fallback_chat, fallback_thread
 
 
 def _release_metadata(version: str) -> tuple[str, int, str]:
@@ -220,12 +238,26 @@ def publish_release() -> dict:
         expected_thread_id=thread_id,
     )
 
+    changelog_text = str(_release_manifest().get("changelog") or "").strip()
+    changelog_msg_id = None
+    if changelog_text:
+        try:
+            sent_changelog = client.send_message(
+                chat_id,
+                changelog_text,
+                message_thread_id=thread_id,
+            )
+            changelog_msg_id = sent_changelog.get("message_id")
+        except Exception:  # noqa: BLE001 - APK delivery already succeeded
+            changelog_msg_id = None
+
     return {
         "ok": True,
         "mode": "apk_attached",
         "chat_id": chat_id,
         "message_thread_id": thread_id,
         "message_id": uploaded.get("message_id"),
+        "changelog_message_id": changelog_msg_id,
         "download_url": download_url,
         "apk_size": size,
         "sha256": digest,

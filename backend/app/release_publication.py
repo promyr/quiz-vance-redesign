@@ -47,19 +47,29 @@ def publish_requested_release(*, manifest=None, session_factory=None, publish=No
     try:
         day, slot = _release_key(manifest)
         with sessions() as db:
-            if db.query(models.TelegramDailyPostLog).filter_by(day_key=day, slot_key=slot).first():
-                return
-            # Claim before contacting Telegram. Unknown outcomes must not auto-retry.
-            row = models.TelegramDailyPostLog(day_key=day, slot_key=slot,
-                topic_key='atualizacoes', chat_id='release-publication',
-                status='sending', attempt_count=1, last_attempt_at=datetime.now(timezone.utc))
-            db.add(row)
-            try:
+            existing = db.query(models.TelegramDailyPostLog).filter_by(day_key=day, slot_key=slot).first()
+            if existing is not None:
+                err_text = str(existing.last_error or '')
+                if existing.status != 'failed' or ('community configuration' not in err_text and 'Updates topic' not in err_text):
+                    return
+                row_id = existing.id
+                existing.status = 'sending'
+                existing.last_error = None
+                existing.attempt_count = int(existing.attempt_count or 0) + 1
+                existing.last_attempt_at = datetime.now(timezone.utc)
                 db.commit()
-                row_id = row.id
-            except IntegrityError:
-                db.rollback()
-                return
+            else:
+                # Claim before contacting Telegram. Unknown outcomes must not auto-retry.
+                row = models.TelegramDailyPostLog(day_key=day, slot_key=slot,
+                    topic_key='atualizacoes', chat_id='release-publication',
+                    status='sending', attempt_count=1, last_attempt_at=datetime.now(timezone.utc))
+                db.add(row)
+                try:
+                    db.commit()
+                    row_id = row.id
+                except IntegrityError:
+                    db.rollback()
+                    return
         try:
             if publish is None:
                 from scripts.publish_telegram_release_link import publish_release
@@ -75,7 +85,10 @@ def publish_requested_release(*, manifest=None, session_factory=None, publish=No
             row = db.get(models.TelegramDailyPostLog, row_id)
             row.status = status
             row.last_error = error
-            row.post_text = json.dumps({'message_id': receipt.get('message_id')})
+            post_meta = {'message_id': receipt.get('message_id')}
+            if receipt.get('changelog_message_id'):
+                post_meta['changelog_message_id'] = receipt.get('changelog_message_id')
+            row.post_text = json.dumps(post_meta)
             if receipt.get('chat_id'):
                 row.chat_id = str(receipt['chat_id'])
                 row.message_thread_id = receipt.get('message_thread_id')
@@ -102,7 +115,10 @@ def publication_status(*, manifest=None, session_factory=None):
         row = db.query(models.TelegramDailyPostLog).filter_by(day_key=day, slot_key=slot).first()
         if row:
             result['status'] = row.status
-            result['message_id'] = json.loads(row.post_text or '{}').get('message_id')
+            meta = json.loads(row.post_text or '{}')
+            result['message_id'] = meta.get('message_id')
+            if meta.get('changelog_message_id'):
+                result['changelog_message_id'] = meta.get('changelog_message_id')
             if row.status == 'failed':
                 error = row.last_error or ''
                 result['failure_reason'] = (
