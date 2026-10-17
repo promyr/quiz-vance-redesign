@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:developer' as developer;
 
@@ -96,10 +97,11 @@ class AppObservability {
       stackTrace: stackTrace,
     );
 
-    if (_remoteReporter != null) {
-      try {
-        _remoteReporter!(name, error, stackTrace, attributes);
-      } catch (reporterError, reporterStack) {
+    final reporter = _remoteReporter;
+    if (reporter != null) {
+      unawaited(Future<void>.sync(
+        () => reporter(name, error, stackTrace, attributes),
+      ).catchError((Object reporterError, StackTrace reporterStack) {
         developer.log(
           'RemoteErrorReporter failed for $name',
           name: 'QuizVance',
@@ -107,7 +109,7 @@ class AppObservability {
           error: reporterError,
           stackTrace: reporterStack,
         );
-      }
+      }));
     }
   }
 

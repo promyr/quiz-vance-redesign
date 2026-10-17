@@ -18,7 +18,7 @@ Cada release deve ligar, em um manifesto:
 1. commit Git e confirmação de árvore limpa;
 2. versão completa do `pubspec.yaml`, incluindo `versionCode`;
 3. Alembic head;
-4. digest da imagem Fly;
+4. identificação do deploy/imagem do backend ativo;
 5. nome, tamanho e SHA-256 do APK;
 6. SHA-256 do certificado de assinatura;
 7. URL pública e SHA-256 baixado novamente;
@@ -44,10 +44,12 @@ falha fechado. Fallback para assinatura debug é proibido.
 
 ## Backend e migration
 
-O container executa como usuário não-root. Migration não roda no comando de
-startup: o Fly executa `alembic upgrade head` uma vez via `release_command`
-antes de trocar o tráfego. O deploy continua bloqueado sem backup/restore,
-head único e compatibilidade comprovada com APK N−1/N−2.
+O backend atual usa Render. O container executa como usuário não-root e
+`alembic upgrade head` deve concluir antes de iniciar o Gunicorn e seus workers.
+O arquivo Fly é legado e não comprova a configuração do serviço ativo.
+Mudanças de schema exigem backup/restore, head único e avaliação de
+compatibilidade com os APKs suportados. Retirar a migration do startup exige
+antes configurar uma etapa de deploy equivalente no serviço ativo.
 
 ## CI
 
@@ -61,6 +63,12 @@ O workflow:
 - gera SBOM para APK e imagem;
 - bloqueia vulnerabilidades altas no container;
 - fixa GitHub Actions por commit SHA.
+
+Flutter tem um job independente das credenciais de assinatura, executado em
+push e pull request. O APK assinado é gerado somente em tag `v*` ou execução
+manual, depois de todos os jobs de qualidade e segurança. Os entrypoints locais
+recusam fontes modificadas ou novas sem commit e verificam novamente o mesmo
+commit após o build. Não altere retroativamente `clean_tree` de releases antigas.
 
 ## Telegram
 

@@ -99,9 +99,10 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
   }) async {
     if (_biometricEnabled) {
       try {
-        return await ref
+        final authorization = await ref
             .read(adminBiometricAuthCoordinatorProvider)
             .authorize(scope: scope);
+        return mounted ? authorization : null;
       } catch (_) {
         // Cancelamento, falha do sensor ou credencial expirada: usa a senha.
       }
@@ -405,7 +406,7 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                               scope: AdminStepUpScope.createAiKey,
                               title: 'Adicionar chave de IA',
                             );
-                            if (authorization == null) return;
+                            if (authorization == null || !ctx.mounted) return;
                             setDialogState(() => isSaving = true);
                             try {
                               final service =
@@ -416,6 +417,7 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                                 label: labelCtrl.text.trim(),
                                 authorization: authorization,
                               );
+                              if (!mounted) return;
                               ref.invalidate(adminMasterKeysListProvider);
                               if (ctx.mounted) Navigator.of(ctx).pop();
                             } catch (error) {
@@ -626,6 +628,7 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                                 list,
                                 authorization: authorization,
                               );
+                              if (!mounted) return;
                               ref.invalidate(adminMasterKeysListProvider);
                             } catch (error) {
                               _showError(error);
@@ -781,6 +784,7 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                                                 v,
                                                 authorization: authorization,
                                               );
+                                              if (!mounted) return;
                                               ref.invalidate(
                                                   adminMasterKeysListProvider);
                                             } catch (error) {
@@ -809,6 +813,7 @@ class _AdminMasterKeysScreenState extends ConsumerState<AdminMasterKeysScreen> {
                                                 keyEntry.id,
                                                 authorization: authorization,
                                               );
+                                              if (!mounted) return;
                                               ref.invalidate(
                                                   adminMasterKeysListProvider);
                                             } catch (error) {

@@ -13,6 +13,8 @@ $PubspecLock = Join-Path $ProjectDir "pubspec.lock"
 $LocalPropertiesFile = Join-Path $ProjectDir "android\local.properties"
 $PubspecFile = Join-Path $ProjectDir "pubspec.yaml"
 Set-Location $ProjectDir
+. (Join-Path $PSScriptRoot 'release_source_guard.ps1')
+$sourceState = Assert-ReleaseSourceState -Repository $ProjectDir
 
 function Write-Step([string]$Message) {
     Write-Host "`n> $Message" -ForegroundColor Cyan
@@ -132,8 +134,8 @@ function Resolve-AppVersion {
             $candidate = $match.Matches[0].Groups[1].Value.Trim()
         }
     }
-    if ($candidate -notmatch '^\d+\.\d+\.\d+(\+([1-9]\d{0,9}))?$') {
-        throw "Versao ausente ou invalida. Use major.minor.patch (ex: 2.1.0) ou major.minor.patch+build."
+    if ($candidate -notmatch '^\d+\.\d+\.\d+\+([1-9]\d{0,9})$' -or [long]$Matches[1] -gt 2100000000) {
+        throw "Versao ausente ou invalida. Use major.minor.patch+build, com build entre 1 e 2100000000."
     }
     return $candidate
 }
@@ -158,7 +160,7 @@ function Get-ReleaseBuildArguments {
         "--target", "lib/main.dart", "--no-pub",
         "--build-name=$buildName", "--build-number=$buildNumber",
         "--dart-define=BACKEND_URL=$Backend",
-        "--dart-define=APP_VERSION=$buildName"
+        "--dart-define=APP_VERSION=$AppVersion"
     )
 }
 
@@ -176,10 +178,13 @@ Write-Host "  Version: $resolvedVersion" -ForegroundColor Gray
 Write-Host "  Flutter SDK: $script:FlutterCmd" -ForegroundColor Gray
 
 Ensure-Dependencies
+& (Join-Path $PSScriptRoot 'check_mojibake.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Release bloqueada: textos com codificacao suspeita.' }
 
 if ($Platform -eq "android") {
     Write-Step "Build Android APK"
     Invoke-Flutter -Arguments (Get-ReleaseBuildArguments -AppVersion $resolvedVersion -Backend $BackendUrl)
+    Assert-ReleaseSourceState -Repository $ProjectDir -ExpectedCommit $sourceState.commit | Out-Null
     $sourceApk = Join-Path $ProjectDir "build\\app\\outputs\\flutter-apk\\app-production-release.apk"
     $outputDir = Join-Path $ProjectDir "output_apk"
     $targetApk = Join-Path $outputDir "quiz-vance-$resolvedVersion-universal.apk"
@@ -214,12 +219,7 @@ if ($Platform -eq "android") {
     }
     $certificateSha256 = ($certificateLine.Line -split ":", 2)[1].Trim().ToUpperInvariant()
     $apkSha256 = (Get-FileHash -LiteralPath $targetApk -Algorithm SHA256).Hash
-    $previousErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    $gitCommit = (& git rev-parse HEAD 2>$null).Trim()
-    $gitStatus = @(& git status --porcelain 2>$null)
-    $gitStatusExitCode = $LASTEXITCODE
-    $ErrorActionPreference = $previousErrorActionPreference
+    Assert-ReleaseSourceState -Repository $ProjectDir -ExpectedCommit $sourceState.commit | Out-Null
     $manifest = [ordered]@{
         schema_version = 1
         app_version = $resolvedVersion
@@ -227,8 +227,8 @@ if ($Platform -eq "android") {
         size_bytes = (Get-Item -LiteralPath $targetApk).Length
         apk_sha256 = $apkSha256
         certificate_sha256 = $certificateSha256
-        commit = $gitCommit
-        clean_tree = ($gitStatusExitCode -eq 0 -and $gitStatus.Count -eq 0)
+        commit = $sourceState.commit
+        clean_tree = $sourceState.clean_tree
         backend_url = $BackendUrl
     }
     $manifest |

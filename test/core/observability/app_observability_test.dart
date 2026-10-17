@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_vance_flutter/core/observability/app_observability.dart';
 
@@ -47,5 +49,39 @@ void main() {
         'remote.crash', Exception('test'), StackTrace.current);
 
     expect(reportedName, equals('remote.crash'));
+  });
+
+  test('falha assíncrona do reporter não escapa ao handler global', () async {
+    final observability = AppObservability();
+    final failedReport = Completer<void>();
+    observability.registerRemoteReporter(
+      (_, __, ___, ____) => failedReport.future,
+    );
+
+    observability.reportError(
+      'remote.original_error',
+      StateError('original'),
+      StackTrace.current,
+    );
+    failedReport.completeError(StateError('reporter unavailable'));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(observability.recentEvents.single.name, 'remote.original_error');
+  });
+
+  test('falha síncrona do reporter preserva o erro original', () async {
+    final observability = AppObservability();
+    observability.registerRemoteReporter((_, __, ___, ____) {
+      throw StateError('reporter unavailable');
+    });
+
+    observability.reportError(
+      'remote.original_error',
+      StateError('original'),
+      StackTrace.current,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(observability.recentEvents.single.name, 'remote.original_error');
   });
 }

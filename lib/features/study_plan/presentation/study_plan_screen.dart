@@ -66,6 +66,7 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
   StudyDocument? _noticeDocument;
   List<StudyDocument> _noticeDocuments = const [];
   Timer? _noticePollTimer;
+  final Set<int> _refreshingNoticeDocumentIds = {};
   int _uploadProgress = 0;
   int _tempo = 30;
   bool _loading = false;
@@ -186,7 +187,7 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
     PickedStudyDocument? pickedDocument;
     try {
       pickedDocument = await pickStudyDocumentPdf();
-      if (pickedDocument == null) return;
+      if (pickedDocument == null || !mounted) return;
       final source = pickedDocument.source;
       final uploaded =
           await ref.read(studyPlanRepositoryProvider).uploadDocument(
@@ -315,10 +316,15 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
   }
 
   Future<void> _refreshNoticeDocument(int documentId) async {
+    if (!mounted ||
+        _noticeDocument?.id != documentId ||
+        !_refreshingNoticeDocumentIds.add(documentId)) {
+      return;
+    }
     try {
       final document =
           await ref.read(studyPlanRepositoryProvider).getDocument(documentId);
-      if (!mounted) return;
+      if (!mounted || _noticeDocument?.id != documentId) return;
       setState(() {
         _noticeDocument = document;
         _noticeDocuments = [
@@ -339,6 +345,8 @@ class _StudyPlanScreenState extends ConsumerState<StudyPlanScreen> {
       }
     } catch (_) {
       // O job permanece no servidor e sera consultado novamente.
+    } finally {
+      _refreshingNoticeDocumentIds.remove(documentId);
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -227,5 +229,97 @@ void main() {
     expect(find.textContaining('Porcentagem'), findsWidgets);
     expect(find.text('O edital terminou sem disciplinas confirmadas.'),
         findsNothing);
+  });
+
+  testWidgets('polling waits for the current request before starting another',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = _MockStudyPlanRepository();
+    final pending = Completer<StudyDocument>();
+    const processing = StudyDocument(
+      id: 60,
+      purpose: StudyDocumentPurpose.studyPlan,
+      fileName: 'processando.pdf',
+      sizeBytes: 200,
+      status: StudyDocumentStatus.analyzing,
+      progress: 60,
+      cargos: [],
+    );
+    when(repository.getActivePlan).thenAnswer((_) async => null);
+    when(() => repository.listDocuments(
+          purpose: StudyDocumentPurpose.studyPlan,
+        )).thenAnswer((_) async => [processing]);
+    when(() => repository.getDocument(60)).thenAnswer((_) => pending.future);
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [studyPlanRepositoryProvider.overrideWithValue(repository)],
+      child: const MaterialApp(home: StudyPlanScreen()),
+    ));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 2));
+
+    verify(() => repository.getDocument(60)).called(1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    pending.complete(processing);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('old polling response cannot replace the selected edital',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = _MockStudyPlanRepository();
+    final pending = Completer<StudyDocument>();
+    const processing = StudyDocument(
+      id: 60,
+      purpose: StudyDocumentPurpose.studyPlan,
+      fileName: 'antigo.pdf',
+      sizeBytes: 200,
+      status: StudyDocumentStatus.analyzing,
+      progress: 60,
+      cargos: [],
+    );
+    StudyDocument ready(int id, String fileName, String subject) {
+      return StudyDocument.fromJson({
+        'id': id,
+        'purpose': 'study_plan',
+        'file_name': fileName,
+        'status': 'ready',
+        'progress': 100,
+        'analysis_result': {
+          'cargo_id': 'analista',
+          'cargo': 'Analista',
+          'disciplinas': [
+            {
+              'nome': subject,
+              'topicos': ['Conteúdo confirmado']
+            },
+          ],
+        },
+      });
+    }
+
+    final selected = ready(61, 'novo.pdf', 'Matemática');
+    when(repository.getActivePlan).thenAnswer((_) async => null);
+    when(() => repository.listDocuments(
+          purpose: StudyDocumentPurpose.studyPlan,
+        )).thenAnswer((_) async => [processing, selected]);
+    when(() => repository.getDocument(60)).thenAnswer((_) => pending.future);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [studyPlanRepositoryProvider.overrideWithValue(repository)],
+      child: const MaterialApp(home: StudyPlanScreen()),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('novo.pdf'));
+    await tester.pumpAndSettle();
+    expect(find.text('Matemática'), findsOneWidget);
+
+    pending.complete(ready(60, 'antigo.pdf', 'Física'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Matemática'), findsOneWidget);
+    expect(find.text('Física'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

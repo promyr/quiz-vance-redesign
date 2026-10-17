@@ -4,6 +4,8 @@ param(
 
 $ErrorActionPreference = "Continue"
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $ProjectDir 'scripts/release_source_guard.ps1')
+$sourceState = Assert-ReleaseSourceState -Repository $ProjectDir
 $BackendConfigFile = Join-Path $ProjectDir "backend_url.txt"
 $LogFile = Join-Path $ProjectDir "build_log.txt"
 $LocalPropertiesFile = Join-Path $ProjectDir "android\local.properties"
@@ -280,6 +282,8 @@ if ($versionExitCode -ne 0) {
 }
 
 Ensure-Dependencies
+& (Join-Path $ProjectDir 'scripts/check_mojibake.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Release bloqueada: textos com codificacao suspeita.' }
 
 Write-Log "[2/3] flutter build apk --release (production universal)" "Yellow"
 Write-Log ""
@@ -305,6 +309,7 @@ if ($buildExitCode -ne 0) {
     Start-Process notepad $LogFile
     exit 1
 }
+Assert-ReleaseSourceState -Repository $ProjectDir -ExpectedCommit $sourceState.commit | Out-Null
 
 Write-Log ""
 Write-Log "[3/3] Copiando APK final..." "Yellow"
@@ -346,8 +351,7 @@ if (-not $certificateLine) {
 }
 $certificateSha256 = ($certificateLine.Line -split ":", 2)[1].Trim().ToUpperInvariant()
 $apkSha256 = (Get-FileHash -LiteralPath $universalTarget -Algorithm SHA256).Hash
-$gitCommit = (& git rev-parse HEAD 2>$null).Trim()
-$cleanTree = -not [bool](& git status --porcelain 2>$null)
+Assert-ReleaseSourceState -Repository $ProjectDir -ExpectedCommit $sourceState.commit | Out-Null
 $manifest = [ordered]@{
     schema_version = 1
     app_version = $AppVersion
@@ -355,8 +359,8 @@ $manifest = [ordered]@{
     size_bytes = (Get-Item -LiteralPath $universalTarget).Length
     apk_sha256 = $apkSha256
     certificate_sha256 = $certificateSha256
-    commit = $gitCommit
-    clean_tree = $cleanTree
+    commit = $sourceState.commit
+    clean_tree = $sourceState.clean_tree
     backend_url = $BackendUrl
 }
 $manifest |

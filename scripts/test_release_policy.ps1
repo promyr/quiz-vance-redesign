@@ -34,7 +34,6 @@ $workflow = Read-ProjectFile '.github/workflows/build.yml'
 $gradle = Read-ProjectFile 'android/app/build.gradle'
 $dockerfile = Read-ProjectFile 'backend/Dockerfile'
 $dockerIgnore = Read-ProjectFile 'backend/.dockerignore'
-$flyConfig = Read-ProjectFile 'backend/fly.toml'
 $buildApk = Read-ProjectFile 'BUILD_APK.ps1'
 $buildRelease = Read-ProjectFile 'scripts/build_release.ps1'
 $telegramPublisher = Read-ProjectFile 'backend/scripts/publish_telegram_release_link.py'
@@ -70,10 +69,8 @@ Assert-Matches $dockerfile 'scripts/publish_telegram_release_link\.py' `
     'A imagem deve incluir o publicador atômico do Telegram.'
 Assert-Matches $dockerIgnore '!scripts/publish_telegram_release_link\.py' `
     'O contexto Docker deve liberar somente o publicador do Telegram.'
-Assert-NotMatches $dockerfile '(?m)^CMD.*alembic\s+upgrade' `
-    'Migration não pode executar em todo startup do app.'
-Assert-Matches $flyConfig 'release_command\s*=\s*"alembic upgrade head"' `
-    'Fly deve executar migration uma vez como release command.'
+Assert-Matches $dockerfile '(?m)^CMD.*alembic upgrade head && exec gunicorn' `
+    'No Render atual, migration deve concluir antes do processo HTTP e dos workers.'
 
 Assert-Matches $buildApk 'quiz-vance-\$AppVersion-universal\.apk' `
     'O entrypoint Android deve produzir somente nome canônico versionado.'
@@ -90,6 +87,12 @@ Assert-Matches $buildRelease 'apksigner' `
     'Todo entrypoint oficial deve validar a assinatura do APK.'
 Assert-Matches $buildRelease 'release-manifest\.json' `
     'Todo entrypoint oficial deve gravar o manifesto de proveniência.'
+foreach ($entrypoint in @($buildApk, $buildRelease)) {
+    Assert-Matches $entrypoint 'Assert-ReleaseSourceState -Repository \$ProjectDir' `
+        'Todo entrypoint oficial deve bloquear fontes sem commit.'
+    Assert-Matches $entrypoint '-ExpectedCommit \$sourceState.commit' `
+        'Todo entrypoint oficial deve conferir o commit apos o build.'
+}
 Assert-NotMatches $buildRelease 'Build Windows|Build iOS|build appbundle' `
     'Plataformas removidas e artefatos paralelos devem ficar fora do release oficial.'
 

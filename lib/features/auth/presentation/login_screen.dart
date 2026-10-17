@@ -77,6 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final repository = ref.read(authRepositoryProvider);
       final cached = await repository.getCachedUser();
+      if (!mounted) return;
       final biometrics = ref.read(loginBiometricAuthCoordinatorProvider);
       final biometricReady =
           await biometrics.canUnlock().catchError((_) => false);
