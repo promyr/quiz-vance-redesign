@@ -35,3 +35,18 @@ As verificações locais de versão, CI, fonte limpa e codificação passaram.
 O PC estava com aproximadamente 1,2 GB livres; por solicitação do usuário,
 testes pesados não devem executar localmente. Flutter/backend e scanners serão
 validados no GitHub Actions. Não foi gerado nem anunciado um novo APK nesta rodada.
+
+## Retomada após mudanças do usuário
+
+A base passou a `4b32a14`, versão 2.1.11+83, com novo visual e PR #2 integrado.
+As mudanças visuais são preservadas. Os endpoints públicos confirmaram banco
+disponível, notas sem caractere de substituição e recibo Telegram da mensagem 1023.
+O recibo confirma uma entrega; isoladamente não comprova a validade atual de uma credencial.
+
+O CI dessa base ainda falhava em 13 casos Flutter: três setups dependiam de
+fontes em caminhos Windows e dez verificações de layout usavam Ahem no Linux
+porque o carregamento de fontes era silenciosamente ignorado. A correção usa
+fontes do mesmo SDK Flutter em qualquer plataforma, mantendo escalas e asserções.
+O registro Git órfão `.backend-source` também foi retirado do índice: não havia
+`.gitmodules` nem referências a ele nos scripts/docs. A pasta local é preservada
+e ignorada; o código canônico continua em `backend/`.

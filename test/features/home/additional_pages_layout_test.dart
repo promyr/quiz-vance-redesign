@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_vance_flutter/shared/providers/user_provider.dart';
@@ -9,6 +7,8 @@ import 'package:quiz_vance_flutter/features/conquistas/presentation/conquistas_s
 import 'package:quiz_vance_flutter/features/history/presentation/activity_history_screen.dart';
 import 'package:quiz_vance_flutter/features/history/data/history_repository.dart';
 import 'package:quiz_vance_flutter/features/history/domain/activity_entry.dart';
+
+import '../../support/test_fonts.dart';
 
 class Stats extends UserStatsNotifier {
   @override
@@ -25,27 +25,7 @@ class Stats extends UserStatsNotifier {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async {
-    if (!File(r'C:\Windows\Fonts\segoeui.ttf').existsSync()) {
-      return;
-    }
-    final font = FontLoader('VisualTestFont');
-    font.addFont(File(r'C:\Windows\Fonts\segoeui.ttf')
-        .readAsBytes()
-        .then(ByteData.sublistView));
-    await font.load();
-    if (!File(
-            r'C:\flutter\bin\cache\artifacts\material_fonts\MaterialIcons-Regular.otf')
-        .existsSync()) {
-      return;
-    }
-    final icons = FontLoader('MaterialIcons');
-    icons.addFont(File(
-            r'C:\flutter\bin\cache\artifacts\material_fonts\MaterialIcons-Regular.otf')
-        .readAsBytes()
-        .then(ByteData.sublistView));
-    await icons.load();
-  });
+  setUpAll(() => loadTestFonts(fontFamily: 'VisualTestFont'));
   for (final screen in <String, Widget>{
     'estatisticas': const StatsScreen(),
     'conquistas': const ConquistasScreen(),

@@ -7,7 +7,6 @@ import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -26,6 +25,8 @@ import 'package:quiz_vance_flutter/features/stats/presentation/stats_screen.dart
 import 'package:quiz_vance_flutter/shared/application/account_scoped_preferences.dart';
 import 'package:quiz_vance_flutter/shared/application/offline_sync_queue.dart';
 import 'package:quiz_vance_flutter/shared/providers/user_provider.dart';
+
+import '../support/test_fonts.dart';
 
 class StudentApi extends ApiClient {
   StudentApi() {
@@ -157,19 +158,7 @@ Future<void> click(WidgetTester tester, Finder target) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async {
-    final font = FontLoader('JourneyFont');
-    font.addFont(File(r'C:\Windows\Fonts\segoeui.ttf')
-        .readAsBytes()
-        .then(ByteData.sublistView));
-    await font.load();
-    final icons = FontLoader('MaterialIcons');
-    icons.addFont(File(
-            r'C:\flutter\bin\cache\artifacts\material_fonts\MaterialIcons-Regular.otf')
-        .readAsBytes()
-        .then(ByteData.sublistView));
-    await icons.load();
-  });
+  setUpAll(() => loadTestFonts(fontFamily: 'JourneyFont'));
   for (final scenario in [
     (width: 320.0, scale: 1.0, offline: false),
     (width: 360.0, scale: 1.6, offline: false),
