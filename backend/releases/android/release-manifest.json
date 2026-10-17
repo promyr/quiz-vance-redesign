@@ -10,7 +10,17 @@
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
   "build_number": 83,
   "published_at": "2026-10-17T16:05:00+00:00",
-  "telegram_publish_requested": true,
-  "release_notes": "Quiz Vance v2.1.11: Visual repaginado no sistema Dark Gamificado Vibrante (Deep Obsidian, Electric Cobalt, Cyber Mint e Gold) com botões e cards táteis 3D; tela Hoje enxuta com barra de XP unificada, atalho direto para o Ranking e Arena de Prática 2x2; execução de quiz de alto foco sem distrações e tela de resultado celebrativa.",
-  "changelog": "📢 CHANGELOG v2.1.11 (Build 83) — REPAGINAÇÃO VISUAL GAMIFICADA:\n\n🎨 1. Novo Design System Dark Gamificado Vibrante:\n• Paleta de alto contraste com fundo Deep Obsidian (#0A0E17), superfícies elevadas (#131B2E), Electric Cobalt (#3B82F6), Cyber Mint (#00E5A3) e Gold (#FFC800).\n• Botões, Bento Tiles e cards interativos com relevo tátil 3D inferior (estilo Duolingo/Brilliant Dark) e resposta física imediata ao toque.\n\n🏠 2. Tela Inicial ('Hoje') Enxuta e Orientada à Ação:\n• Remoção de blocos redundantes para eliminar poluição visual e rolagem desnecessária.\n• Barra de Progresso e XP unificada com Nível, Rank, XP acumulado e total de questões resolvidas.\n• Atalho direto para o Ranking Oficial (troféu dourado) no cabeçalho.\n• Arena de Prática balanceada em grade 2x2 (Quiz IA Turbo, Dissertativo, Simulado Oficial e Plano do Dia).\n\n⚡ 3. Execução de Quiz de Alto Foco & Resultado Celebrativo:\n• Cabeçalho limpo focado na barra de progresso, contador de questão e cronômetro.\n• Alternativas com badges táteis A/B/C/D e feedback semântico instantâneo.\n• Tela de Resultado com painel celebrativo de desempenho e recompensas.\n\n✅ 4. Qualidade, Segurança e Proveniência:\n• 542/542 testes automatizados aprovados (incluindo estresse de layout de 280px a 800px e fontes até 3.0x).\n• APK Universal assinado (V1/V2/V3) e alinhado em 16 KiB."
+  "telegram_publish_requested": false,
+  "telegram_publication_receipt": {
+    "version": "2.1.11",
+    "status": "sent",
+    "message_id": 1023,
+    "changelog_message_id": 1024,
+    "chat_id": -1003742591996,
+    "message_thread_id": 6,
+    "size_bytes": 40599698,
+    "sha256": "643701ED6F94DB58837F3D6A94810F6D2F1BA4985EE2F49F619C13A92DEFF501",
+    "telegram_url": "https://t.me/c/3742591996/6/1023"
+  },
+  "release_notes": "Quiz Vance v2.1.11: Visual repaginado no sistema Dark Gamificado Vibrante (Deep Obsidian, Electric Cobalt, Cyber Mint e Gold) com botões e cards táteis 3D; tela Hoje enxuta com barra de XP unificada, atalho direto para o Ranking e Arena de Prática 2x2; execução de quiz de alto foco sem distrações e tela de resultado celebrativa."
 }
