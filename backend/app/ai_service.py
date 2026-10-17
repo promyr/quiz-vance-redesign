@@ -14,6 +14,8 @@ from typing import Any
 import httpx
 
 from .ai_response_parsing import extract_json_list, extract_json_object
+from .generation_difficulty import DIFFICULTY_GUIDES as _NIVEL
+from .generation_difficulty import normalize_generation_difficulty
 from .material_sanitization import (
     _material_context_block,
     library_scope_rule,
@@ -193,60 +195,6 @@ def call_ai(
 
 
 # Prompt builders
-
-_NIVEL: dict[str, tuple[str, str]] = {
-    "iniciante": (
-        "INICIANTE",
-        "Perguntas diretas sobre conceitos basicos. Alternativas erradas contem erros claros.",
-    ),
-    "facil": (
-        "FACIL",
-        "Perguntas sobre fundamentos. Alternativas erradas trocam um detalhe especifico.",
-    ),
-    "intermediario": (
-        "INTERMEDIARIO",
-        "Exige entender relacoes entre conceitos ou aplicar regras a situacoes.",
-    ),
-    "dificil": (
-        "DIFICIL",
-        "Situacoes praticas que exigem analise. Alternativas erradas sao parcialmente corretas.",
-    ),
-    "mestre": (
-        "MESTRE",
-        "Casos complexos com multiplas interpretacoes plausiveis. Dominio profundo.",
-    ),
-    "medio": (
-        "INTERMEDIARIO",
-        "Exige entender relacoes entre conceitos ou aplicar regras a situacoes.",
-    ),
-    "avancado": (
-        "DIFICIL",
-        "Situacoes praticas que exigem analise. Alternativas erradas sao parcialmente corretas.",
-    ),
-    "easy": (
-        "FACIL",
-        "Perguntas sobre fundamentos. Alternativas erradas trocam um detalhe especifico.",
-    ),
-}
-
-
-_NIVEL["mixed"] = (
-    "MISTO (MEDIO E DIFICIL)",
-    (
-        "Alterne questoes de nivel medio e dificil. Nao gere questoes faceis ou de "
-        "mera memorizacao: exija relacoes, aplicacao, comparacao e analise. "
-        "Em lotes com pelo menos duas questoes, inclua ambos os niveis."
-    ),
-)
-_NIVEL["hard"] = _NIVEL["dificil"]
-
-
-def normalize_generation_difficulty(value: str | None) -> str:
-    """Current generation policy; historical question labels remain untouched."""
-    return "hard" if (value or "").strip().lower() in {
-        "hard", "dificil", "difícil", "avancado", "avançado", "mestre",
-    } else "mixed"
-
 
 _SYSTEM_QUIZ = (
     "Voce e o motor de questoes do Quiz Vance, app brasileiro de estudo.\n"

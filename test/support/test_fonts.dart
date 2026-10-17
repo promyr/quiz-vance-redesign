@@ -33,9 +33,9 @@ Future<void> loadTestFonts({String fontFamily = 'VisualTestFont'}) async {
     return ByteData.sublistView(bytes);
   }
 
-  final font = FontLoader(fontFamily)..addFont(readFont('roboto-regular.ttf'));
+  final font = FontLoader(fontFamily)..addFont(readFont('Roboto-Regular.ttf'));
   await font.load();
   final icons = FontLoader('MaterialIcons')
-    ..addFont(readFont('materialicons-regular.otf'));
+    ..addFont(readFont('MaterialIcons-Regular.otf'));
   await icons.load();
 }
