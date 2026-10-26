@@ -1,26 +1,16 @@
 {
   "schema_version": 1,
-  "app_version": "2.1.11",
-  "artifact": "quiz-vance-2.1.11.apk",
-  "size_bytes": 40599698,
-  "apk_sha256": "643701ED6F94DB58837F3D6A94810F6D2F1BA4985EE2F49F619C13A92DEFF501",
+  "app_version": "2.1.12",
+  "artifact": "quiz-vance-2.1.12.apk",
+  "size_bytes": 40587246,
+  "apk_sha256": "D76BD849A6BA4580E050A1FA4B6EE985C4C3764D8570BCFD7CF184EFF8EAF872",
   "certificate_sha256": "B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215",
-  "commit": "40d49b9edc8cac993fe52d1e461f1394328dd68d",
+  "commit": "985959c741668e21dbb73ec8982623aa997f38d5",
   "clean_tree": true,
   "backend_url": "https://quiz-vance-redesign-1.onrender.com",
-  "build_number": 83,
-  "published_at": "2026-10-17T16:05:00+00:00",
+  "build_number": 84,
+  "published_at": "2026-10-26T02:32:00+00:00",
   "telegram_publish_requested": false,
-  "telegram_publication_receipt": {
-    "version": "2.1.11",
-    "status": "sent",
-    "message_id": 1023,
-    "changelog_message_id": 1024,
-    "chat_id": -1003742591996,
-    "message_thread_id": 6,
-    "size_bytes": 40599698,
-    "sha256": "643701ED6F94DB58837F3D6A94810F6D2F1BA4985EE2F49F619C13A92DEFF501",
-    "telegram_url": "https://t.me/c/3742591996/6/1023"
-  },
-  "release_notes": "Quiz Vance v2.1.11: Visual repaginado no sistema Dark Gamificado Vibrante (Deep Obsidian, Electric Cobalt, Cyber Mint e Gold) com botões e cards táteis 3D; tela Hoje enxuta com barra de XP unificada, atalho direto para o Ranking e Arena de Prática 2x2; execução de quiz de alto foco sem distrações e tela de resultado celebrativa."
+  "release_notes": "Quiz Vance v2.1.12: Geração mista entre médio e difícil por padrão; modo exclusivamente difícil com ativação manual explícita em quiz, simulado e dissertativas; plano de estudos sem escalar para só difícil automaticamente; treino infinito preserva a escolha da sessão; visual Dark Gamificado Vibrante tátil 3D.",
+  "changelog": "📢 CHANGELOG v2.1.12 (Build 84) — POLÍTICA DE DIFICULDADE & REFINAMENTO:\n\n🎯 1. Geração Mista (Médio + Difícil) por Padrão:\n• Os quizzes, simulados e questões dissertativas agora combinam questões médias e difíceis automaticamente por padrão.\n• Novo seletor 'Modo Só Difícil' com ativação manual explícita (começa desligado por padrão).\n• O Plano de Estudos mantém o padrão misto sem forçar o modo difícil automaticamente.\n• O Treino Infinito preserva a escolha de dificuldade da sessão ativa.\n\n🎨 2. Design System Dark Gamificado Tátil 3D Consolidado:\n• Interface Deep Obsidian (#0A0E17), Electric Cobalt (#3B82F6), Cyber Mint (#00E5A3) e Gold (#FFC800) com resposta tátil 3D.\n\n✅ 3. Qualidade, CI e Proveniência:\n• 569/569 testes Flutter e 373/373 testes de backend aprovados.\n• Suporte a relatórios de assinatura do Android Build Tools 37 e Java 21 no pipeline de release."
 }
