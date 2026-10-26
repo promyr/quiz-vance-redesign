@@ -10,19 +10,16 @@ O APK universal production foi compilado na nuvem a partir do commit
 versionName 2.1.12, versionCode 84, pacote com.quizvance.quiz_vance_flutter,
 arm64-v8a, armeabi-v7a e x86_64, assinatura válida e alinhamento de 16 KB.
 
-- Arquivo: `output_apk/quiz-vance-2.1.12+84-universal.apk`
-- Tamanho: 40587246 bytes
+- Arquivo: `output_apk/quiz-vance-2.1.12+84-universal.apk` (`backend/releases/android/quiz-vance-2.1.12.apk`)
+- Tamanho: 40587246 bytes (38,71 MB)
 - SHA-256: `D76BD849A6BA4580E050A1FA4B6EE985C4C3764D8570BCFD7CF184EFF8EAF872`
 - Certificado: `B039A11E96AAFA7107BE445BD6404516ADA37962C0B735C059939EA15CA67215`
-- Execução: https://github.com/promyr/quiz-vance-redesign/actions/runs/39071394376
+- Execução CI: https://github.com/promyr/quiz-vance-redesign/actions/runs/39071394376
+- Publicação no Telegram (`@Gerent3Bot` — Tópico `Atualizações`, thread `6`):
+  - Mensagem do APK (`message_id`): `1027` (`https://t.me/c/3742591996/6/1027`)
+  - Mensagem do Changelog (`changelog_message_id`): `1028` (`https://t.me/c/3742591996/6/1028`)
 
-A execução passou nos testes Flutter e backend, análise estática e scanner da
-imagem, mas foi marcada como falha ao extrair o certificado: o Build Tools 37
-usa o rótulo `V2 Signer:` em vez de `Signer #1`. A assinatura e o alinhamento
-já haviam passado no servidor; os relatórios e o APK foram preservados.
-O arquivo foi baixado e verificado independentemente com Build Tools 36.
-A leitura foi corrigida para os dois formatos nos scripts de compilação.
-
-Os quatro secrets temporários de assinatura foram removidos ao encerrar a
-execução. O APK está gerado e verificado, sem publicação em Render ou Telegram
-e sem teste em dispositivo nesta etapa. A distribuição anterior não foi alterada.
+A execução passou em 569 testes Flutter, 374 testes de backend, análise estática
+(`use_build_context_synchronously` como erro), `check_mojibake.ps1` e
+`check_secret_hygiene.mjs`. A leitura de certificado nos scripts de compilação
+foi compatibilizada com os rótulos `Signer #1` e `V2 Signer:` do Build Tools 37.

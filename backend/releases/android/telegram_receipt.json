@@ -1,11 +1,11 @@
 {
-  "version": "2.1.11",
+  "version": "2.1.12",
   "status": "sent",
-  "message_id": 1023,
-  "changelog_message_id": 1024,
+  "message_id": 1027,
+  "changelog_message_id": 1028,
   "chat_id": -1003742591996,
   "message_thread_id": 6,
-  "size_bytes": 40599698,
-  "sha256": "643701ED6F94DB58837F3D6A94810F6D2F1BA4985EE2F49F619C13A92DEFF501",
-  "telegram_url": "https://t.me/c/3742591996/6/1023"
+  "size_bytes": 40587246,
+  "sha256": "D76BD849A6BA4580E050A1FA4B6EE985C4C3764D8570BCFD7CF184EFF8EAF872",
+  "telegram_url": "https://t.me/c/3742591996/6/1027"
 }
