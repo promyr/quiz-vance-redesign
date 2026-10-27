@@ -151,7 +151,8 @@ def _require_supported_app_version(app_version: str | None) -> None:
         raise HTTPException(status_code=426, detail=_app_update_required_detail())
 
 
-@router.api_route("/app/download/android/latest.apk", methods=["GET", "HEAD"])
+@router.get("/app/download/android/latest.apk")
+@router.head("/app/download/android/latest.apk", include_in_schema=False)
 def app_download_android_latest():
     apk_path = _android_release_file_path()
     if not os.path.isfile(apk_path):
@@ -164,7 +165,8 @@ def app_download_android_latest():
     )
 
 
-@router.api_route("/app/download/android/{version}.apk", methods=["GET", "HEAD"])
+@router.get("/app/download/android/{version}.apk")
+@router.head("/app/download/android/{version}.apk", include_in_schema=False)
 def app_download_android_version(version: str):
     apk_path = _android_versioned_release_file_path(version)
     if not apk_path or not os.path.isfile(apk_path):
