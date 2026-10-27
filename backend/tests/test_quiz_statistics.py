@@ -40,4 +40,15 @@ def test_quiz_results_update_account_statistics_without_duplicate_counting(monke
         assert stats['total_xp'] == stats['today_xp'] == 10
         other = client.get('/user/stats', headers={'Authorization': 'other'}).json()
         assert other['total_questoes'] == other['total_xp'] == 0
+        for period in ('weekly', 'monthly', 'alltime', 'global'):
+            ranking_resp = client.get(f'/ranking/{period}', headers=headers)
+            assert ranking_resp.status_code == 200
+            ranking_payload = ranking_resp.json()
+            assert ranking_payload['current_user_position'] == 1
+            assert len(ranking_payload['ranking']) == 1
+            top = ranking_payload['ranking'][0]
+            assert top['name'] == 'student'
+            assert top['xp'] == 10
+            assert top['is_current_user'] is True
+            assert round(top['accuracy'], 1) == 33.3
     engine.dispose()

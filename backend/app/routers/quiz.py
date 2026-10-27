@@ -1153,7 +1153,7 @@ def generate_library_package(
 
 def _build_ranking_response(user: models.User, db: Session, period: str) -> dict:
     today = datetime.now(timezone.utc).date()
-    stats_q = db.query(
+    agg_q = db.query(
         models.QuizStatsDaily.user_id.label("user_id"),
         func.coalesce(func.sum(models.QuizStatsDaily.questoes), 0).label(
             "total_questoes"
@@ -1165,21 +1165,26 @@ def _build_ranking_response(user: models.User, db: Session, period: str) -> dict
     )
     if period == "weekly":
         week_start = today - timedelta(days=today.weekday())
-        stats_q = stats_q.filter(models.QuizStatsDaily.day_key >= week_start)
+        agg_q = agg_q.filter(models.QuizStatsDaily.day_key >= week_start)
     elif period == "monthly":
         month_start = today.replace(day=1)
-        stats_q = stats_q.filter(models.QuizStatsDaily.day_key >= month_start)
+        agg_q = agg_q.filter(models.QuizStatsDaily.day_key >= month_start)
 
-    # Group by user and join with users table for name/avatar
+    agg_subq = agg_q.group_by(models.QuizStatsDaily.user_id).subquery()
+
     stats_q = (
-        stats_q.group_by(models.QuizStatsDaily.user_id)
-        .join(models.User, models.User.id == models.QuizStatsDaily.user_id)
-        .add_columns(
+        db.query(
+            agg_subq.c.user_id.label("user_id"),
+            agg_subq.c.total_questoes.label("total_questoes"),
+            agg_subq.c.total_acertos.label("total_acertos"),
+            agg_subq.c.period_xp.label("period_xp"),
             models.User.name.label("user_name"),
             models.User.avatar_url.label("avatar_url"),
             models.User.level.label("user_level"),
+            models.User.streak_days.label("streak_days"),
         )
-        .order_by(func.coalesce(func.sum(models.QuizStatsDaily.xp_ganho), 0).desc())
+        .join(models.User, models.User.id == agg_subq.c.user_id)
+        .order_by(agg_subq.c.period_xp.desc(), agg_subq.c.total_acertos.desc())
         .limit(100)
     )
 
@@ -1189,15 +1194,25 @@ def _build_ranking_response(user: models.User, db: Session, period: str) -> dict
     current_user_position: int | None = None
 
     for position, row in enumerate(rows, start=1):
+        total_q = int(row.total_questoes or 0)
+        total_a = int(row.total_acertos or 0)
+        period_xp = int(row.period_xp or 0)
+        display_name = row.user_name or "Usuário"
+        accuracy = round((total_a / total_q) * 100.0, 1) if total_q > 0 else 0.0
         entry = {
             "position": position,
             "user_id": row.user_id,
-            "user_name": row.user_name or "Usuário",
+            "name": display_name,
+            "user_name": display_name,
             "avatar_url": row.avatar_url,
             "user_level": row.user_level or "Bronze",
-            "period_xp": int(row.period_xp or 0),
-            "total_questoes": int(row.total_questoes or 0),
-            "total_acertos": int(row.total_acertos or 0),
+            "xp": period_xp,
+            "period_xp": period_xp,
+            "total_questoes": total_q,
+            "total_acertos": total_a,
+            "accuracy": accuracy,
+            "streak_days": int(row.streak_days or 0),
+            "is_current_user": row.user_id == user.id,
         }
         ranking_list.append(entry)
         if row.user_id == user.id:
@@ -1216,9 +1231,11 @@ def get_ranking(
     authorization: str | None = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
 ):
-    if period not in ("weekly", "monthly", "alltime"):
+    normalized_period = "alltime" if period == "global" else period
+    if normalized_period not in ("weekly", "monthly", "alltime"):
         raise HTTPException(
-            status_code=400, detail="Período inválido. Use: weekly, monthly, alltime"
+            status_code=400,
+            detail="Período inválido. Use: weekly, monthly, alltime, global",
         )
     user = _require_user(authorization, db)
-    return _build_ranking_response(user, db, period)
+    return _build_ranking_response(user, db, normalized_period)
